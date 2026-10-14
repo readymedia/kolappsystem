@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Fonter lastes fra eget domene via npm (@fontsource), ingen kall til Google. */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-paper: #fbfaf8;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-slate-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* «Din tur»-skjermen: nummeret pulserer rolig. */
+@keyframes pulsering {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.pulser { animation: pulsering 1.8s ease-in-out infinite; }
+
+/* Storskjerm: kolonnen blinker kort når et nytt nummer kalles. */
+@keyframes kallblink {
+  0%, 100% { opacity: 1; transform: translateY(0); }
+  40% { opacity: 0.35; transform: translateY(-4px); }
+}
+.kallblink { animation: kallblink 0.9s ease-in-out 4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulser, .kallblink { animation: none; }
+}
+
+/* Utskrift av QR-koder fra /admin: én stasjon per side. */
+@media print {
+  body { background: #fff; }
+  .print-page { break-after: page; break-inside: avoid; }
+  .print-page:last-child { break-after: auto; }
+}

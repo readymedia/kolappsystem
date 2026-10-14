@@ -1,0 +1,100 @@
+# AGENTS.md – guide for AI-agenter (og mennesker)
+
+Les denne filen helt før du endrer noe. Den er skrevet for at en hvilken som helst AI-assistent (Claude, Copilot, Cursor, ChatGPT m.fl.) raskt skal forstå prosjektet og jobbe trygt i det.
+
+## 1. Hva prosjektet er
+
+Kølappsystem for meet-and-greet med tre faste stasjoner (A, B, C) på en konferanse med noen hundre deltakere. Publikum skanner QR → får kølapp → følger køen på mobilen. Operatører trykker NESTE. Storskjerm viser hvem som betjenes. Alt på **norsk** (bokmål).
+
+Produksjon: Vercel **Hobby** (gratis) + Neon Postgres **Free**. Begge har harde grenser – se §6.
+
+## 2. Kart over koden
+
+```
+db/migrations/        SQL-migreringer (001_init.sql …). Aldri endre en kjørt migrering – lag en ny.
+scripts/migrate.mjs   Kjører migreringer + startdata. Kjøres av `npm run build` (dvs. hver Vercel-deploy).
+scripts/reset-pin.mjs Nødløsning ved glemt PIN (se docs/SIKKERHET.md).
+src/lib/
+  config.ts           Konstanter: stasjoner, intervaller, grenser, farger per stasjon. Ingen hemmeligheter.
+  texts.ts            Publikumstekster og feilkoder (ERROR_TEXT). Endre tekster HER.
+  public-state.ts     Typer for offentlige API-svar + deriveTicket() (ren logikk, testet).
+  db.ts               Postgres-tilkobling (server-only).
+  queue.ts            ALL forretningslogikk for køen (server-only). Atomiske transaksjoner.
+  auth.ts             PIN-innlogging, økt (JWT i httpOnly-cookie), bytte av PIN (server-only).
+  rate-limit.ts       Forsøksgrenser i Postgres (server-only).
+  http.ts             Felles API-hjelpere: handle(), ok(), fail(), Origin-sjekk (server-only).
+  pin-hash.mjs        scrypt-hash + tilfeldige nøkler. .mjs fordi migrate-skriptet også bruker den.
+  client-api.ts       fetch-hjelper for nettleseren.
+src/components/       hooks.ts (usePolling, useWakeLock), ui.tsx, PinGate, LogoutButton.
+src/app/              Sider (App Router) og API-ruter under src/app/api/.
+tests/unit/           Rene tester (ingen database).
+tests/integration/    Tester mot ekte Postgres (krever TEST_DATABASE_URL). Sletter data!
+docs/                 Menneskelig og AI-vennlig dokumentasjon.
+```
+
+## 3. Invarianter – ALDRI bryt disse
+
+1. **Hemmeligheter forlater aldri serveren.** `join_key`, `pin_hash` og `session_secret` skal bare leses i `queue.ts`/`auth.ts`, og kun returneres fra `/api/admin/*` (nøkkel/QR) bak innlogging. `/api/state` og `/api/tickets/:id` skal aldri inneholde dem (det finnes en test for dette).
+2. **Nettleseren snakker aldri med databasen direkte.** All tilgang går via `src/app/api/*`.
+3. **Alle køendringer skjer i én transaksjon som låser stasjonsraden** (`lockStation()` i `queue.ts`). Det er dette som hindrer duplikatnummer og to kalte lapper. Ikke del en operasjon opp i flere kall fra klienten.
+4. **Alle endrings-ruter bruker `handle(req, { mutation: true, ... })`** (Origin-sjekk) og beskyttede ruter `requireSession: true`.
+5. **PIN sjekkes kun på serveren** mot scrypt-hash. Aldri lagre eller logge PIN i klartekst.
+6. **Publikum skal aldri se tekniske feil.** Bruk koder fra `ERROR_TEXT` i `texts.ts`.
+7. **Ikke øk polling-frekvensen eller fjern CDN-mellomlagringen av `/api/state`** uten å regne på Hobby-budsjettet (§6).
+8. Moduler med `import "server-only"` skal aldri importeres fra klientkomponenter (bare `import type`).
+
+## 4. Vanlige oppgaver
+
+| Oppgave | Hvor |
+| --- | --- |
+| Endre en tekst publikum ser | `src/lib/texts.ts` eller siden i `src/app/…` + oppdater `docs/UI-SPEC.md` |
+| Endre farger per stasjon | `STATION_THEME` i `src/lib/config.ts` |
+| Endre ventetid-formel | `waitText()` i `src/lib/texts.ts` (+ test i `tests/unit/logic.test.ts`) |
+| Ny kolonne/tabell | Ny fil `db/migrations/00N_navn.sql`, oppdater typer i `queue.ts` |
+| Ny API-rute | `src/app/api/…/route.ts`, bruk `handle()` fra `http.ts` |
+| Ny operatørhandling | Funksjon i `queue.ts` (transaksjon + `lockStation`), case i `api/operator/[station]/[action]/route.ts`, knapp i `OperatorClient.tsx`, integrasjonstest |
+
+Flere stasjoner enn A/B/C krever endring i: `STATION_IDS` (config.ts), `CHECK`-regel på `stations.id` (ny migrering), `STATION_SEED` (migrate.mjs) og `STATION_THEME`.
+
+## 5. Arbeidsflyt
+
+```bash
+npm install
+npm run check                      # typecheck + lint + enhetstester – SKAL være grønt før commit
+TEST_DATABASE_URL=postgres://… npm run test:integration   # mot en TOM testdatabase
+npm run build                      # verifiser at det bygger
+```
+
+Next.js 16-merknader: `params`/`searchParams` er Promises (`await params`), `cookies()` er async, Turbopack er standard. Det finnes ingen `middleware.ts`; sikkerhetshoder settes i `next.config.ts`.
+
+## 6. Vercel Hobby og Neon Free – grenser du må respektere
+
+| Ressurs (per måned) | Grense | Hva appen bruker (anslag, én konferansedag, 300 brukere) |
+| --- | --- | --- |
+| CDN-forespørsler (Vercel) | 1 000 000 | ca. 170 000 |
+| Funksjonskall (Vercel) | 1 000 000 | ca. 60 000 |
+| Active CPU (Vercel) | 4 timer | noen få minutter |
+| Compute (Neon Free) | 100 CU-timer | ca. 3 CU-timer |
+| Lagring (Neon Free) | 1 GB | under 10 MB |
+
+Går Vercel Hobby over grensen, **stoppes prosjektet i 30 dager**. Derfor:
+- `/api/state` er felles for alle og mellomlagres 1 s på CDN (`CDN-Cache-Control`). Kølapper og storskjerm leser bare den.
+- Polling pauser når fanen er skjult og stopper når lappen er ferdig.
+- Utregningen står i `docs/ARKITEKTUR.md` §6.
+
+Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLUTNINGER.md` ADR-007.
+
+## 7. Versjonering og commits
+
+- SemVer. Patch = feilretting, minor = ny funksjon, major = endring som krever ny QR-utskrift eller migrering med datatap.
+- Ved release: oppdater `CHANGELOG.md` (nyeste øverst), `version` i `package.json`, commit, `git tag vX.Y.Z`, push med `--tags`.
+- Commit-meldinger: kort imperativ på norsk eller engelsk, f.eks. `fix: hindre dobbel kalling ved samtidig NESTE`. Prefikser: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`.
+- Git-bruker for dette repoet: `readymedia` / `magnus@readymedia.no`.
+- `main` deployes automatisk til produksjon på Vercel. Bruk en gren + PR for større endringer (får egen forhåndsvisnings-URL).
+
+## 8. Før du sier «ferdig»
+
+- [ ] `npm run check` er grønt
+- [ ] Integrasjonstester er grønne hvis du rørte `queue.ts`, `auth.ts`, `rate-limit.ts` eller SQL
+- [ ] `npm run build` fungerer
+- [ ] Dokumentasjonen er oppdatert (UI-SPEC ved tekstendringer, ARKITEKTUR ved API/datamodell, CHANGELOG alltid)
