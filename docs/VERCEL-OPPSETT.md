@@ -89,4 +89,7 @@ Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig
 | Byggeloggen sier `DATABASE_URL er ikke satt` selv om Neon er koblet til | Et prefiks er fylt inn, så variabelen heter noe annet. Fjern prefikset under **Configure** og deploy på nytt. |
 | Byggfeil `[migrate] feilet` | Sjekk at Neon er koblet til (Settings → Environment Variables skal ha `DATABASE_URL`). |
 | Glemt PIN | Se `docs/SIKKERHET.md` → «Glemt PIN». |
+| Usikker på hvilken versjon som kjører | Se blått «Production»-merke i Deployments, eller `/api/health`. Se `docs/DRIFT.md` → «Deploy og versjoner». |
+| Mange «Preview»-bygg med `chore(deps)` | Dependabot-PR-er. Ufarlige – de har ingen database og endrer ikke produksjon. |
+| Varsel om Node.js-versjon i byggeloggen | Ufarlig. Sett Settings → Node.js Version til 22.x for å fjerne det. |
 | Prosjektet er pauset | Hobby-grensen er nådd (svært usannsynlig, se `AGENTS.md` §6). Oppgrader til Pro midlertidig. |

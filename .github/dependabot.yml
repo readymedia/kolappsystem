@@ -1,4 +1,7 @@
 # Ukentlige sikkerhets- og versjonsoppdateringer som pull requests (merges manuelt etter grønn CI).
+# Hovedversjoner (major) av npm-pakker foreslås IKKE automatisk: de kan bryte rammeverk, verktøy eller
+# Node-versjonen appen kjører på (f.eks. TypeScript 7, @types/node 26). Slike oppgraderinger gjøres bevisst,
+# på egen gren, med full testkjøring. Sikkerhetsoppdateringer kommer uansett.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,6 +10,9 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       prod-deps:
         dependency-type: production

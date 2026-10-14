@@ -13,6 +13,40 @@ Kjør røyktesten etter hver deploy og morgenen før arrangementet.
 
 **Ekstern overvåking (valgfritt):** En tjeneste som UptimeRobot kan kalle `/api/health`. Sett intervallet til **én gang i timen eller sjeldnere**. Neon Free sover etter 5 minutter uten trafikk, og hyppigere kall holder databasen våken døgnet rundt. Det bruker opp de 100 gratis CU-timene i måneden.
 
+## Deploy og versjoner
+
+**Hvilken versjon kjører i produksjon?** Sjekk ett av disse:
+
+| Hvor | Hva du ser |
+| --- | --- |
+| Vercel → **Deployments** | Raden med **blått «Production»-merke** er den som kjører nå. Commit-koden (f.eks. `cb2c269`) står på raden. |
+| `https://kolappsystem.vercel.app/api/health` | `"version"` og `"commit"` for koden som kjører. |
+| `/admin` → «Om appen» | Versjon og commit. |
+
+Commit-koden skal være den samme som den nyeste committen på `main` i GitHub.
+
+**Regler for deploy:**
+
+- **Ny versjon = push til `main`.** Vercel bygger og setter den i produksjon automatisk, og migreringer kjøres.
+- **Ikke trykk «Redeploy» på en eldre rad.** Da settes gammel kode i produksjon (tilbakerulling). «Redeploy» skal bare brukes på den **øverste Production-raden**, f.eks. etter endret innstilling eller miljøvariabel.
+- **Ikke bruk «Promote» eller «Instant Rollback»** uten å vite hva du gjør, se «Under arrangementet».
+- **Rader merket «Preview»** (f.eks. `chore(deps)…`) er test-bygg fra pull requests. De har ingen database koblet til, hopper over migrering (`[migrate] VERCEL_ENV=preview – hopper over migrering`) og påvirker aldri produksjon. De kan ignoreres.
+
+**Node-versjon:** Appen er låst til Node 22 (`engines` i `package.json`). Står Project Settings i Vercel på en annen versjon (f.eks. 24.x), viser byggeloggen et varsel om at 22.x brukes. Det er ufarlig. Fjern varselet ved å sette Settings → Build and Deployment → **Node.js Version** til **22.x**.
+
+## Avhengigheter (Dependabot)
+
+Dependabot lager pull requests med oppdateringer hver mandag. Hver PR får automatisk CI (alle tester) og et forhåndsvisningsbygg i Vercel.
+
+| Type oppdatering | Hva skjer | Hva du gjør |
+| --- | --- | --- |
+| Feilrettinger og små oppdateringer (patch/minor) | Samlet i én PR for produksjon og én for utvikling | Merge når CI er grønn – helst ikke rett før et arrangement |
+| Sikkerhetsoppdateringer | Egen PR | Merge når CI er grønn |
+| Hovedversjoner av npm-pakker (major) | **Foreslås ikke** (`ignore` i `.github/dependabot.yml`) | Oppgraderes bevisst på egen gren med full testkjøring |
+| GitHub Actions | Månedlig PR | Merge når CI er grønn (påvirker bare CI, ikke appen) |
+
+Hvorfor majors er slått av: I oktober 2026 foreslo Dependabot TypeScript 7 (CI feilet, verktøyene støtter bare TypeScript under 6.1) og `@types/node` 26 (passer ikke Node 22, som appen kjører på). Slike PR-er skal lukkes, ikke merges.
+
 ## Under arrangementet
 
 - **Frys deploy.** Ikke push til `main` mens arrangementet pågår, fordi hver push deployer og migrerer produksjon. Gjør endringer på en egen gren.

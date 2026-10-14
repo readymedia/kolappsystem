@@ -109,7 +109,9 @@ Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLU
 - Ved release: oppdater `CHANGELOG.md` (nyeste øverst), `version` i `package.json`, commit, `git tag vX.Y.Z`, push med `--tags`. Kan ikke tagger pushes fra verktøyet ditt, lag dem i GitHub under **Releases → Draft a new release**.
 - Commit-meldinger: kort imperativ på norsk eller engelsk, f.eks. `fix: hindre dobbel kalling ved samtidig NESTE`. Prefikser: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`.
 - Git-bruker for dette repoet: `readymedia` / `magnus@readymedia.no`.
-- `main` deployes automatisk til produksjon på Vercel. Bruk en gren + PR for større endringer (får egen forhåndsvisnings-URL).
+- `main` deployes automatisk til produksjon på Vercel. Bruk en gren + PR for større endringer (får egen forhåndsvisnings-URL uten database).
+- Hvilken versjon som kjører i produksjon: `GET /api/health` (`version`, `commit`) eller blått «Production»-merke i Vercel → Deployments. Aldri «Redeploy» av en eldre rad (= tilbakerulling). Se `docs/DRIFT.md` → «Deploy og versjoner».
+- Avhengigheter: Dependabot foreslår bare patch/minor for npm. Hovedversjoner (TypeScript, `@types/node`, Next.js, React, ESLint osv.) oppgraderes bevisst på egen gren. `@types/node` skal følge Node-versjonen i `engines` (22).
 
 ## 8. Før du sier «ferdig»
 

@@ -2,6 +2,20 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.1.1] – 2026-10-14
+
+### Endret
+- ESLint 10 (fjerner varsel om utdatert ESLint 9). Kun utviklingsverktøy.
+- GitHub Actions v7 (`checkout`, `setup-node`, `upload-artifact`). Kun CI.
+- Dependabot foreslår ikke lenger hovedversjoner av npm-pakker automatisk.
+
+### Avvist
+- TypeScript 7 (CI feilet – lint-verktøyene støtter bare TypeScript under 6.1) og `@types/node` 26 (passer ikke Node 22).
+
+### Dokumentasjon
+- `docs/DRIFT.md`: «Deploy og versjoner» (hvordan se hva som kjører, aldri redeploy av eldre rad, preview-bygg) og «Avhengigheter (Dependabot)».
+- Feilsøking i `docs/VERCEL-OPPSETT.md` for preview-bygg, versjon og Node-varsel.
+
 ## [1.1.0] – 2026-10-14
 
 Runde med sikkerhetsrevisjon, stabilitet og flere tester for drift i produksjon. Se `docs/PRODKLARHET.md`.
