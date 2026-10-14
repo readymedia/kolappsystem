@@ -17,7 +17,7 @@ Før du gjør noe:
 
 Rammer:
 - Drift: Vercel Hobby (gratis) + Neon Postgres Free. Ikke legg til betalte tjenester,
-  og ikke øk antall serverkall uten å regne på budsjettet i AGENTS.md §6.
+  og ikke øk antall serverkall uten å regne på budsjettet i AGENTS.md §7.
 - Stack: Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind CSS 4,
   Postgres via pakken «postgres». Ingen ORM.
 - All UI-tekst på norsk (bokmål). Kode og variabelnavn på engelsk.

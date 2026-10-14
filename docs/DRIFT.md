@@ -51,7 +51,7 @@ Hvorfor majors er slått av: I oktober 2026 foreslo Dependabot TypeScript 7 (CI 
 
 - **Frys deploy.** Ikke push til `main` mens arrangementet pågår, fordi hver push deployer og migrerer produksjon. Gjør endringer på en egen gren.
 - **Ikke bruk «Promote» eller «Instant Rollback»** uten å vite hva du gjør. De kjører ikke migreringer, så ny kode kan møte gammelt skjema. Rull heller tilbake med `git revert` og vanlig deploy.
-- **Følg med på forbruket:** Vercel → prosjektet → **Usage**. Grensene står i `AGENTS.md` §6.
+- **Følg med på forbruket:** Vercel → prosjektet → **Usage**. Grensene står i `AGENTS.md` §7.
 - **Ved mistanke om misbruk** (mange falske lapper, uvanlig trafikk):
   1. `/admin` → «Bytt nøkkel» for stasjonen og heng opp ny QR.
   2. `/admin` → «Fjern ventende lapper …» for nummerområdet med falske lapper.
@@ -89,7 +89,7 @@ Et nettverk er én IPv4-adresse, eller ett IPv6-/64-nett. Grensene settes i `src
 | «Det står allerede svært mange i kø fra dette nettverket» | Over 100 ventende fra samme nett | Skjer ved flom fra en delt QR. Fjern falske lapper og bytt nøkkel. |
 | Operatør kastes ut til PIN-skjermen | PIN er byttet, eller økta er utløpt (24 t uten bruk) | Logg inn igjen. Køen er uendret. |
 | `/api/health` gir `db: "error"` | Neon utilgjengelig eller kvote brukt opp | Neon-konsollen → Monitoring. Vercel → Storage. |
-| Prosjektet er pauset | Hobby-kvote brukt opp | Oppgrader til Pro, eller vent 30 dager. Se `AGENTS.md` §6. |
+| Prosjektet er pauset | Hobby-kvote brukt opp | Oppgrader til Pro, eller vent 30 dager. Se `AGENTS.md` §7. |
 
 ## Logger
 

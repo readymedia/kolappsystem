@@ -92,4 +92,4 @@ Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig
 | Usikker på hvilken versjon som kjører | Se blått «Production»-merke i Deployments, eller `/api/health`. Se `docs/DRIFT.md` → «Deploy og versjoner». |
 | Mange «Preview»-bygg med `chore(deps)` | Dependabot-PR-er. Ufarlige – de har ingen database og endrer ikke produksjon. |
 | Varsel om Node.js-versjon i byggeloggen | Ufarlig. Sett Settings → Node.js Version til 22.x for å fjerne det. |
-| Prosjektet er pauset | Hobby-grensen er nådd (svært usannsynlig, se `AGENTS.md` §6). Oppgrader til Pro midlertidig. |
+| Prosjektet er pauset | Hobby-grensen er nådd (svært usannsynlig, se `AGENTS.md` §7). Oppgrader til Pro midlertidig. |

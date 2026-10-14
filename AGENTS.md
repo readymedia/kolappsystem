@@ -6,7 +6,7 @@ Les denne filen helt før du endrer noe. Den er skrevet for at en hvilken som he
 
 Kølappsystem for meet-and-greet med tre faste stasjoner (A, B, C) på en konferanse med noen hundre deltakere. Publikum skanner QR → får kølapp → følger køen på mobilen. Operatører trykker NESTE. Storskjerm viser hvem som betjenes. Alt på **norsk** (bokmål).
 
-Produksjon: Vercel **Hobby** (gratis) + Neon Postgres **Free**. Begge har harde grenser – se §6.
+Produksjon: Vercel **Hobby** (gratis) + Neon Postgres **Free**. Begge har harde grenser – se §7.
 
 | Miljø | Verdi |
 | --- | --- |
@@ -52,13 +52,19 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 4. **Alle endrings-ruter bruker `handle(req, { mutation: true, ... })`** (Origin-sjekk) og beskyttede ruter `requireSession: true`.
 5. **PIN sjekkes kun på serveren** mot scrypt-hash. Aldri lagre eller logge PIN i klartekst.
 6. **Publikum skal aldri se tekniske feil.** Bruk koder fra `ERROR_TEXT` i `texts.ts`.
-7. **Ikke øk polling-frekvensen eller fjern CDN-mellomlagringen av `/api/state`** uten å regne på Hobby-budsjettet (§6).
+7. **Ikke øk polling-frekvensen eller fjern CDN-mellomlagringen av `/api/state`** uten å regne på Hobby-budsjettet (§7).
 8. Moduler med `import "server-only"` skal aldri importeres fra klientkomponenter (bare `import type`).
 9. **Alle køtransaksjoner går via `begin()` i `queue.ts`** (setter `lock_timeout`/`statement_timeout`). Aldri `getSql().begin` direkte for skriving.
 10. **Utviklerinfo («Om appen») vises bare i `/admin`.** Publikumssidene skal ikke vise den (E2E-test sjekker dette).
 11. **IP-adresser lagres aldri**, bare `networkFingerprint()` (HMAC) i `tickets.ip_hash`.
 
-## 4. Vanlige oppgaver
+## 4. Planlagt arbeid
+
+Neste utvidelser (v1.2 skjermer, v1.3 fleksible stasjoner, v1.4 utseende/logo) er beskrevet i detalj i
+`docs/PLAN-UTVIDELSER.md`. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
+
+## 5. Vanlige oppgaver
 
 | Oppgave | Hvor |
 | --- | --- |
@@ -71,7 +77,7 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 
 Flere stasjoner enn A/B/C krever endring i: `STATION_IDS` (config.ts), `CHECK`-regel på `stations.id` (ny migrering), `STATION_SEED` (migrate.mjs) og `STATION_THEME`.
 
-## 5. Arbeidsflyt
+## 6. Arbeidsflyt
 
 ```bash
 npm install
@@ -86,7 +92,7 @@ Lokalt uten nedlastbar Playwright-nettleser: sett `PW_CHROMIUM_PATH` til en Chro
 
 Next.js 16-merknader: `params`/`searchParams` er Promises (`await params`), `cookies()` er async, Turbopack er standard. Det finnes ingen `middleware.ts`; sikkerhetshoder settes i `next.config.ts`.
 
-## 6. Vercel Hobby og Neon Free – grenser du må respektere
+## 7. Vercel Hobby og Neon Free – grenser du må respektere
 
 | Ressurs (per måned) | Grense | Hva appen bruker (anslag, én konferansedag, 300 brukere) |
 | --- | --- | --- |
@@ -103,7 +109,7 @@ Går Vercel Hobby over grensen, **stoppes prosjektet i 30 dager**. Derfor:
 
 Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLUTNINGER.md` ADR-007.
 
-## 7. Versjonering og commits
+## 8. Versjonering og commits
 
 - SemVer. Patch = feilretting, minor = ny funksjon, major = endring som krever ny QR-utskrift eller migrering med datatap.
 - Ved release: oppdater `CHANGELOG.md` (nyeste øverst), `version` i `package.json`, commit, `git tag vX.Y.Z`, push med `--tags`. Kan ikke tagger pushes fra verktøyet ditt, lag dem i GitHub under **Releases → Draft a new release**.
@@ -113,7 +119,7 @@ Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLU
 - Hvilken versjon som kjører i produksjon: `GET /api/health` (`version`, `commit`) eller blått «Production»-merke i Vercel → Deployments. Aldri «Redeploy» av en eldre rad (= tilbakerulling). Se `docs/DRIFT.md` → «Deploy og versjoner».
 - Avhengigheter: Dependabot foreslår bare patch/minor for npm. Hovedversjoner (TypeScript, `@types/node`, Next.js, React, ESLint osv.) oppgraderes bevisst på egen gren. `@types/node` skal følge Node-versjonen i `engines` (22).
 
-## 8. Før du sier «ferdig»
+## 9. Før du sier «ferdig»
 
 - [ ] `npm run check` er grønt
 - [ ] Integrasjonstester er grønne hvis du rørte `queue.ts`, `auth.ts`, `rate-limit.ts` eller SQL

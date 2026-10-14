@@ -2,6 +2,11 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [Ikke utgitt]
+
+### Dokumentasjon
+- `docs/PLAN-UTVIDELSER.md`: implementasjonsplan for v1.2 (skjermer), v1.3 (fleksible stasjoner) og v1.4 (utseende/logo), basert på tilbakemeldinger fra brukerne.
+
 ## [1.1.1] – 2026-10-14
 
 ### Endret
