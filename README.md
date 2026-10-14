@@ -43,6 +43,9 @@ npm run dev                       # http://localhost:3000
 | `npm run db:migrate` | Kjører migreringer og startdata manuelt |
 | `npm run check` | Typesjekk + lint + tester (kjør før hver commit) |
 | `npm test` | Enhetstester. Integrasjonstester kjøres når `TEST_DATABASE_URL` er satt. |
+| `npm run test:e2e` | Ende-til-ende i ekte nettleser (krever `E2E_DATABASE_URL` og `npm run build`) |
+| `npm run smoke` | Røyktest mot `BASE_URL` (også produksjon) – endrer ingen data |
+| `npm run load` | Lasttest mot lokal app (300 telefoner + 3 operatører) |
 
 ## Dokumentasjon
 
@@ -55,6 +58,8 @@ npm run dev                       # http://localhost:3000
 | [`docs/SIKKERHET.md`](docs/SIKKERHET.md) | Trusselbilde, tiltak og hva du gjør ved lekkasje |
 | [`docs/UI-SPEC.md`](docs/UI-SPEC.md) | Alle tekster, farger og tilstander per side |
 | [`docs/KJOREPLAN.md`](docs/KJOREPLAN.md) | Sjekkliste før, under og etter arrangementet |
+| [`docs/DRIFT.md`](docs/DRIFT.md) | Overvåking, brannmur, grenser og feilsøking i drift |
+| [`docs/PRODKLARHET.md`](docs/PRODKLARHET.md) | Vurdering av prodklarhet og gjenstående risiko |
 | [`docs/OPERATOR-GUIDE.md`](docs/OPERATOR-GUIDE.md) | Én side for funksjonærene |
 | [`docs/BESLUTNINGER.md`](docs/BESLUTNINGER.md) | Arkitekturbeslutninger (ADR) med begrunnelse |
 | [`CHANGELOG.md`](CHANGELOG.md) | Versjonshistorikk |
@@ -62,3 +67,7 @@ npm run dev                       # http://localhost:3000
 ## Versjonering
 
 [Semantisk versjonering](https://semver.org/lang/no/): `MAJOR.MINOR.PATCH`. Hver release får en linje i `CHANGELOG.md`, ny `version` i `package.json` og en git-tag `vX.Y.Z`. Se [`AGENTS.md`](AGENTS.md#versjonering-og-commits).
+
+## Om
+
+Utviklet av **Andreas Aarlott** ([andreas.aarlott@ntnu.no](mailto:andreas.aarlott@ntnu.no)) med AI-støttet utvikling. Informasjonen vises også i «Om appen» på `/admin` (ikke på publikumssidene).

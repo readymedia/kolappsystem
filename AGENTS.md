@@ -21,6 +21,8 @@ Produksjon: Vercel **Hobby** (gratis) + Neon Postgres **Free**. Begge har harde 
 db/migrations/        SQL-migreringer (001_init.sql …). Aldri endre en kjørt migrering – lag en ny.
 scripts/migrate.mjs   Kjører migreringer + startdata. Kjøres av `npm run build` (dvs. hver Vercel-deploy).
 scripts/reset-pin.mjs Nødløsning ved glemt PIN (se docs/SIKKERHET.md).
+scripts/smoke.mjs     Røyktest mot vilkårlig URL, også produksjon. Endrer ingen data.
+scripts/load.mjs      Lasttest (300 telefoner + 3 operatører) – KUN mot localhost.
 src/lib/
   config.ts           Konstanter: stasjoner, intervaller, grenser, farger per stasjon. Ingen hemmeligheter.
   texts.ts            Publikumstekster og feilkoder (ERROR_TEXT). Endre tekster HER.
@@ -29,13 +31,16 @@ src/lib/
   queue.ts            ALL forretningslogikk for køen (server-only). Atomiske transaksjoner.
   auth.ts             PIN-innlogging, økt (JWT i httpOnly-cookie), bytte av PIN (server-only).
   rate-limit.ts       Forsøksgrenser i Postgres (server-only).
-  http.ts             Felles API-hjelpere: handle(), ok(), fail(), Origin-sjekk (server-only).
+  http.ts             Felles API-hjelpere: handle() (Origin, økt, ny henting, feilkoder), ok(), fail() (server-only).
+  net.ts              normalizeIp() – IPv4 / IPv6-/64 for forsøksgrenser (ren, testet).
+  version.ts          Appversjon (package.json) og commit – vises i /admin og /api/health.
   pin-hash.mjs        scrypt-hash + tilfeldige nøkler. .mjs fordi migrate-skriptet også bruker den.
   client-api.ts       fetch-hjelper for nettleseren.
 src/components/       hooks.ts (usePolling, useWakeLock), ui.tsx, PinGate, LogoutButton.
 src/app/              Sider (App Router) og API-ruter under src/app/api/.
 tests/unit/           Rene tester (ingen database).
 tests/integration/    Tester mot ekte Postgres (krever TEST_DATABASE_URL). Sletter data!
+tests/e2e/            Playwright i ekte nettleser (krever E2E_DATABASE_URL og bygget app). Sletter data!
 docs/                 Menneskelig og AI-vennlig dokumentasjon.
 ```
 
@@ -49,6 +54,9 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 6. **Publikum skal aldri se tekniske feil.** Bruk koder fra `ERROR_TEXT` i `texts.ts`.
 7. **Ikke øk polling-frekvensen eller fjern CDN-mellomlagringen av `/api/state`** uten å regne på Hobby-budsjettet (§6).
 8. Moduler med `import "server-only"` skal aldri importeres fra klientkomponenter (bare `import type`).
+9. **Alle køtransaksjoner går via `begin()` i `queue.ts`** (setter `lock_timeout`/`statement_timeout`). Aldri `getSql().begin` direkte for skriving.
+10. **Utviklerinfo («Om appen») vises bare i `/admin`.** Publikumssidene skal ikke vise den (E2E-test sjekker dette).
+11. **IP-adresser lagres aldri**, bare `networkFingerprint()` (HMAC) i `tickets.ip_hash`.
 
 ## 4. Vanlige oppgaver
 
@@ -70,7 +78,11 @@ npm install
 npm run check                      # typecheck + lint + enhetstester – SKAL være grønt før commit
 TEST_DATABASE_URL=postgres://… npm run test:integration   # mot en TOM testdatabase
 npm run build                      # verifiser at det bygger
+E2E_DATABASE_URL=postgres://… npm run test:e2e             # ekte nettleser, mot EGEN testdatabase (bygg først)
+BASE_URL=https://kolappsystem.vercel.app npm run smoke     # røyktest, endrer ingen data
 ```
+
+Lokalt uten nedlastbar Playwright-nettleser: sett `PW_CHROMIUM_PATH` til en Chromium-binær.
 
 Next.js 16-merknader: `params`/`searchParams` er Promises (`await params`), `cookies()` er async, Turbopack er standard. Det finnes ingen `middleware.ts`; sikkerhetshoder settes i `next.config.ts`.
 
@@ -104,4 +116,5 @@ Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLU
 - [ ] `npm run check` er grønt
 - [ ] Integrasjonstester er grønne hvis du rørte `queue.ts`, `auth.ts`, `rate-limit.ts` eller SQL
 - [ ] `npm run build` fungerer
+- [ ] E2E er grønt hvis du endret sider, tekster eller flyt (CI kjører det uansett)
 - [ ] Dokumentasjonen er oppdatert (UI-SPEC ved tekstendringer, ARKITEKTUR ved API/datamodell, CHANGELOG alltid)

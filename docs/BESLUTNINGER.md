@@ -41,3 +41,22 @@ Beholdt fra piloten. Kan senere beregnes fra faktisk tid mellom `called_at`-verd
 ## ADR-010 – Forbedringer utover piloten
 **Status:** Vedtatt
 Lagt til fordi de er små og løser reelle problemer: vern mot dobbelt trykk på NESTE, «Angre siste» i flere steg, «Sett tilbake i kø» for overhoppede, stasjonsvelger på operator, redigerbar beskrivelse i admin, utskrift én stasjon per side, fullskjerm-knapp, skjerm-våkenhold, vibreringsknapp for Android, norsk 404-side, «Logg ut».
+
+## ADR-011 – Robusthet for live drift (v1.1.0)
+**Dato:** 2026-10-14 · **Status:** Vedtatt
+Etter en uavhengig revisjon er følgende innført for å tåle dårlig nett, misbruk av delt QR og databasehikke:
+idempotente skann (`requestId`), maks ventende per nettverk (HMAC av IP, IPv6 /64), nøkkelsjekk før lås,
+tidsgrenser i nettleser (8 s) og database (5/10 s), ny henting av død tilkobling ved lesing, fornyelse av økt,
+6-sifret minimum for ny PIN, vern mot dobbelt trykk på «Angre», og «Fjern ventende lapper» i admin.
+Alternativene (ekstern rate-limiter, Redis, sanntidstjeneste) ble forkastet for å holde driften gratis og enkel.
+
+## ADR-012 – Testpyramide
+**Status:** Vedtatt
+Enhetstester (ren logikk), integrasjonstester mot ekte Postgres (samtidighet), E2E i ekte nettleser (Playwright)
+og røyktest som kan kjøres mot produksjon uten å endre data. Lasttest kjøres lokalt ved behov (`npm run load`).
+Alt unntatt lasttest kjører i CI.
+
+## ADR-013 – «Om appen» kun i admin
+**Status:** Vedtatt
+Utvikler (Andreas Aarlott, andreas.aarlott@ntnu.no), versjon og at appen er AI-støttet utviklet vises bare i `/admin`,
+så publikumssidene holdes rene. E2E-testen sjekker at utviklerinfo ikke vises på publikumssidene.

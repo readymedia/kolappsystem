@@ -23,7 +23,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
         await advance(station, "skipped", expected);
         break;
       case "undo":
-        await undoLast(station);
+        await undoLast(
+          station,
+          body.expectedActionId === null || typeof body.expectedActionId === "string" ? body.expectedActionId : undefined,
+        );
         break;
       case "requeue": {
         if (typeof body.ticketId !== "string") return fail("bad_request");

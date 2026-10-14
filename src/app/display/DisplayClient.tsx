@@ -40,6 +40,12 @@ export function DisplayClient() {
   }, POLL_INTERVAL_MS);
   useWakeLock(true);
 
+  // Rydd blink-tidtakere når siden lukkes.
+  useEffect(() => {
+    const timers = blinkTimers.current;
+    return () => Object.values(timers).forEach((t) => clearTimeout(t));
+  }, []);
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", onChange);

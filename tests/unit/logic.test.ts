@@ -71,3 +71,17 @@ describe("utledning av lappstatus fra delt køstatus", () => {
     expect(deriveTicket(t(4), undefined)).toEqual({ kind: "not_found" });
   });
 });
+
+describe("nettverk for forsøksgrenser", async () => {
+  const { normalizeIp } = await import("@/lib/net");
+  it("beholder IPv4 og pakker ut IPv4-mapped", () => {
+    expect(normalizeIp("84.210.1.2")).toBe("84.210.1.2");
+    expect(normalizeIp("::ffff:84.210.1.2")).toBe("84.210.1.2");
+  });
+  it("grupperer IPv6 på /64", () => {
+    expect(normalizeIp("2001:db8:1:2:aaaa:bbbb:cccc:dddd")).toBe("2001:db8:1:2::/64");
+    expect(normalizeIp("2001:db8:1:2::1")).toBe("2001:db8:1:2::/64");
+    expect(normalizeIp("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(normalizeIp("2001:DB8:1:2::99")).toBe(normalizeIp("2001:db8:1:2:ffff::1"));
+  });
+});

@@ -21,7 +21,10 @@ export function getSql(): postgres.Sql {
   if (!url) throw new DatabaseNotConfiguredError();
   const sql = postgres(url, {
     max: 3,
+    // Lukk ledige tilkoblinger raskt og forny alle jevnlig, så en frosset serverinstans eller en Neon-database
+    // som har sovet aldri gir et kall på en død tilkobling.
     idle_timeout: 20,
+    max_lifetime: 60 * 10,
     connect_timeout: 10,
     prepare: false,
     onnotice: () => {},

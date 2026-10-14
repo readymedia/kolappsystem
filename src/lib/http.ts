@@ -1,7 +1,8 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { hasValidSession } from "./auth";
+import { requireAndRenewSession } from "./auth";
 import { DatabaseNotConfiguredError } from "./db";
+import { normalizeIp } from "./net";
 import { ERROR_TEXT, type ErrorCode } from "./texts";
 
 // Felles hjelpere for API-rutene: like svar, feilhåndtering, Origin-sjekk og innloggingskrav.
@@ -17,6 +18,8 @@ const STATUS: Partial<Record<ErrorCode, number>> = {
   not_found: 404,
   locked: 429,
   rate_limited: 429,
+  too_many_waiting: 429,
+  busy: 503,
   db_missing: 503,
   server_error: 500,
 };
@@ -31,13 +34,14 @@ export function fail(code: ErrorCode): NextResponse {
   return NextResponse.json({ error: code, message: ERROR_TEXT[code] }, { status: STATUS[code] ?? 400, headers: NO_STORE });
 }
 
-/** IP-adressen til klienten bak Vercel sin proxy. */
+/**
+ * Klientens nettverk bak Vercel sin proxy, brukt til forsøksgrenser.
+ * IPv6 grupperes på /64 (én husstand/telefon har gjerne et helt /64-nett), så nye adresser ikke omgår grensen.
+ */
 export function clientIp(req: Request): string {
-  return (
-    req.headers.get("x-real-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "unknown"
-  );
+  const raw =
+    req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  return normalizeIp(raw);
 }
 
 /** Endrings-kall må komme fra samme opprinnelse (beskytter mot CSRF i tillegg til SameSite). */
@@ -63,6 +67,27 @@ export async function readJson(req: Request): Promise<Record<string, unknown>> {
 
 type Handler = () => Promise<NextResponse>;
 
+/** Feil som tyder på en død eller avbrutt databasetilkobling – trygt å prøve én gang til for lesing. */
+function isConnectionError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code ?? "";
+  return [
+    "CONNECTION_CLOSED",
+    "CONNECTION_ENDED",
+    "CONNECTION_DESTROYED",
+    "CONNECT_TIMEOUT",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "EPIPE",
+    "57P01", // admin_shutdown (f.eks. Neon som skalerer ned)
+  ].includes(code);
+}
+
+/** Lås- eller spørringstidsgrense nådd (se begin() i queue.ts). */
+function isTimeoutError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code ?? "";
+  return code === "55P03" || code === "57014";
+}
+
 /** Pakker inn en rute: Origin-sjekk for endringer, valgfritt innloggingskrav og trygg feilhåndtering. */
 export async function handle(
   req: Request,
@@ -71,10 +96,20 @@ export async function handle(
 ): Promise<NextResponse> {
   try {
     if (opts.mutation && !sameOrigin(req)) return fail("forbidden_origin");
-    if (opts.requireSession && !(await hasValidSession())) return fail("unauthorized");
-    return await fn();
+    if (opts.requireSession && !(await requireAndRenewSession())) return fail("unauthorized");
+    try {
+      return await fn();
+    } catch (err) {
+      // Lesing kan trygt prøves én gang til hvis tilkoblingen var død (f.eks. etter at Neon har sovet).
+      if (req.method === "GET" && isConnectionError(err)) return await fn();
+      throw err;
+    }
   } catch (err) {
     if (err instanceof DatabaseNotConfiguredError) return fail("db_missing");
+    if (isTimeoutError(err) || isConnectionError(err)) {
+      console.warn("[api] travelt/tilkobling", req.method, new URL(req.url).pathname, (err as { code?: string }).code);
+      return fail("busy");
+    }
     console.error("[api]", req.method, new URL(req.url).pathname, err);
     return fail("server_error");
   }

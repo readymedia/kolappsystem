@@ -27,9 +27,15 @@ export function JoinClient() {
     if (!station || started.current) return;
     started.current = true;
     const storageKey = `kolapp_${station}`;
+    const requestKey = `kolapp_req_${station}`;
     let existing: string | null = null;
+    // requestId lagres FØR kallet. Forsvinner svaret på dårlig nett og personen skanner igjen,
+    // sendes samme requestId, og serveren gir samme lapp i stedet for en ny.
+    let requestId: string = newRequestId();
     try {
       existing = localStorage.getItem(storageKey);
+      requestId = localStorage.getItem(requestKey) ?? requestId;
+      localStorage.setItem(requestKey, requestId);
     } catch {
       // Privat modus e.l. – vi lager bare en ny lapp.
     }
@@ -37,11 +43,12 @@ export function JoinClient() {
     void (async () => {
       const res = await api<{ ticketId: string }>("/api/join", {
         method: "POST",
-        json: { station, key, existingTicketId: existing },
+        json: { station, key, existingTicketId: existing, requestId },
       });
       if (res.ok) {
         try {
           localStorage.setItem(storageKey, res.data.ticketId);
+          localStorage.removeItem(requestKey);
         } catch {
           // Ignorer.
         }
@@ -49,8 +56,9 @@ export function JoinClient() {
         return;
       }
       if (res.error === "closed") setView({ kind: "closed" });
-      else if (res.error === "invalid_link" || res.error === "invalid_station") setView({ kind: "error", text: res.message });
-      else setView({ kind: "error", text: res.error === "rate_limited" ? res.message : "Noe gikk galt. Prøv å skanne koden på nytt." });
+      else if (["invalid_link", "invalid_station", "rate_limited", "too_many_waiting", "busy"].includes(res.error)) {
+        setView({ kind: "error", text: res.message });
+      } else setView({ kind: "error", text: "Noe gikk galt. Prøv å skanne koden på nytt." });
     })();
   }, [station, key, router]);
 
@@ -82,4 +90,15 @@ export function JoinClient() {
       />
     </div>
   );
+}
+
+function newRequestId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    // Eldre nettlesere: lag en UUID v4 for hånd.
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+      (Number(c) ^ (Math.floor(Math.random() * 256) & (15 >> (Number(c) / 4)))).toString(16),
+    );
+  }
 }

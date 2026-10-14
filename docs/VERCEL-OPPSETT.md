@@ -53,7 +53,7 @@ Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig
 
 1. Åpne `https://<ditt-prosjekt>.vercel.app/admin`.
 2. Logg inn med PIN **1234**.
-3. **Bytt PIN med en gang** nederst på siden (4–12 sifre). Del den nye PIN-en bare med funksjonærene.
+3. **Bytt PIN med en gang** nederst på siden (6–12 sifre). Del den nye PIN-en bare med funksjonærene. Et gult varsel står øverst til standard-PIN er byttet.
 4. Sjekk at beskrivelsene for A, B og C stemmer (blyant-ikonet).
 5. Trykk **Skriv ut**. Hver stasjon kommer på sin egen side.
 
@@ -65,6 +65,11 @@ Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig
 - [ ] Åpne `/display` på en PC → A1 vises under «Nå betjenes».
 - [ ] Gjør en ekstra **Redeploy** og sjekk at `/admin` viser samme antall lapper og samme `key=` i QR-lenken som før. Da overlever data oppdateringer.
 - [ ] Trykk **Nullstill kø** for A i `/admin` før arrangementet.
+
+## Steg 6 – Sikring (anbefalt)
+
+1. Sett opp brannmurregelen for `/api/state` som beskrevet i [`DRIFT.md`](DRIFT.md#anbefalte-brannmurregler-vercel-firewall-hobby-har-inntil-3-egne-regler).
+2. Sjekk at `https://<prosjekt>.vercel.app/api/health` viser `"ok":true`.
 
 ## Valgfritt
 

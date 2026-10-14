@@ -7,6 +7,7 @@ on:
 
 jobs:
   check:
+    name: Typesjekk, lint, enhets- og integrasjonstester, bygg
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -32,3 +33,46 @@ jobs:
       - run: npm test
       # Bygg uten DATABASE_URL: migrering hoppes over, resten må bygge.
       - run: npm run build
+
+  e2e:
+    name: Ende-til-ende i nettleser + røyktest
+    runs-on: ubuntu-latest
+    needs: check
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kolapp_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/kolapp_e2e
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Bygg MED database: migreringene kjøres som på Vercel.
+      - run: npm run build
+        env:
+          DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
+      - run: npm run test:e2e
+      - name: Røyktest mot lokal server
+        run: |
+          DATABASE_URL=$E2E_DATABASE_URL npx next start -p 3300 &
+          npx --yes wait-on http://localhost:3300/api/health --timeout 60000
+          BASE_URL=http://localhost:3300 npm run smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

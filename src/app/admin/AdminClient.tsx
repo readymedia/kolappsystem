@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, KeyRound, Monitor, Pencil, Power, Printer, RotateCcw, UserCog } from "lucide-react";
+import { AlertTriangle, Copy, Eraser, Info, KeyRound, Monitor, Pencil, Power, Printer, RotateCcw, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -8,7 +8,7 @@ import { usePolling } from "@/components/hooks";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Card, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { PIN_PATTERN, STATION_THEME, type StationId } from "@/lib/config";
+import { NEW_PIN_PATTERN, STATION_THEME, type StationId } from "@/lib/config";
 
 // Admin: utskriftsvennlige QR-koder, nullstill kø, aktiver/deaktiver, bytt nøkkel, rediger beskrivelse og bytt PIN.
 
@@ -22,15 +22,17 @@ interface AdminStation {
   qrSvg: string;
 }
 
-export function AdminClient() {
+export function AdminClient({ version, commit }: { version: string; commit: string }) {
   const router = useRouter();
   const [stations, setStations] = useState<AdminStation[] | null>(null);
+  const [pinIsDefault, setPinIsDefault] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const res = await api<{ stations: AdminStation[] }>("/api/admin/stations");
+    const res = await api<{ stations: AdminStation[]; pinIsDefault: boolean }>("/api/admin/stations");
     if (res.ok) {
       setStations(res.data.stations);
+      setPinIsDefault(res.data.pinIsDefault);
       setError("");
     } else if (res.status === 401) router.refresh();
     else setError(res.message);
@@ -40,14 +42,17 @@ export function AdminClient() {
   usePolling(load, 15_000);
 
   async function stationAction(id: StationId, action: string, json?: unknown) {
-    const res = await api(`/api/admin/stations/${id}/${action}`, { method: "POST", json: json ?? {} });
+    const res = await api<{ ok: true; removed?: number }>(`/api/admin/stations/${id}/${action}`, {
+      method: "POST",
+      json: json ?? {},
+    });
     if (!res.ok) {
       if (res.status === 401) router.refresh();
       else setError(res.message);
-      return false;
+      return null;
     }
     await load();
-    return true;
+    return res.data;
   }
 
   return (
@@ -70,6 +75,13 @@ export function AdminClient() {
           </div>
         </div>
 
+        {pinIsDefault && (
+          <p role="alert" className="mt-6 flex items-start gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            Du bruker fortsatt standard-PIN 1234. Bytt den nederst på siden før arrangementet (minst 6 sifre).
+          </p>
+        )}
+
         {error && (
           <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 print:hidden">
             {error}
@@ -88,7 +100,10 @@ export function AdminClient() {
           </div>
         )}
 
-        <PinCard onUnauthorized={() => router.refresh()} />
+        <div className="mt-10 grid gap-6 md:grid-cols-2 print:hidden">
+          <PinCard onUnauthorized={() => router.refresh()} />
+          <AboutCard version={version} commit={commit} />
+        </div>
       </div>
     </main>
   );
@@ -99,7 +114,7 @@ function StationCard({
   onAction,
 }: {
   station: AdminStation;
-  onAction: (id: StationId, action: string, json?: unknown) => Promise<boolean>;
+  onAction: (id: StationId, action: string, json?: unknown) => Promise<{ ok: true; removed?: number } | null>;
 }) {
   const t = STATION_THEME[s.id];
   const [confirm, setConfirm] = useState<"reset" | "rotate-key" | null>(null);
@@ -107,12 +122,14 @@ function StationCard({
   const [editing, setEditing] = useState(false);
   const [desc, setDesc] = useState(s.description);
   const [copied, setCopied] = useState(false);
+  const [cleanup, setCleanup] = useState<{ from: string; to: string; result: string } | null>(null);
 
   async function run(action: string, json?: unknown) {
     setBusy(true);
-    await onAction(s.id, action, json);
+    const res = await onAction(s.id, action, json);
     setBusy(false);
     setConfirm(null);
+    return res;
   }
 
   return (
@@ -233,6 +250,61 @@ function StationCard({
             </button>
           )}
         </div>
+        {cleanup ? (
+          <form
+            className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const res = await run("remove-waiting", { from: Number(cleanup.from), to: Number(cleanup.to) });
+              if (res) setCleanup({ ...cleanup, result: `Fjernet ${res.removed ?? 0} ventende lapper.` });
+            }}
+          >
+            <p className="text-sm font-medium text-slate-800">Fjern ventende lapper</p>
+            <p className="text-xs text-slate-500">
+              For falske lapper (f.eks. hvis QR-koden er delt på nett). Bare ventende lapper i området fjernes.
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-1">
+                Fra {s.id}
+                <input
+                  value={cleanup.from}
+                  onChange={(e) => setCleanup({ ...cleanup, from: e.target.value.replace(/\D/g, ""), result: "" })}
+                  inputMode="numeric"
+                  className="h-9 w-16 rounded-lg border border-slate-200 px-2"
+                  aria-label="Fra nummer"
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                til {s.id}
+                <input
+                  value={cleanup.to}
+                  onChange={(e) => setCleanup({ ...cleanup, to: e.target.value.replace(/\D/g, ""), result: "" })}
+                  inputMode="numeric"
+                  className="h-9 w-16 rounded-lg border border-slate-200 px-2"
+                  aria-label="Til nummer"
+                />
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" disabled={busy || !cleanup.from || !cleanup.to} className={buttonClass("danger", "sm")}>
+                Fjern
+              </button>
+              <button type="button" className={buttonClass("ghost", "sm")} onClick={() => setCleanup(null)}>
+                Lukk
+              </button>
+            </div>
+            {cleanup.result && <p className="text-sm text-emerald-700">{cleanup.result}</p>}
+          </form>
+        ) : (
+          <button
+            type="button"
+            className={`${buttonClass("ghost", "sm")} mt-2`}
+            onClick={() => setCleanup({ from: "", to: "", result: "" })}
+          >
+            <Eraser className="h-4 w-4" aria-hidden />
+            Fjern ventende lapper …
+          </button>
+        )}
         <div className="mt-2 flex flex-wrap gap-2 pt-1">
           <Link href={`/operator?station=${s.id}`} className={buttonClass("ghost", "sm")}>
             <UserCog className="h-4 w-4" aria-hidden />
@@ -255,8 +327,8 @@ function PinCard({ onUnauthorized }: { onUnauthorized: () => void }) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!PIN_PATTERN.test(pin)) {
-      setMessage({ ok: false, text: "PIN må være 4–12 sifre." });
+    if (!NEW_PIN_PATTERN.test(pin)) {
+      setMessage({ ok: false, text: "PIN må være 6–12 sifre." });
       return;
     }
     setBusy(true);
@@ -271,7 +343,7 @@ function PinCard({ onUnauthorized }: { onUnauthorized: () => void }) {
   }
 
   return (
-    <Card className="mt-10 max-w-md p-6 print:hidden">
+    <Card className="p-6">
       <h2 className="font-display text-lg text-slate-900">PIN-kode</h2>
       <p className="mt-1 text-sm text-slate-500">Felles for operator og admin. Ny PIN logger ut alle andre enheter.</p>
       <form onSubmit={save} className="mt-4 flex gap-3">
@@ -291,6 +363,35 @@ function PinCard({ onUnauthorized }: { onUnauthorized: () => void }) {
         </button>
       </form>
       {message && <p className={`mt-3 text-sm ${message.ok ? "text-emerald-600" : "text-red-600"}`}>{message.text}</p>}
+    </Card>
+  );
+}
+
+/** «Om appen» – vises bare i /admin, aldri for publikum. */
+function AboutCard({ version, commit }: { version: string; commit: string }) {
+  return (
+    <Card className="p-6">
+      <h2 className="flex items-center gap-2 font-display text-lg text-slate-900">
+        <Info className="h-4 w-4 text-slate-400" aria-hidden />
+        Om appen
+      </h2>
+      <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+        <dt className="text-slate-500">App</dt>
+        <dd className="text-slate-800">KøKlar – kølappsystem for meet-and-greet</dd>
+        <dt className="text-slate-500">Versjon</dt>
+        <dd className="text-slate-800">
+          {version} <span className="text-slate-400">· {commit}</span>
+        </dd>
+        <dt className="text-slate-500">Utvikler</dt>
+        <dd className="text-slate-800">
+          Andreas Aarlott ·{" "}
+          <a href="mailto:andreas.aarlott@ntnu.no" className="text-sky-700 underline-offset-2 hover:underline">
+            andreas.aarlott@ntnu.no
+          </a>
+        </dd>
+        <dt className="text-slate-500">Utvikling</dt>
+        <dd className="text-slate-800">AI-støttet utvikling</dd>
+      </dl>
     </Card>
   );
 }

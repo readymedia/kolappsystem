@@ -58,7 +58,9 @@ export function OperatorClient({ station }: { station: StationId }) {
         ? { ticketId }
         : action === "next" || action === "skip"
           ? { expectedCurrentId: view?.current?.id ?? null }
-          : {},
+          : action === "undo"
+            ? { expectedActionId: view?.lastActionId ?? null }
+            : {},
     });
     setBusy(false);
     if (res.ok) {

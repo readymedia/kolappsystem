@@ -1,8 +1,8 @@
 import { parseStationId } from "@/lib/config";
 import { fail, handle, ok, readJson } from "@/lib/http";
-import { resetStation, rotateStationKey, setStationActive, setStationDescription } from "@/lib/queue";
+import { removeWaitingRange, resetStation, rotateStationKey, setStationActive, setStationDescription } from "@/lib/queue";
 
-// Admin-handlinger per stasjon: reset | activate | deactivate | rotate-key | description
+// Admin-handlinger per stasjon: reset | activate | deactivate | rotate-key | description | remove-waiting
 
 export async function POST(req: Request, { params }: { params: Promise<{ station: string; action: string }> }) {
   return handle(req, { mutation: true, requireSession: true }, async () => {
@@ -28,6 +28,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
         if (typeof body.description !== "string" || body.description.length > 300) return fail("bad_request");
         await setStationDescription(station, body.description.trim());
         break;
+      }
+      case "remove-waiting": {
+        const body = await readJson(req);
+        const from = Number(body.from);
+        const to = Number(body.to);
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to - from > 10_000) {
+          return fail("bad_request");
+        }
+        return ok({ ok: true, removed: await removeWaitingRange(station, from, to) });
       }
       default:
         return fail("bad_request");

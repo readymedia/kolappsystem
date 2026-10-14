@@ -1,7 +1,16 @@
 import "server-only";
+import { createHmac } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
-import { PIN_PATTERN, RATE_LIMITS, SESSION_COOKIE, SESSION_HOURS } from "./config";
+import {
+  DEFAULT_PIN,
+  NEW_PIN_PATTERN,
+  PIN_PATTERN,
+  RATE_LIMITS,
+  SESSION_COOKIE,
+  SESSION_HOURS,
+  SESSION_RENEW_AFTER_MINUTES,
+} from "./config";
 import { getSql } from "./db";
 import { hashPin, verifyPin } from "./pin-hash.mjs";
 import { clearRateLimit, hitRateLimit, isRateLimited } from "./rate-limit";
@@ -76,22 +85,55 @@ export async function logout(): Promise<void> {
 
 /** Gyldig økt? Sjekker signatur, utløp og at PIN ikke er byttet siden innlogging. */
 export async function hasValidSession(): Promise<boolean> {
+  return (await readSession()) !== null;
+}
+
+async function readSession(): Promise<{ issuedAt: number; pinVersion: number } | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return false;
+  if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, await getSecret(), { algorithms: ["HS256"] });
     const { pin_version } = await getPinSettings();
-    return payload.sub === "staff" && payload.pv === pin_version;
+    if (payload.sub !== "staff" || payload.pv !== pin_version) return null;
+    return { issuedAt: payload.iat ?? 0, pinVersion: pin_version };
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Som hasValidSession, men fornyer økta når den er eldre enn en time, så en operatør som er i
+ * aktiv bruk aldri blir logget ut midt i arrangementet. Kan bare brukes i API-ruter (setter cookie).
+ */
+export async function requireAndRenewSession(): Promise<boolean> {
+  const session = await readSession();
+  if (!session) return false;
+  if (Date.now() / 1000 - session.issuedAt > SESSION_RENEW_AFTER_MINUTES * 60) {
+    await issueSession(session.pinVersion);
+  }
+  return true;
+}
+
+/** Bruker fortsatt standard-PIN-en? Vises som varsel i /admin. */
+export async function isDefaultPin(): Promise<boolean> {
+  const { pin_hash } = await getPinSettings();
+  return verifyPin(DEFAULT_PIN, pin_hash);
+}
+
+/**
+ * Anonymt fingeravtrykk for et nettverk: HMAC av IP-adressen med serverens hemmelighet.
+ * Selve IP-adressen lagres aldri.
+ */
+export async function networkFingerprint(ip: string): Promise<string> {
+  const secret = Buffer.from(await getSecret());
+  return createHmac("sha256", secret).update(`net:${ip}`).digest("base64url").slice(0, 22);
 }
 
 export type ChangePinResult = { ok: true } | { ok: false; error: "bad_request" };
 
 /** Bytter PIN, logger ut alle andre økter og gir den som byttet en ny økt. */
 export async function changePin(newPin: unknown): Promise<ChangePinResult> {
-  if (typeof newPin !== "string" || !PIN_PATTERN.test(newPin.trim())) return { ok: false, error: "bad_request" };
+  if (typeof newPin !== "string" || !NEW_PIN_PATTERN.test(newPin.trim())) return { ok: false, error: "bad_request" };
   const hash = await hashPin(newPin.trim());
   const [row] = await getSql()<{ pin_version: number }[]>`
     UPDATE settings SET pin_hash = ${hash}, pin_version = pin_version + 1, updated_at = now()

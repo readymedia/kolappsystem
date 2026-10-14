@@ -2,6 +2,44 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.1.0] – 2026-10-14
+
+Runde med sikkerhetsrevisjon, stabilitet og flere tester for drift i produksjon. Se `docs/PRODKLARHET.md`.
+
+### Lagt til
+- «Om appen» i `/admin` (kun der): utvikler Andreas Aarlott (andreas.aarlott@ntnu.no), AI-støttet utvikling, versjon og commit.
+- Varsel i `/admin` så lenge standard-PIN 1234 brukes.
+- «Fjern ventende lapper …» i `/admin` for å rydde falske lapper i et nummerområde.
+- `GET /api/health` med versjon, commit, database- og migreringsstatus.
+- Norske feilsider ved krasj (`error.tsx`, `global-error.tsx`).
+- Varsel «Mistet kontakten – prøver igjen» på kølappen etter tre mislykkede oppdateringer.
+- Tester: Playwright E2E i ekte nettleser (5 scenarier), røyktest (`npm run smoke`, kan kjøres mot produksjon), lasttest (`npm run load`), 7 nye integrasjonstester og enhetstester for nettverk.
+- CI: egen E2E- og røyktestjobb. Dependabot for npm og GitHub Actions.
+- Dokumentasjon: `docs/DRIFT.md` og `docs/PRODKLARHET.md`.
+
+### Endret
+- Ny PIN må ha 6–12 sifre (innlogging godtar fortsatt 4–12, så standard-PIN virker første gang).
+- Økt varer 24 timer og fornyes automatisk ved bruk.
+- Forsøksgrenser regnes per nettverk (IPv6 grupperes på /64). Egen grense for skann med feil nøkkel (20/min).
+- Maks 100 ventende lapper per nettverk per stasjon.
+
+### Rettet
+- Skann som gjentas etter at svaret forsvant (dårlig nett) gir ikke lenger dobbeltlapp (`requestId`).
+- En gjest med aktiv lapp ser den igjen ved nytt skann, også når stasjonen er stengt.
+- Skann med feil nøkkel låser ikke lenger stasjonen.
+- Dobbelt trykk på «Angre siste» angrer bare ett steg.
+- Alle kall fra nettleseren har 8 s tidsgrense, så en hengende forbindelse ikke fryser kølapp eller operatørknapper.
+- Kølappen ignorerer køstatus som kommer i feil rekkefølge.
+- Databasetransaksjoner har lås- og spørretidsgrense. Døde tilkoblinger fornyes, og lesing prøves én gang til.
+- Gamle forsøksgrense-rader ryddes automatisk.
+- Storskjermen rydder tidtakere når den lukkes.
+
+### Fjernet
+- Ubrukt avhengighet `zod` og duplisert `public/icon.svg`.
+
+### Database
+- Migrering `002_robust_join.sql`: kolonnene `tickets.request_id` og `tickets.ip_hash` med indekser. Kjøres automatisk ved deploy, uten datatap.
+
 ## [1.0.1] – 2026-10-14
 
 ### Endret

@@ -30,6 +30,8 @@ Overtekst «MEET & GREET», tittel «Kølappsystem», ingress «Tre stasjoner, �
 | Feil nøkkel | Ugyldig lenke | Lenken er ikke gyldig. Spør en funksjonær om hjelp. |
 | Stengt | Stasjon X er stengt | Det deles ikke ut kølapper her akkurat nå. Ta kontakt med en funksjonær, så hjelper vi deg videre. |
 | For mange | Ugyldig lenke | Det kom mange forespørsler på kort tid. Vent litt og prøv igjen. |
+| Flom fra nettverk | Ugyldig lenke | Det står allerede svært mange i kø fra dette nettverket. Ta kontakt med en funksjonær. |
+| Travelt | Ugyldig lenke | Systemet er travelt akkurat nå. Prøv igjen om et øyeblikk. |
 | Annen feil | Ugyldig lenke | Noe gikk galt. Prøv å skanne koden på nytt. |
 
 ## `/ticket/:id`
@@ -45,6 +47,7 @@ Overtekst «MEET & GREET», tittel «Kølappsystem», ingress «Tre stasjoner, �
 Antall foran: 0 → «Du er nest i køen», 1 → «1 person foran deg», ellers «X personer foran deg».
 Ventetid: 0 → «Under 2 minutter», ellers «Ca. X×2 minutter».
 Skjermen holdes våken (Wake Lock) mens lappen venter eller er kalt.
+Etter 3 mislykkede oppdateringer på rad vises et gult felt: «Mistet kontakten – prøver igjen. Sjekk at du har nett.»
 
 ## `/operator?station=X`
 
@@ -63,11 +66,18 @@ Svart bakgrunn. «MEET & GREET · KØSTATUS» og en diskret fullskjerm-knapp. Tr
 ## `/admin`
 
 - Samme PIN-skjerm med tittel «Admin».
+- Gult varsel øverst så lenge standard-PIN brukes: «Du bruker fortsatt standard-PIN 1234. Bytt den nederst på siden før arrangementet (minst 6 sifre).»
 - «ADMIN», «Stasjoner og QR-koder», forklaring, knappene «Logg ut» og «Skriv ut».
 - Kort per stasjon: navn, «Aktiv»/«Stengt», QR-kode, lenke, «Kopier lenke», «N venter · M lapper delt ut», beskrivelse med redigering, «Nullstill kø» (bekreft: «Bekreft nullstilling»), «Deaktiver»/«Aktiver», «Bytt nøkkel» (bekreft: «Bekreft – gamle QR slutter å virke»), lenker «Operator» og «Storskjerm».
-- Kort «PIN-kode»: «Felles for operator og admin. Ny PIN logger ut alle andre enheter.», felt «Ny PIN», «Lagre», bekreftelse «PIN-koden er lagret. Alle andre er logget ut.»
+- «Fjern ventende lapper …» per stasjon: felt «Fra A…» og «til A…», knapp «Fjern», svar «Fjernet N ventende lapper.»
+- Kort «PIN-kode»: «Felles for operator og admin. Ny PIN logger ut alle andre enheter.», felt «Ny PIN», «Lagre», feil «PIN må være 6–12 sifre.», bekreftelse «PIN-koden er lagret. Alle andre er logget ut.»
+- Kort «Om appen» (kun i admin, aldri for publikum): App «KøKlar – kølappsystem for meet-and-greet», Versjon «1.1.0 · <commit>», Utvikler «Andreas Aarlott · andreas.aarlott@ntnu.no» (mailto-lenke), Utvikling «AI-støttet utvikling».
 - Utskrift: én stasjon per side med stort navn, beskrivelse, QR (12 cm) og «Skann for å få kølapp».
 
 ## 404
 
 «404», «Siden finnes ikke», «Har du en kølapp? Skann QR-koden ved stasjonen på nytt.», knapp «Til forsiden».
+
+## Feilside
+
+Ved krasj: «Noe gikk galt», «Prøv igjen. Hjelper ikke det, spør en funksjonær.», knapp «Prøv igjen».

@@ -28,12 +28,12 @@ flowchart LR
 
 ## 2. Datamodell
 
-Definert i `db/migrations/001_init.sql`.
+Definert i `db/migrations/001_init.sql` og `002_robust_join.sql`.
 
 | Tabell | Viktige felt | Regler |
 | --- | --- | --- |
 | `stations` | `id` (A/B/C), `description`, `active`, `join_key`, `next_number`, `generation` | `join_key` er hemmelig. `generation` økes ved nullstilling. |
-| `tickets` | `id` (uuid), `station`, `number`, `generation`, `status`, `created_at`, `called_at`, `finished_at` | Unik på (`station`, `generation`, `number`). Maks én `called` per stasjon (delvis unik indeks). |
+| `tickets` | `id` (uuid), `station`, `number`, `generation`, `status`, `created_at`, `called_at`, `finished_at`, `request_id`, `ip_hash` | Unik på (`station`, `generation`, `number`) og på (`station`, `generation`, `request_id`). Maks én `called` per stasjon (delvis unik indeks). `ip_hash` er en HMAC av nettverket, aldri selve IP-adressen. |
 | `queue_actions` | `station`, `kind` (next/skip), `finished_ticket`, `called_ticket`, `undone` | Logg som gjør «Angre siste» mulig i flere steg. |
 | `settings` | `pin_hash`, `pin_version`, `session_secret` | Én rad (`id = 1`). |
 | `rate_limits` | `key`, `count`, `window_start` | Forsøksgrenser for PIN og nye lapper. |
@@ -54,19 +54,22 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 | Metode og sti | Tilgang | Svar |
 | --- | --- | --- |
 | `GET /api/state` | Åpen, CDN 1 s | Alle stasjoner: `description`, `active`, `generation`, `nextNumber`, `current`, `waiting[]`, `skipped[]` |
-| `POST /api/join` `{station, key, existingTicketId?}` | Åpen, nøkkel + forsøksgrense (300/min/IP) | `{ticketId, reused}` eller feilkode |
+| `POST /api/join` `{station, key, existingTicketId?, requestId?}` | Åpen, nøkkel + forsøksgrenser (300/min per nettverk, 20 feil nøkler/min, maks 100 ventende per nettverk per stasjon) | `{ticketId, reused}` eller feilkode. Samme `requestId` gir samme lapp. |
 | `GET /api/tickets/:id` | Åpen (ukjent UUID) | `{station, number, generation, status, ahead, description}` |
 | `POST /api/auth/login` `{pin}` | Åpen, 5 forsøk per 15 min per IP og 100 feil totalt per 15 min | Setter cookie `kolapp_session` |
 | `POST /api/auth/logout` | Åpen (Origin-sjekk) | Sletter cookie |
-| `GET /api/operator/:station` | Økt | `{current, next[5], waitingCount, skipped[], canUndo, active}` |
-| `POST /api/operator/:station/next\|skip\|undo\|requeue` | Økt | Ny operatørvisning. `next`/`skip` tar `expectedCurrentId`: avviker den fra lappen som faktisk betjenes, gjøres ingenting (vern mot dobbelt trykk). `requeue` tar `ticketId`. |
-| `GET /api/admin/stations` | Økt | Stasjoner med `joinUrl` og `qrSvg` |
-| `POST /api/admin/stations/:station/reset\|activate\|deactivate\|rotate-key\|description` | Økt | `{ok: true}` |
-| `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN, alle andre logges ut |
+| `GET /api/operator/:station` | Økt | `{current, next[5], waitingCount, skipped[], canUndo, lastActionId, active}` |
+| `POST /api/operator/:station/next\|skip\|undo\|requeue` | Økt | Ny operatørvisning. `next`/`skip` tar `expectedCurrentId`: avviker den fra lappen som faktisk betjenes, gjøres ingenting (vern mot dobbelt trykk). `undo` tar `expectedActionId` på samme måte. `requeue` tar `ticketId`. |
+| `GET /api/admin/stations` | Økt | Stasjoner med `joinUrl` og `qrSvg`, og `pinIsDefault` |
+| `POST /api/admin/stations/:station/reset\|activate\|deactivate\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
+| `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN (6–12 sifre), alle andre logges ut |
+| `GET /api/health` | Åpen | `{ok, version, commit, db, migration}`, 503 hvis databasen ikke svarer |
 
 Feilsvar har alltid formen `{error: "<kode>", message: "<norsk tekst>"}`. Kodene står i `src/lib/texts.ts`.
 
-Alle POST/PUT krever at `Origin` matcher vertsnavnet (CSRF-vern).
+Alle POST/PUT krever at `Origin` matcher vertsnavnet (CSRF-vern). Økter fornyes automatisk ved bruk (etter 1 time), og varer 24 timer.
+
+Feil i databasen: død tilkobling ved lesing prøves én gang til. Lås- eller tidsgrense gir `busy` (503) med vennlig tekst. Alle transaksjoner har `lock_timeout` 5 s og `statement_timeout` 10 s.
 
 ## 5. Flyt for en kølapp
 

@@ -21,6 +21,8 @@ export const ERROR_TEXT = {
   invalid_link: "Lenken er ikke gyldig. Spør en funksjonær om hjelp.",
   closed: "Det deles ikke ut kølapper her akkurat nå. Ta kontakt med en funksjonær, så hjelper vi deg videre.",
   rate_limited: "Det kom mange forespørsler på kort tid. Vent litt og prøv igjen.",
+  too_many_waiting: "Det står allerede svært mange i kø fra dette nettverket. Ta kontakt med en funksjonær.",
+  busy: "Systemet er travelt akkurat nå. Prøv igjen om et øyeblikk.",
   not_found: "Lenken kan være utdatert. Skann QR-koden på nytt for å få en ny lapp.",
   wrong_pin: "Feil PIN-kode. Prøv igjen.",
   locked: "For mange feil forsøk. Vent 15 minutter og prøv igjen.",

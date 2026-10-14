@@ -1,4 +1,5 @@
 import QRCode from "qrcode";
+import { isDefaultPin } from "@/lib/auth";
 import { fail, handle, ok } from "@/lib/http";
 import { getAdminStations } from "@/lib/queue";
 
@@ -24,6 +25,6 @@ export async function GET(req: Request) {
         return { id: s.id, description: s.description, active: s.active, waitingCount: s.waitingCount, issued: s.issued, joinUrl, qrSvg };
       }),
     );
-    return ok({ stations: withQr });
+    return ok({ stations: withQr, pinIsDefault: await isDefaultPin() });
   });
 }

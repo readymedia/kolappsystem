@@ -132,6 +132,54 @@ run("kølogikk mot Postgres", () => {
     expect(after.next.map((n) => n.number)).toEqual([2, 3]);
   });
 
+  it("samme requestId gir samme lapp (svar som forsvant på dårlig nett)", async () => {
+    const requestId = "11111111-2222-4333-8444-555555555555";
+    const a = await q.joinQueue({ station: "A", key: keys.A!, requestId });
+    const b = await q.joinQueue({ station: "A", key: keys.A!, requestId });
+    expect(a.ok && b.ok && a.ticketId === b.ticketId).toBe(true);
+    expect(b).toMatchObject({ reused: true });
+  });
+
+  it("aktiv lapp vises selv om stasjonen er stengt etterpå", async () => {
+    const first = await join("C");
+    if (!first.ok) throw new Error("forventet lapp");
+    await q.setStationActive("C", false);
+    expect(await join("C", first.ticketId)).toEqual({ ok: true, ticketId: first.ticketId, reused: true });
+    expect(await join("C")).toEqual({ ok: false, error: "closed" });
+  });
+
+  it("maks ventende per nettverk stopper flom", async () => {
+    const { MAX_WAITING_PER_NETWORK } = await import("@/lib/config");
+    const flood = await Promise.all(
+      Array.from({ length: MAX_WAITING_PER_NETWORK }, () => q.joinQueue({ station: "B", key: keys.B!, ipHash: "nett-1" })),
+    );
+    expect(flood.every((r) => r.ok)).toBe(true);
+    expect(await q.joinQueue({ station: "B", key: keys.B!, ipHash: "nett-1" })).toEqual({ ok: false, error: "too_many_waiting" });
+    // Et annet nettverk påvirkes ikke.
+    expect((await q.joinQueue({ station: "B", key: keys.B!, ipHash: "nett-2" })).ok).toBe(true);
+  });
+
+  it("fjerner bare ventende lapper i valgt område", async () => {
+    for (let i = 0; i < 6; i++) await join("A");
+    await q.advance("A", "done"); // kaller 1
+    const removed = await q.removeWaitingRange("A", 1, 4); // 1 er kalt og røres ikke
+    expect(removed).toBe(3);
+    const v = await q.getOperatorView("A");
+    expect(v.current?.number).toBe(1);
+    expect(v.next.map((n) => n.number)).toEqual([5, 6]);
+  });
+
+  it("dobbelt trykk på «Angre» (samme forventede handling) angrer bare ett steg", async () => {
+    for (let i = 0; i < 3; i++) await join("A");
+    await q.advance("A", "done");
+    await q.advance("A", "done");
+    const v = await q.getOperatorView("A");
+    await Promise.all([q.undoLast("A", v.lastActionId), q.undoLast("A", v.lastActionId)]);
+    const after = await q.getOperatorView("A");
+    expect(after.current?.number).toBe(1);
+    expect(after.next.map((n) => n.number)).toEqual([2, 3]);
+  });
+
   it("nullstilling starter på 1 og ugyldiggjør gamle lapper", async () => {
     const old = await join("A");
     await join("A");

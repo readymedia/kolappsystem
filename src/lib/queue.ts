@@ -1,6 +1,6 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
-import { OPERATOR_NEXT_COUNT, STATION_IDS, type StationId } from "./config";
+import { MAX_WAITING_PER_NETWORK, OPERATOR_NEXT_COUNT, STATION_IDS, type StationId } from "./config";
 import { getSql, type Tx } from "./db";
 import { randomToken } from "./pin-hash.mjs";
 import type { PublicState, PublicStation, PublicTicket, TicketStatus } from "./public-state";
@@ -36,6 +36,17 @@ function keysMatch(a: string, b: string): boolean {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
+/**
+ * Transaksjon med tidsgrenser, så en hengende spørring aldri blokkerer en stasjon lenge.
+ * SET LOCAL gjelder bare denne transaksjonen og fungerer gjennom Neon sin pooler (PgBouncer).
+ */
+function begin<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return getSql().begin(async (tx) => {
+    await tx.unsafe("SET LOCAL lock_timeout = '5s'; SET LOCAL statement_timeout = '10s'");
+    return fn(tx);
+  }) as Promise<T>;
+}
+
 async function lockStation(tx: Tx, station: StationId): Promise<StationRow> {
   const [row] = await tx<StationRow[]>`
     SELECT id, description, active, join_key, next_number, generation
@@ -48,18 +59,28 @@ async function lockStation(tx: Tx, station: StationId): Promise<StationRow> {
 
 export type JoinResult =
   | { ok: true; ticketId: string; reused: boolean }
-  | { ok: false; error: "invalid_link" | "closed" };
+  | { ok: false; error: "invalid_link" | "closed" | "too_many_waiting" };
 
-/** Lager en ny kølapp, eller gjenbruker enhetens aktive lapp for samme stasjon. */
+/**
+ * Lager en ny kølapp, eller gjenbruker en eksisterende:
+ * - samme enhet (existingTicketId fra localStorage) får sin aktive lapp tilbake, også om stasjonen er stengt
+ * - samme forespørsel (requestId) gir samme lapp, så et svar som forsvant på dårlig nett ikke gir dobbeltlapp
+ * Nøkkelen sjekkes FØR stasjonen låses, så ugyldige forsøk aldri bremser ekte skann eller operatører.
+ */
 export async function joinQueue(input: {
   station: StationId;
   key: string;
   existingTicketId?: string | null;
+  requestId?: string | null;
+  ipHash?: string | null;
 }): Promise<JoinResult> {
-  return getSql().begin(async (tx) => {
+  const [pre] = await getSql()<{ join_key: string }[]>`SELECT join_key FROM stations WHERE id = ${input.station}`;
+  if (!pre || !keysMatch(input.key, pre.join_key)) return { ok: false, error: "invalid_link" };
+
+  return begin(async (tx) => {
     const st = await lockStation(tx, input.station);
+    // Nøkkelen kan ha blitt byttet mellom sjekken over og låsen.
     if (!keysMatch(input.key, st.join_key)) return { ok: false, error: "invalid_link" } as const;
-    if (!st.active) return { ok: false, error: "closed" } as const;
 
     if (isUuid(input.existingTicketId)) {
       const [existing] = await tx<{ id: string }[]>`
@@ -68,12 +89,27 @@ export async function joinQueue(input: {
           AND generation = ${st.generation} AND status IN ('waiting', 'called')`;
       if (existing) return { ok: true, ticketId: existing.id, reused: true } as const;
     }
+    const requestId = isUuid(input.requestId) ? input.requestId : null;
+    if (requestId) {
+      const [same] = await tx<{ id: string }[]>`
+        SELECT id FROM tickets WHERE station = ${st.id} AND generation = ${st.generation} AND request_id = ${requestId}`;
+      if (same) return { ok: true, ticketId: same.id, reused: true } as const;
+    }
+
+    if (!st.active) return { ok: false, error: "closed" } as const;
+
+    if (input.ipHash) {
+      const [c] = await tx<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM tickets
+        WHERE station = ${st.id} AND generation = ${st.generation} AND status = 'waiting' AND ip_hash = ${input.ipHash}`;
+      if ((c?.n ?? 0) >= MAX_WAITING_PER_NETWORK) return { ok: false, error: "too_many_waiting" } as const;
+    }
 
     const number = st.next_number;
     await tx`UPDATE stations SET next_number = next_number + 1, updated_at = now() WHERE id = ${st.id}`;
     const [ticket] = await tx<{ id: string }[]>`
-      INSERT INTO tickets (station, number, generation)
-      VALUES (${st.id}, ${number}, ${st.generation})
+      INSERT INTO tickets (station, number, generation, request_id, ip_hash)
+      VALUES (${st.id}, ${number}, ${st.generation}, ${requestId}, ${input.ipHash ?? null})
       RETURNING id`;
     return { ok: true, ticketId: ticket!.id, reused: false } as const;
   });
@@ -149,6 +185,8 @@ export interface OperatorView {
   waitingCount: number;
   skipped: { id: string; number: number }[];
   canUndo: boolean;
+  /** Id for siste handling som kan angres. Sendes med «Angre» som vern mot dobbelt trykk. */
+  lastActionId: string | null;
 }
 
 export async function getOperatorView(station: StationId): Promise<OperatorView> {
@@ -170,8 +208,8 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
     SELECT id, number FROM tickets
     WHERE station = ${station} AND generation = ${st.generation} AND status = 'skipped'
     ORDER BY finished_at DESC NULLS LAST LIMIT 10`;
-  const [undo] = await sql<{ id: number }[]>`
-    SELECT id FROM queue_actions WHERE station = ${station} AND NOT undone LIMIT 1`;
+  const [undo] = await sql<{ id: string }[]>`
+    SELECT id FROM queue_actions WHERE station = ${station} AND NOT undone ORDER BY id DESC LIMIT 1`;
   return {
     station,
     active: st.active,
@@ -181,6 +219,7 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
     waitingCount: count?.n ?? 0,
     skipped: [...skipped],
     canUndo: Boolean(undo),
+    lastActionId: undo ? String(undo.id) : null,
   };
 }
 
@@ -194,7 +233,7 @@ export async function advance(
   /** Lappen operatøren så som «betjenes nå» (null = ingen). Avviker den, gjøres ingenting (dobbelt trykk). */
   expectedCurrentId?: string | null,
 ): Promise<void> {
-  await getSql().begin(async (tx) => {
+  await begin(async (tx) => {
     const st = await lockStation(tx, station);
     if (expectedCurrentId !== undefined) {
       const [now] = await tx<{ id: string }[]>`
@@ -221,14 +260,19 @@ export async function advance(
 }
 
 /** Angre siste NESTE/Hopp over. Kan trykkes flere ganger for å gå flere steg tilbake. */
-export async function undoLast(station: StationId): Promise<boolean> {
-  return getSql().begin(async (tx) => {
+export async function undoLast(
+  station: StationId,
+  /** Handlingen operatøren så som «siste». Avviker den, gjøres ingenting (dobbelt trykk). */
+  expectedActionId?: string | null,
+): Promise<boolean> {
+  return begin(async (tx) => {
     await lockStation(tx, station);
     const [action] = await tx<{ id: string; finished_ticket: string | null; called_ticket: string | null }[]>`
       SELECT id, finished_ticket, called_ticket FROM queue_actions
       WHERE station = ${station} AND NOT undone
       ORDER BY id DESC LIMIT 1`;
     if (!action) return false;
+    if (expectedActionId !== undefined && String(action.id) !== expectedActionId) return false;
     if (action.called_ticket) {
       await tx`
         UPDATE tickets SET status = 'waiting', called_at = NULL
@@ -251,7 +295,7 @@ export async function undoLast(station: StationId): Promise<boolean> {
 /** Setter en overhoppet lapp tilbake i køen. Den beholder nummeret sitt og kommer derfor først. */
 export async function requeueSkipped(station: StationId, ticketId: string): Promise<boolean> {
   if (!isUuid(ticketId)) return false;
-  return getSql().begin(async (tx) => {
+  return begin(async (tx) => {
     const st = await lockStation(tx, station);
     const rows = await tx`
       UPDATE tickets SET status = 'waiting', finished_at = NULL, called_at = NULL
@@ -291,13 +335,29 @@ export async function getAdminStations(): Promise<AdminStation[]> {
 
 /** Tømmer køen for en stasjon og starter nummereringen på 1 igjen. */
 export async function resetStation(station: StationId): Promise<void> {
-  await getSql().begin(async (tx) => {
+  await begin(async (tx) => {
     await lockStation(tx, station);
     await tx`DELETE FROM queue_actions WHERE station = ${station}`;
     await tx`DELETE FROM tickets WHERE station = ${station}`;
     await tx`
       UPDATE stations SET next_number = 1, generation = generation + 1, updated_at = now()
       WHERE id = ${station}`;
+  });
+}
+
+/**
+ * Fjerner ventende lapper i et nummerområde (f.eks. falske lapper fra en delt QR-kode).
+ * Lappene slettes; eierne ser «Fant ikke kølappen». Kalte og ferdige lapper røres ikke.
+ */
+export async function removeWaitingRange(station: StationId, from: number, to: number): Promise<number> {
+  return begin(async (tx) => {
+    const st = await lockStation(tx, station);
+    const rows = await tx`
+      DELETE FROM tickets
+      WHERE station = ${station} AND generation = ${st.generation} AND status = 'waiting'
+        AND number BETWEEN ${from} AND ${to}
+      RETURNING id`;
+    return rows.length;
   });
 }
 

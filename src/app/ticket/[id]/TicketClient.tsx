@@ -28,6 +28,8 @@ export function TicketClient({ id }: { id: string }) {
   const [description, setDescription] = useState("");
   const previous = useRef<string>("");
   const [vibrationOn, setVibrationOn] = useState(false);
+  const [failures, setFailures] = useState(0);
+  const lastGeneratedAt = useRef("");
 
   const refresh = useCallback(async () => {
     if (!ticket) {
@@ -41,7 +43,14 @@ export function TicketClient({ id }: { id: string }) {
       return;
     }
     const res = await api<PublicState>("/api/state", { cache: "default" });
-    if (!res.ok) return; // Behold forrige visning ved nettfeil.
+    if (!res.ok) {
+      setFailures((f) => f + 1); // Behold forrige visning, men vis varsel etter noen feil på rad.
+      return;
+    }
+    setFailures(0);
+    // Ignorer svar som er eldre enn det vi allerede har vist (kan komme i feil rekkefølge fra CDN).
+    if (res.data.generatedAt < lastGeneratedAt.current) return;
+    lastGeneratedAt.current = res.data.generatedAt;
     const station = res.data.stations.find((s) => s.id === ticket.station);
     if (station) setDescription(station.description);
     setView(deriveTicket(ticket, station));
@@ -146,6 +155,11 @@ export function TicketClient({ id }: { id: string }) {
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Du skal møte</p>
             <p className="mt-3 leading-relaxed text-slate-700">{description}</p>
           </div>
+        )}
+        {failures >= 3 && (
+          <p role="status" className="mt-4 rounded-2xl bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900">
+            Mistet kontakten – prøver igjen. Sjekk at du har nett.
+          </p>
         )}
         <p className="mt-auto pt-10 text-center text-xs text-slate-500">
           Siden oppdaterer seg selv. Ha den åpen – vi gir beskjed her når det er din tur.
