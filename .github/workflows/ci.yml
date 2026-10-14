@@ -68,7 +68,7 @@ jobs:
           DATABASE_URL=$E2E_DATABASE_URL npx next start -p 3300 &
           npx --yes wait-on http://localhost:3300/api/health --timeout 60000
           BASE_URL=http://localhost:3300 npm run smoke
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
