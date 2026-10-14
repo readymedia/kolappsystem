@@ -97,7 +97,7 @@ Det gir god margin, også for flere dager i samme måned. Neon Free (100 CU-time
 
 Det som holder tallene nede:
 - Kølapper og storskjerm leser bare den delte `/api/state`, som mellomlagres på CDN (`CDN-Cache-Control: s-maxage=1`).
-- Polling pauser når fanen er skjult (låst mobil) og stopper når lappen er ferdig.
+- Polling pauser når fanen er skjult (låst mobil), går ned til hvert 15. sekund når lappen er ferdig, og stopper når lappen ikke finnes.
 - Fonter og ikoner ligger i appen, så det går ingen kall til eksterne tjenester.
 
 ## 7. Region og ytelse

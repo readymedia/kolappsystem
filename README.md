@@ -8,7 +8,8 @@ Alt er på norsk, laget for mobil og kjører gratis på **Vercel Hobby** med **N
 | --- | --- |
 | Versjon | se [`CHANGELOG.md`](CHANGELOG.md) og `package.json` |
 | Stack | Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Postgres (Neon) via `postgres` |
-| Drift | Vercel Hobby (region `fra1`) + Neon Free |
+| Produksjon | https://kolappsystem.vercel.app |
+| Drift | Vercel Hobby (region `fra1`) + Neon Free (Frankfurt) |
 | Forløper | Pilot i Base44 (mtsko.base44.app), erstattet av denne versjonen fra v1.0.0 |
 
 ## Sider

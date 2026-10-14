@@ -2,6 +2,17 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.0.1] – 2026-10-14
+
+### Endret
+- Node låst til 22.x på Vercel (`engines`), så en ny Node-versjon ikke tas i bruk uten testing.
+- GitHub Actions oppdatert til v5 (Node 24).
+
+### Dokumentasjon
+- Oppsettsguiden viser nøyaktig hvordan Neon kobles til: bare Production og **uten** «Create Database Branch For Deployment» (ellers nullstilles databasen ved hver deploy).
+- Produksjonsmiljø (URL, Vercel-prosjekt, database) beskrevet i `AGENTS.md` og `README.md`.
+- Feilsøking for tapte data etter deploy og feil variabelnavn.
+
 ## [1.0.0] – 2026-10-14
 
 Første produksjonsversjon. Erstatter piloten i Base44 (mtsko.base44.app) med samme funksjoner, tekster og utseende, bygd på nytt for sikkerhet og drift på Vercel Hobby.

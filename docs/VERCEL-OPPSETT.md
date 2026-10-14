@@ -16,7 +16,19 @@ Første bygg går fint uten database. Til steg 2 og 3 er gjort, viser forsiden i
 1. Åpne prosjektet i Vercel og gå til fanen **Storage**.
 2. Trykk **Create Database** og velg **Neon** (Serverless Postgres).
 3. Velg plan **Free** og region **Frankfurt (eu-central-1)**. Den ligger nærmest Norge og samme sted som appen kjører (`fra1`).
-4. Trykk **Create**, og deretter **Connect** til prosjektet. Huk av **bare Production** (ta bort Preview og Development).
+4. Trykk **Create**. I vinduet **Connect a Project** velger du prosjektet og setter:
+
+   | Felt | Verdi |
+   | --- | --- |
+   | Environments | **bare Production** (ta bort Preview og Development) |
+   | Require Active Resource Before Deploy | på (standard) |
+   | **Create Database Branch For Deployment** | **ingen haker** – verken Preview eller Production |
+   | Custom Environment Variable Prefix | **tomt** («STORAGE» er bare grå eksempeltekst) |
+   | Sensitive | på (standard) |
+
+   Trykk **Connect**.
+
+> **Viktig:** Er «Create Database Branch For Deployment → Production» huket av, lager Neon en ny, tom databasekopi ved hver deploy. Da forsvinner kølapper, PIN og QR-nøkler hver gang koden oppdateres. Har det skjedd: Storage → databasen → Projects → **⋮** ved prosjektet → **Configure**, fjern hakene, **Save Changes** og **Redeploy**.
 
 Vercel legger nå selv inn `DATABASE_URL` i prosjektet. Du skal ikke kopiere noe for hånd.
 
@@ -27,7 +39,15 @@ Hvorfor bare Production: da kan ingen test-versjon (forhåndsvisning) eller loka
 1. Gå til fanen **Deployments**.
 2. Trykk **⋯** på øverste rad og velg **Redeploy**.
 
-Under bygget lages tabellene, stasjonene A, B og C med nye hemmelige nøkler, og PIN `1234`. I byggeloggen står det `[migrate] databasen er oppdatert`.
+Under bygget lages tabellene, stasjonene A, B og C med nye hemmelige nøkler, og PIN `1234`. Første gang står det i byggeloggen:
+
+```
+[migrate] kjører 001_init.sql
+[migrate] innstillinger opprettet (PIN fra INITIAL_PIN eller standard 1234 – bytt den på /admin)
+[migrate] databasen er oppdatert
+```
+
+Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig – da finnes tabellene allerede, og data beholdes.
 
 ## Steg 4 – Bytt PIN og skriv ut QR-koder
 
@@ -43,6 +63,7 @@ Under bygget lages tabellene, stasjonene A, B og C med nye hemmelige nøkler, og
 - [ ] Skann samme kode igjen med samme mobil → du får **samme** lapp, ikke ny.
 - [ ] Åpne `/operator?station=A` på en annen mobil, logg inn, trykk **NESTE** → første mobil blir grønn.
 - [ ] Åpne `/display` på en PC → A1 vises under «Nå betjenes».
+- [ ] Gjør en ekstra **Redeploy** og sjekk at `/admin` viser samme antall lapper og samme `key=` i QR-lenken som før. Da overlever data oppdateringer.
 - [ ] Trykk **Nullstill kø** for A i `/admin` før arrangementet.
 
 ## Valgfritt
@@ -59,6 +80,8 @@ Under bygget lages tabellene, stasjonene A, B og C med nye hemmelige nøkler, og
 | Symptom | Løsning |
 | --- | --- |
 | «Databasen er ikke koblet til ennå» eller ingen stasjoner på forsiden | Steg 2 er ikke gjort, eller steg 3 (Redeploy) mangler. |
+| Lapper forsvinner og QR-koder slutter å virke etter en deploy | «Create Database Branch For Deployment» er på. Se «Viktig» under steg 2. |
+| Byggeloggen sier `DATABASE_URL er ikke satt` selv om Neon er koblet til | Et prefiks er fylt inn, så variabelen heter noe annet. Fjern prefikset under **Configure** og deploy på nytt. |
 | Byggfeil `[migrate] feilet` | Sjekk at Neon er koblet til (Settings → Environment Variables skal ha `DATABASE_URL`). |
 | Glemt PIN | Se `docs/SIKKERHET.md` → «Glemt PIN». |
 | Prosjektet er pauset | Hobby-grensen er nådd (svært usannsynlig, se `AGENTS.md` §6). Oppgrader til Pro midlertidig. |

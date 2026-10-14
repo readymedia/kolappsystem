@@ -8,6 +8,13 @@ Kølappsystem for meet-and-greet med tre faste stasjoner (A, B, C) på en konfer
 
 Produksjon: Vercel **Hobby** (gratis) + Neon Postgres **Free**. Begge har harde grenser – se §6.
 
+| Miljø | Verdi |
+| --- | --- |
+| Produksjons-URL | https://kolappsystem.vercel.app |
+| Vercel-prosjekt | `magnus-lians-projects/kolappsystem` (Hobby), funksjoner i `fra1` |
+| Database | Neon `kolappsystem` (Free, Frankfurt), koblet til **kun Production**, **uten** «Create Database Branch For Deployment» |
+| GitHub | `readymedia/kolappsystem`, `main` deployes automatisk til produksjon |
+
 ## 2. Kart over koden
 
 ```
@@ -79,7 +86,7 @@ Next.js 16-merknader: `params`/`searchParams` er Promises (`await params`), `coo
 
 Går Vercel Hobby over grensen, **stoppes prosjektet i 30 dager**. Derfor:
 - `/api/state` er felles for alle og mellomlagres 1 s på CDN (`CDN-Cache-Control`). Kølapper og storskjerm leser bare den.
-- Polling pauser når fanen er skjult og stopper når lappen er ferdig.
+- Polling pauser når fanen er skjult, går ned til hvert 15. sekund når lappen er ferdig, og stopper når lappen ikke finnes.
 - Utregningen står i `docs/ARKITEKTUR.md` §6.
 
 Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLUTNINGER.md` ADR-007.
@@ -87,7 +94,7 @@ Merk: Vercel Hobby er etter vilkårene for ikke-kommersiell bruk. Se `docs/BESLU
 ## 7. Versjonering og commits
 
 - SemVer. Patch = feilretting, minor = ny funksjon, major = endring som krever ny QR-utskrift eller migrering med datatap.
-- Ved release: oppdater `CHANGELOG.md` (nyeste øverst), `version` i `package.json`, commit, `git tag vX.Y.Z`, push med `--tags`.
+- Ved release: oppdater `CHANGELOG.md` (nyeste øverst), `version` i `package.json`, commit, `git tag vX.Y.Z`, push med `--tags`. Kan ikke tagger pushes fra verktøyet ditt, lag dem i GitHub under **Releases → Draft a new release**.
 - Commit-meldinger: kort imperativ på norsk eller engelsk, f.eks. `fix: hindre dobbel kalling ved samtidig NESTE`. Prefikser: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`.
 - Git-bruker for dette repoet: `readymedia` / `magnus@readymedia.no`.
 - `main` deployes automatisk til produksjon på Vercel. Bruk en gren + PR for større endringer (får egen forhåndsvisnings-URL).
