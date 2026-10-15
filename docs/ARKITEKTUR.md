@@ -28,7 +28,7 @@ flowchart LR
 
 ## 2. Datamodell
 
-Definert i `db/migrations/` (001–004).
+Definert i `db/migrations/` (001–005).
 
 | Tabell | Viktige felt | Regler |
 | --- | --- | --- |
@@ -37,8 +37,8 @@ Definert i `db/migrations/` (001–004).
 | `queue_actions` | `station`, `kind` (next/skip), `finished_ticket`, `called_ticket`, `undone` | Logg som gjør «Angre siste» mulig i flere steg. |
 | `settings` | `pin_hash`, `pin_version`, `session_secret` | Én rad (`id = 1`). |
 | `rate_limits` | `key`, `count`, `window_start` | Forsøksgrenser for PIN og nye lapper. |
-| `site_config` | `display_title`, `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id` | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
-| `media` | `kind` (audio/logo), `mime`, `bytes`, `size`, `sha256` | Opplastede filer. Filtype sjekket på innhold. Serveres som `/api/media/<sha256>`. Filer ingen peker på slettes. |
+| `site_config` | `display_title`, `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id`, `event_name`, `logo_media_id`, `primary_color` (`#rrggbb`), `display_background` (dark/light), `font_display`, `font_body` | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
+| `media` | `kind` (audio/logo), `mime`, `bytes`, `size`, `sha256` | Opplastede filer. Filtype sjekket på innhold. Serveres som `/api/media/<sha256>`. Filer ingen peker på (verken som lyd eller logo) slettes. |
 | `schema_migrations` | `version` | Hvilke migreringer som er kjørt. |
 
 Status for en lapp: `waiting` → `called` → `done` eller `skipped`. En `skipped` kan settes tilbake til `waiting` av operatør.
@@ -66,11 +66,13 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 | `POST /api/admin/stations/:station/reset\|activate\|deactivate\|closed-message\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `deactivate` tar valgfri `{message}` og `closed-message` tar `{message}` (maks 80 tegn). `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
 | `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN (6–12 sifre), alle andre logges ut |
 | `GET /api/health` | Åpen | `{ok, version, commit, db, migration}`, 503 hvis databasen ikke svarer |
-| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}}` – offentlige innstillinger, aldri hemmeligheter |
+| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}}` – offentlige innstillinger, aldri hemmeligheter |
 | `GET /api/display/qr?station=A,C&t=<token>` | Åpen med signert token, aldri mellomlagret | `{qr: {A: "<svg>", C: "<svg>"}}`. Feil eller utdatert token: 403 `display_link_expired`. |
 | `GET /api/admin/display-token?station=A,C` | Økt | `{token}` for skjermlenke med QR |
 | `GET /api/media/<sha256>` | Åpen | Filen, `immutable` mellomlagring og `sandbox`-CSP |
 | `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`, `displayTitle` maks 80 tegn) |
+| `PUT`/`DELETE /api/admin/branding` | Økt | Lagre utseende (`eventName` maks 60, `primaryColor` hex, `displayBackground`, `fontDisplay`, `fontBody` fra fontlisten) / tilbakestill til standard (fjerner også logo). Svarer med innstillingene. |
+| `POST`/`DELETE /api/admin/logo` | Økt | Last opp (multipart `file`, PNG/JPEG/WebP/SVG, maks 512 kB, sjekket på innhold, SVG-vern) / fjern logo |
 | `POST`/`DELETE /api/admin/audio` | Økt | Last opp (multipart `file`, maks 2 MB, sjekket på innhold) / fjern egen lyd |
 
 Feilsvar har alltid formen `{error: "<kode>", message: "<norsk tekst>"}`. Kodene står i `src/lib/texts.ts`.
@@ -102,6 +104,16 @@ Feil i databasen: død tilkobling ved lesing prøves én gang til. Lås- eller t
 - Overskriften hentes fra `/api/config` (hvert 15. s). Stengt stasjon og melding kommer fra `/api/state`.
 - **QR på storskjermen:** token = HMAC-SHA256(serverhemmelighet, `qr:<sorterte stasjoner>:<deres nøkler>`), 32 tegn base64url (`src/lib/display-token.ts`). Tokenet dekker utvalget i lenken, så én lenke med flere stasjoner trenger ett token. `/api/display/qr` sjekker det i konstant tid og svarer bare med SVG. «Bytt nøkkel» på en av stasjonene gjør tokenet ugyldig. Skjermen henter QR hvert 60. sekund. Lenke og QR lages av samme hjelper som admin (`src/lib/join-link.ts`).
 
+## 5d. Utseende
+
+- `src/lib/branding.ts` (ren): fontliste, standardutseende og `brandingVars()` som gir CSS-variablene `--brand-primary`, `--brand-on-primary`, `--brand-font-display` og `--brand-font-body`. `globals.css` bruker dem med dagens verdier som reserve.
+- Rotlayouten leser utseendet med `getBranding()` (`src/lib/branding-server.ts`): Next.js datacache med tag `branding` og 5 minutters sikkerhetsnett. Ingen databasekall per besøkende. Databasefeil gir standardutseende og mellomlagres ikke.
+- Statiske sider (`/`, `/display`, `/join`, `/audio`) er ISR: de bygges med utseendet og fornyes når admin lagrer (`revalidateTag` + `revalidatePath("/", "layout")`) eller senest etter 5 minutter.
+- Klientkomponenter får navn og logo via `BrandingProvider`/`useBranding()`. Storskjermen henter i tillegg utseendet fra `/api/config` hvert 15. sekund og setter CSS-variablene selv, så den slipper å lastes på nytt.
+- Storskjermbakgrunnen er standard for `/display`; `theme=` i lenken overstyrer (`hasThemeParam()`).
+- Arrangementsnavnet og storskjermens overskrift (`display_title`, v1.3) er to felt. Ved endring av navnet foreslår admin å oppdatere overskriften til «<navn> · Køstatus» hvis den ikke er egendefinert.
+- Fonter ligger i appen (`@fontsource`). Alle `@font-face` lastes som CSS, men nettleseren laster bare ned filene til fontene som brukes.
+
 ## 6. Budsjett for Vercel Hobby
 
 Grensene per måned: 1 000 000 CDN-forespørsler, 1 000 000 funksjonskall og 4 timer Active CPU. Over grensen pauses prosjektet i 30 dager.
@@ -116,7 +128,7 @@ Anslag for én konferansedag (8 timer), 300 brukere som i snitt har lappen åpen
 | Storskjerm | 8 t × (1 200 status + 240 konfig) per time | 11 500 | – (deles via CDN). Med QR: + 60 per time (480 funksjonskall) |
 | Operatører | 3 × 8 t × 1 200 per time | 29 000 | 29 000 |
 | Lydsider (2 stk) | 2 × 8 t × (1 200 status + 240 konfig) per time | 23 000 | – (deles via CDN) |
-| Sideinnlastinger og filer | 300 × ca. 30 | 9 000 | 1 000 |
+| Sideinnlastinger og filer | 300 × ca. 30 | 9 000 | 1 000 (inkl. fornying av statiske sider, maks ca. 12 per side per time) |
 | **Sum** | | **ca. 197 000** | **ca. 60 000** |
 
 Det gir god margin, også for flere dager i samme måned. Neon Free (100 CU-timer) brukes med ca. 3 CU-timer per dag.

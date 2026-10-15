@@ -1,8 +1,10 @@
 "use client";
 
 import { AlertTriangle, Copy, ExternalLink, Monitor } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useBranding } from "@/components/BrandingContext";
 import { DisplayBoard } from "@/components/DisplayBoard";
+import { ScaledPreview } from "@/components/ScaledPreview";
 import { usePolling } from "@/components/hooks";
 import { buttonClass, Card } from "@/components/ui";
 import { api } from "@/lib/client-api";
@@ -39,7 +41,11 @@ const TOGGLES: { key: "title" | "desc" | "header" | "clock" | "sound" | "qr"; la
 ];
 
 export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStation[] | null; onUnauthorized: () => void }) {
-  const [opts, setOpts] = useState<DisplayOptions>(DEFAULT_DISPLAY_OPTIONS);
+  // Storskjermbakgrunnen fra «Utseende» er standard; lenken får bare «theme=» når den avviker.
+  const brand = useBranding();
+  const siteTheme = brand.displayBackground;
+  const defaults: DisplayOptions = { ...DEFAULT_DISPLAY_OPTIONS, theme: siteTheme };
+  const [opts, setOpts] = useState<DisplayOptions>(defaults);
   const [title, setTitle] = useState<string | null>(null);
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
   const [titleMsg, setTitleMsg] = useState("");
@@ -88,7 +94,7 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
   const linkFor = (stationsSel: StationId[] | null) => {
     const key = stationsSel?.join(",") ?? "";
     const o: DisplayOptions = { ...opts, stations: stationsSel, token: opts.qr ? (tokens[key] ?? null) : null };
-    return `${origin}/display${buildDisplayQuery(o)}`;
+    return `${origin}/display${buildDisplayQuery(o, siteTheme)}`;
   };
   const mainLink = linkFor(opts.stations);
   const qrPending = opts.qr && !tokens[selKey];
@@ -144,6 +150,11 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
         <button type="submit" disabled={title === null || title === savedTitle} className={buttonClass("outline", "md")}>
           Lagre overskrift
         </button>
+        {brand.eventName && title !== null && title !== `${brand.eventName} · Køstatus` && (
+          <button type="button" className={buttonClass("ghost", "md")} onClick={() => setTitle(`${brand.eventName} · Køstatus`)}>
+            Bruk arrangementsnavnet
+          </button>
+        )}
         {titleMsg && <p className="w-full text-sm text-slate-600">{titleMsg}</p>}
       </form>
 
@@ -215,14 +226,15 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
               ))}
             </div>
           </div>
-          <button type="button" className={buttonClass("ghost", "sm")} onClick={() => setOpts(DEFAULT_DISPLAY_OPTIONS)}>
+          <button type="button" className={buttonClass("ghost", "sm")} onClick={() => setOpts(defaults)}>
             Tilbakestill valg
           </button>
         </fieldset>
 
         <div className="min-w-0">
-          <Preview>
+          <ScaledPreview className="bg-black" label="Forhåndsvisning av storskjerm">
             <DisplayBoard
+              logoUrl={brand.logoUrl}
               state={state}
               options={opts}
               title={savedTitle}
@@ -230,7 +242,7 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
               wide
               className="h-[900px]"
             />
-          </Preview>
+          </ScaledPreview>
           <p className="mt-1 text-xs text-slate-400">Forhåndsvisning med ekte køtall{opts.qr ? " (QR-koden er et eksempel)" : ""}.</p>
         </div>
       </div>
@@ -294,33 +306,6 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
         </ul>
       </details>
     </Card>
-  );
-}
-
-/** Skalerer et 1600×900-felt ned til tilgjengelig bredde. */
-function Preview({ children }: { children: React.ReactNode }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.4);
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      if (entry) setScale(entry.contentRect.width / 1600);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return (
-    <div
-      ref={box}
-      className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-black"
-      data-testid="display-preview"
-      aria-label="Forhåndsvisning av storskjerm"
-    >
-      <div className="pointer-events-none absolute left-0 top-0 h-[900px] w-[1600px] origin-top-left" style={{ transform: `scale(${scale})` }} inert>
-        {children}
-      </div>
-    </div>
   );
 }
 

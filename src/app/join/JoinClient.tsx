@@ -3,6 +3,7 @@
 import { AlertTriangle, CircleSlash } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useBranding } from "@/components/BrandingContext";
 import { CenteredMessage, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
 import { parseStationId, STATION_THEME } from "@/lib/config";
@@ -16,6 +17,7 @@ type View = { kind: "loading" } | { kind: "closed"; message: string } | { kind: 
 
 export function JoinClient() {
   const router = useRouter();
+  const { logoUrl } = useBranding();
   const params = useSearchParams();
   const station = parseStationId(params.get("station"));
   const key = params.get("key") ?? "";
@@ -72,6 +74,7 @@ export function JoinClient() {
   if (view.kind === "closed") {
     return (
       <CenteredMessage
+        logoUrl={logoUrl}
         icon={<CircleSlash className="h-8 w-8 text-slate-400" aria-hidden />}
         title={`Stasjon ${station} er stengt`}
         text={view.message ? `${view.message}\n\n${ERROR_TEXT.closed}` : ERROR_TEXT.closed}
@@ -81,6 +84,7 @@ export function JoinClient() {
   if (view.kind === "error") {
     return (
       <CenteredMessage
+        logoUrl={logoUrl}
         icon={<AlertTriangle className="h-8 w-8 text-amber-500" aria-hidden />}
         title="Ugyldig lenke"
         text={view.text}
@@ -90,6 +94,7 @@ export function JoinClient() {
   return (
     <div className={station ? STATION_THEME[station].soft : ""}>
       <CenteredMessage
+        logoUrl={logoUrl}
         tone="soft"
         icon={<Spinner />}
         title="Henter kølappen din …"

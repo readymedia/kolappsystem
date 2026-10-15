@@ -19,6 +19,8 @@ export interface DisplayBoardProps {
   blink?: Partial<Record<StationId, boolean>>;
   /** QR-SVG per stasjon (bare med gyldig signert lenke). */
   qr?: Partial<Record<StationId, string>> | null;
+  /** Arrangementets logo (v1.4), vises til venstre i topplinjen. */
+  logoUrl?: string | null;
   /** Hjørneknapper (fullskjerm) – vises i topplinjen. */
   corner?: ReactNode;
   wide?: boolean;
@@ -48,6 +50,7 @@ export function DisplayBoard({
   title,
   blink = {},
   qr,
+  logoUrl = null,
   corner,
   wide = false,
   className,
@@ -75,8 +78,17 @@ export function DisplayBoard({
       data-theme={options.theme}
     >
       <div className={`mx-auto flex w-full flex-1 flex-col ${single ? "" : "max-w-[1600px]"}`}>
-        {(showHeader || options.clock || corner) && (
-          <div className="relative min-h-5">
+        {(showHeader || options.clock || corner || (options.header && logoUrl)) && (
+          <div className={`relative ${options.header && logoUrl ? "min-h-12" : "min-h-5"}`}>
+            {options.header && logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- egen fil fra /api/media
+              <img
+                src={logoUrl}
+                alt=""
+                className="absolute left-0 top-1/2 h-12 w-auto max-w-[14rem] -translate-y-1/2 object-contain"
+                data-testid="brand-logo"
+              />
+            )}
             {showHeader && (
               <p
                 className={`text-center text-xs uppercase tracking-[0.6em] ${light ? "text-slate-400" : "text-white/35"}`}

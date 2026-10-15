@@ -20,8 +20,9 @@ const csp = [
   "frame-ancestors 'none'",
 ].join("; ");
 
-const securityHeaders = [
-  { key: "Content-Security-Policy", value: csp },
+// Hoder for alle svar. CSP settes separat: opplastede filer (/api/media) skal ha sin egen, strengere CSP.
+// (Hoder herfra overstyrer hoder satt i ruten, så sandbox-CSP-en må settes her – rettet i v1.4.)
+const commonHeaders = [
   // Nøkkelen står i QR-lenken: send aldri adressen videre til andre nettsteder.
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -38,7 +39,18 @@ const nextConfig: NextConfig = {
     return [{ source: "/audiosignal", destination: "/audio", permanent: false }];
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: commonHeaders },
+      { source: "/:path((?!api/media/).*)", headers: [{ key: "Content-Security-Policy", value: csp }] },
+      // Opplastede filer (lyd, logo): kan aldri kjøre skript eller hente noe, selv om de åpnes direkte.
+      {
+        source: "/api/media/:sha*",
+        headers: [
+          { key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; sandbox" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+        ],
+      },
+    ];
   },
 };
 

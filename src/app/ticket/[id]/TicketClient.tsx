@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo, useBranding } from "@/components/BrandingContext";
 import { CheckCircle2, Clock, Hourglass, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePolling, useWakeLock } from "@/components/hooks";
@@ -23,6 +24,7 @@ function fromTicket(t: PublicTicket): DerivedTicket {
 }
 
 export function TicketClient({ id }: { id: string }) {
+  const brand = useBranding();
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [view, setView] = useState<DerivedTicket | { kind: "loading" }>({ kind: "loading" });
   const [description, setDescription] = useState("");
@@ -88,7 +90,7 @@ export function TicketClient({ id }: { id: string }) {
     );
   }
   if (view.kind === "not_found" || !ticket) {
-    return <CenteredMessage title="Fant ikke kølappen" text={ERROR_TEXT.not_found} />;
+    return <CenteredMessage title="Fant ikke kølappen" text={ERROR_TEXT.not_found} logoUrl={brand.logoUrl} />;
   }
 
   const label = `${ticket.station}${ticket.number}`;
@@ -135,6 +137,7 @@ export function TicketClient({ id }: { id: string }) {
   return (
     <main className={`min-h-[100dvh] ${theme.soft}`}>
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-6 pb-12 pt-10">
+        <Logo url={brand.logoUrl} className="mb-6 h-10 max-w-[12rem]" alt={brand.eventName} />
         <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Kølapp · Stasjon {ticket.station}</p>
         <div className="mt-8 rounded-[2rem] bg-white px-6 py-10 text-center shadow-[0_25px_60px_-45px_rgba(15,23,42,0.5)]">
           <p className="text-sm font-medium text-slate-500">Din plass i køen</p>

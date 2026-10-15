@@ -60,7 +60,22 @@ Kryss av **QR-kode for kølapp**. Lenken får da et signert tillegg (`&t=…`), 
 - **Bytt nøkkel** gjør skjermlenken ugyldig. Skjermen viser da «QR-lenken er utdatert – lag en ny under «Skjermer» i admin.» Kopier ny lenke (den lages automatisk) og åpne den på skjermen.
 - Lag derfor skjermlenkene **etter** at du har byttet nøkler før arrangementet.
 
-### Lydsignal på storskjermen
+### Utseende og logo
+
+Knappen **Utseende** øverst i admin åpner `/admin/utseende`. Bytt utseende før hvert arrangement.
+
+1. **Arrangementsnavn**: vises på forsiden, i fanetittelen og på utskriften. La krysset «Bruk også som overskrift på storskjermen» stå, så sier storskjermen «<navn> · Køstatus».
+2. **Logo**: «Last opp logo …». PNG, JPEG, WebP eller SVG, maks 512 kB. Liggende format med gjennomsiktig bakgrunn ser best ut. Logoen vises på forsiden, kølappen, skann, storskjermen og utskriften av QR-kodene.
+3. **Hovedfarge**: fargen på knappene. Tekstfargen velges automatisk. Får du varselet «Lav kontrast», velg en mørkere eller lysere farge.
+4. **Storskjermbakgrunn**: mørk eller lys. Gjelder alle storskjermer som ikke har eget valg i lenken.
+5. **Fonter**: én for overskrifter og nummer, én for brødtekst. «Atkinson Hyperlegible» er laget for å være lettlest.
+6. Sjekk forhåndsvisningen og trykk **Lagre**. Alle sider bruker det nye utseendet med en gang; storskjermer innen 20 sekunder.
+
+**Tilbakestill til standard** gir dagens utseende tilbake og fjerner logoen.
+
+SVG-filer med skript, lenker til andre filer o.l. avvises. Få feilmeldingen? Lagre logoen på nytt som «enkel SVG», eller bruk PNG.
+
+## Lydsignal på storskjermen
 
 Kryss av **Lydsignal**. Etter at lenken er åpnet må noen klikke «Klikk for å slå på lyd» én gang. Se `docs/LYD-OPPSETT.md`.
 

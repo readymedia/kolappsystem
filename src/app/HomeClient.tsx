@@ -4,12 +4,14 @@ import { Monitor, Settings2, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePolling } from "@/components/hooks";
+import { Logo, useBranding } from "@/components/BrandingContext";
 import { buttonClass } from "@/components/ui";
 import { api } from "@/lib/client-api";
 import { STATION_THEME } from "@/lib/config";
 import type { PublicState } from "@/lib/public-state";
 
 export function HomeClient() {
+  const brand = useBranding();
   const [state, setState] = useState<PublicState | null>(null);
   usePolling(async () => {
     const res = await api<PublicState>("/api/state", { cache: "default" });
@@ -19,7 +21,8 @@ export function HomeClient() {
   return (
     <main className="min-h-[100dvh] bg-paper">
       <div className="mx-auto max-w-3xl px-6 py-16">
-        <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Meet &amp; Greet</p>
+        <Logo url={brand.logoUrl} className="mb-6 h-14 max-w-[16rem]" alt={brand.eventName} />
+        {brand.eventName && <p className="text-xs uppercase tracking-[0.35em] text-slate-400">{brand.eventName}</p>}
         <h1 className="mt-4 font-display text-4xl text-slate-900 sm:text-5xl">Kølappsystem</h1>
         <p className="mt-4 max-w-xl text-slate-600">
           Tre stasjoner, én digital kø. Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.

@@ -11,14 +11,21 @@ export function CenteredMessage({
   title,
   text,
   tone = "paper",
+  logoUrl = null,
 }: {
   icon?: ReactNode;
   title: string;
   text?: string;
   tone?: "paper" | "soft";
+  /** Arrangementets logo over kortet (v1.4). */
+  logoUrl?: string | null;
 }) {
   return (
-    <main className={`flex min-h-[100dvh] items-center justify-center px-6 ${tone === "paper" ? "bg-paper" : ""}`}>
+    <main className={`flex min-h-[100dvh] flex-col items-center justify-center gap-8 px-6 ${tone === "paper" ? "bg-paper" : ""}`}>
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- egen fil fra /api/media
+        <img src={logoUrl} alt="" className="h-12 w-auto max-w-[14rem] object-contain" data-testid="brand-logo" />
+      )}
       <Card className="w-full max-w-sm p-8 text-center shadow-[0_25px_60px_-40px_rgba(15,23,42,0.4)]">
         {icon && <div className="flex justify-center">{icon}</div>}
         <p className="mt-4 font-display text-xl text-slate-900">{title}</p>
@@ -38,7 +45,9 @@ export function Spinner({ className = "h-8 w-8 text-slate-400" }: { className?: 
 }
 
 const BTN = {
-  primary: "bg-slate-900 text-white hover:bg-slate-800",
+  // Hovedfarge fra «Utseende» (v1.4). Standard #0f172a med hvit tekst = slate-900 som før.
+  primary:
+    "bg-[var(--brand-primary,#0f172a)] text-[var(--brand-on-primary,#fff)] hover:bg-[color-mix(in_srgb,var(--brand-primary,#0f172a)_88%,white)]",
   outline: "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50",
   danger: "bg-red-600 text-white hover:bg-red-700",
   ghost: "text-slate-600 hover:bg-slate-100",

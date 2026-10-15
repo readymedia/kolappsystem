@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 /* Fonter lastes fra eget domene via npm (@fontsource), ingen kall til Google. */
+/* --brand-* settes på <html> av rotlayouten fra «Utseende» i admin (v1.4). Uten dem: dagens utseende. */
 @theme {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--brand-font-body, "Inter Variable", ui-sans-serif, system-ui, sans-serif);
+  --font-display: var(--brand-font-display, "Space Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif);
   --color-paper: #fbfaf8;
 }
 

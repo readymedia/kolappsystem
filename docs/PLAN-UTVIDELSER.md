@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | 1.2 | Lydsignal | **Levert i v1.2.0** |
 | 1.3 | Skjermer | **Levert i v1.3.0** |
-| 1.4 | Utseende og logo | Godkjent – denne runden |
+| 1.4 | Utseende og logo | **Levert i v1.4.0** |
 | 1.5 | Push-varsel | Roadmap – Now (neste runde) |
 | 1.6 | Fritt antall stasjoner | Roadmap – Next |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
@@ -257,6 +257,7 @@ Teksten «Meet & Greet · Køstatus» blir en innstilling i admin («Overskrift 
 | Font, brødtekst | Inter | Overalt |
 
 - **Fontliste:** Space Grotesk, Inter, Manrope, DM Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible og systemfont. Alle ligger i appen. Det blir ingen Google Fonts-lenke, av hensyn til personvern og CSP.
+- *(Levert: arrangementsnavnet erstatter ikke storskjermens overskrift automatisk. Feltene er adskilt, men admin foreslår «<navn> · Køstatus» når overskriften ikke er egendefinert. Begrunnelse: en egendefinert overskrift fra v1.3 skal ikke overskrives uten at admin ser det.)*
 - **Logo «basert på hvilket arrangement det er»:** Last opp ny logo før hvert arrangement, eller trykk «Fjern logo». Med 2.0 får hvert arrangement sin egen.
 
 ### 6.2 Logo

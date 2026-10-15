@@ -1,7 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { getSql } from "./db";
-import type { AudioMime } from "./media";
+import { DEFAULT_BRANDING, isFontId, type Branding, type FontId } from "./branding";
+import type { AudioMime, ImageMime } from "./media";
 
 // Innstillinger som kan endres i /admin (tabellen site_config) og opplastede filer (tabellen media).
 // Offentlige deler leveres via /api/config. Ingen hemmeligheter her.
@@ -13,12 +14,19 @@ export interface SiteConfig {
   audioMode: AudioMode;
   audioVolume: number;
   audioFile: { sha256: string; mime: string; size: number } | null;
+  eventName: string;
+  logoFile: { sha256: string; mime: string; size: number } | null;
+  primaryColor: string;
+  displayBackground: "dark" | "light";
+  fontDisplay: FontId;
+  fontBody: FontId;
 }
 
 /** Det publikum (lydside, storskjerm) trenger. Mellomlagres på CDN. */
 export interface PublicConfig {
   audio: { mode: AudioMode; volume: number; url: string | null };
   display: { title: string };
+  brand: Branding;
 }
 
 export const DEFAULT_DISPLAY_TITLE = "Meet & Greet · Køstatus";
@@ -27,6 +35,12 @@ export const DEFAULT_CONFIG: SiteConfig = {
   audioMode: "default",
   audioVolume: 80,
   audioFile: null,
+  eventName: DEFAULT_BRANDING.eventName,
+  logoFile: null,
+  primaryColor: DEFAULT_BRANDING.primaryColor,
+  displayBackground: DEFAULT_BRANDING.displayBackground,
+  fontDisplay: DEFAULT_BRANDING.fontDisplay,
+  fontBody: DEFAULT_BRANDING.fontBody,
 };
 
 interface ConfigRow {
@@ -36,12 +50,25 @@ interface ConfigRow {
   audio_sha256: string | null;
   audio_mime: string | null;
   audio_size: number | null;
+  event_name: string;
+  logo_sha256: string | null;
+  logo_mime: string | null;
+  logo_size: number | null;
+  primary_color: string;
+  display_background: "dark" | "light";
+  font_display: string;
+  font_body: string;
 }
 
 export async function getSiteConfig(): Promise<SiteConfig> {
   const [row] = await getSql()<ConfigRow[]>`
-    SELECT c.display_title, c.audio_mode, c.audio_volume, m.sha256 AS audio_sha256, m.mime AS audio_mime, m.size AS audio_size
-    FROM site_config c LEFT JOIN media m ON m.id = c.audio_media_id
+    SELECT c.display_title, c.audio_mode, c.audio_volume,
+      m.sha256 AS audio_sha256, m.mime AS audio_mime, m.size AS audio_size,
+      c.event_name, l.sha256 AS logo_sha256, l.mime AS logo_mime, l.size AS logo_size,
+      c.primary_color, c.display_background, c.font_display, c.font_body
+    FROM site_config c
+      LEFT JOIN media m ON m.id = c.audio_media_id
+      LEFT JOIN media l ON l.id = c.logo_media_id
     WHERE c.id = 1`;
   if (!row) return DEFAULT_CONFIG;
   return {
@@ -49,6 +76,24 @@ export async function getSiteConfig(): Promise<SiteConfig> {
     audioMode: row.audio_mode,
     audioVolume: row.audio_volume,
     audioFile: row.audio_sha256 ? { sha256: row.audio_sha256, mime: row.audio_mime!, size: row.audio_size! } : null,
+    eventName: row.event_name,
+    logoFile: row.logo_sha256 ? { sha256: row.logo_sha256, mime: row.logo_mime!, size: row.logo_size! } : null,
+    primaryColor: row.primary_color,
+    displayBackground: row.display_background,
+    // Ukjent font (f.eks. fjernet fra listen senere) gir standard i stedet for feil.
+    fontDisplay: isFontId(row.font_display) ? row.font_display : DEFAULT_BRANDING.fontDisplay,
+    fontBody: isFontId(row.font_body) ? row.font_body : DEFAULT_BRANDING.fontBody,
+  };
+}
+
+export function toBranding(c: SiteConfig): Branding {
+  return {
+    eventName: c.eventName,
+    logoUrl: c.logoFile ? `/api/media/${c.logoFile.sha256}` : null,
+    primaryColor: c.primaryColor,
+    displayBackground: c.displayBackground,
+    fontDisplay: c.fontDisplay,
+    fontBody: c.fontBody,
   };
 }
 
@@ -58,6 +103,7 @@ export function toPublicConfig(c: SiteConfig): PublicConfig {
   return {
     audio: { mode, volume: c.audioVolume, url: mode === "custom" && c.audioFile ? `/api/media/${c.audioFile.sha256}` : null },
     display: { title: c.displayTitle },
+    brand: toBranding(c),
   };
 }
 
@@ -83,12 +129,60 @@ async function saveMedia(kind: "audio" | "logo", mime: string, bytes: Uint8Array
   return { id: row!.id, sha256 };
 }
 
-/** Sletter filer av en type som ingen innstilling peker på lenger. */
+/** Sletter filer av en type som ingen innstilling peker på lenger (verken lyd eller logo). */
 async function pruneMedia(kind: "audio" | "logo"): Promise<void> {
   await getSql()`
     DELETE FROM media m
     WHERE m.kind = ${kind}
-      AND NOT EXISTS (SELECT 1 FROM site_config c WHERE c.audio_media_id = m.id)`;
+      AND NOT EXISTS (SELECT 1 FROM site_config c WHERE c.audio_media_id = m.id OR c.logo_media_id = m.id)`;
+}
+
+export interface BrandingInput {
+  eventName?: string;
+  primaryColor?: string;
+  displayBackground?: "dark" | "light";
+  fontDisplay?: FontId;
+  fontBody?: FontId;
+}
+
+/** Lagrer utseende. Verdiene er validert i API-ruten (og av CHECK-regler i databasen). */
+export async function updateBranding(b: BrandingInput): Promise<void> {
+  const sql = getSql();
+  await sql`
+    UPDATE site_config SET
+      event_name = COALESCE(${b.eventName ?? null}, event_name),
+      primary_color = COALESCE(${b.primaryColor ?? null}, primary_color),
+      display_background = COALESCE(${b.displayBackground ?? null}, display_background),
+      font_display = COALESCE(${b.fontDisplay ?? null}, font_display),
+      font_body = COALESCE(${b.fontBody ?? null}, font_body),
+      updated_at = now()
+    WHERE id = 1`;
+}
+
+/**
+ * «Tilbakestill til standard»: navn, farge, bakgrunn, fonter og logo. Lyd berøres ikke. Overskriften på
+ * storskjermen tilbakestilles bare hvis den er laget fra arrangementsnavnet («<navn> · Køstatus»).
+ */
+export async function resetBranding(): Promise<void> {
+  await getSql()`
+    UPDATE site_config SET
+      display_title = CASE WHEN display_title = event_name || ' · Køstatus' THEN ${DEFAULT_DISPLAY_TITLE} ELSE display_title END,
+      event_name = DEFAULT, primary_color = DEFAULT, display_background = DEFAULT,
+      font_display = DEFAULT, font_body = DEFAULT, logo_media_id = NULL, updated_at = now()
+    WHERE id = 1`;
+  await pruneMedia("logo");
+}
+
+export async function setLogo(mime: ImageMime, bytes: Uint8Array): Promise<string> {
+  const { id, sha256 } = await saveMedia("logo", mime, bytes);
+  await getSql()`UPDATE site_config SET logo_media_id = ${id}, updated_at = now() WHERE id = 1`;
+  await pruneMedia("logo");
+  return sha256;
+}
+
+export async function removeLogo(): Promise<void> {
+  await getSql()`UPDATE site_config SET logo_media_id = NULL, updated_at = now() WHERE id = 1`;
+  await pruneMedia("logo");
 }
 
 export async function setCustomAudio(mime: AudioMime, bytes: Uint8Array): Promise<string> {

@@ -8,7 +8,9 @@ import { usePolling, useWakeLock } from "@/components/hooks";
 import { detectNewCalls, takeSnapshot, type Snapshot } from "@/lib/announce";
 import { api } from "@/lib/client-api";
 import { POLL_INTERVAL_MS, type StationId } from "@/lib/config";
-import { parseDisplayOptions } from "@/lib/display-options";
+import { brandingVars, type Branding } from "@/lib/branding";
+import { hasThemeParam, parseDisplayOptions } from "@/lib/display-options";
+import { useBranding } from "@/components/BrandingContext";
 import type { PublicState } from "@/lib/public-state";
 import { type AudioSettings, SoundPlayer } from "@/lib/sound";
 
@@ -22,13 +24,22 @@ const QR_INTERVAL_MS = 60_000;
 interface PublicConfigResponse {
   audio: AudioSettings;
   display?: { title: string };
+  brand?: Branding;
 }
 
 export function DisplayClient() {
   const params = useSearchParams();
   const query = params.toString();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- query er nøkkelen for params
-  const options = useMemo(() => parseDisplayOptions(params), [query]);
+  const parsed = useMemo(() => parseDisplayOptions(params), [query]);
+  const themeInLink = useMemo(() => hasThemeParam(params), [query]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Utseende fra layouten ved innlasting, deretter fra /api/config (skjermen står lenge uten å lastes på nytt).
+  const initialBrand = useBranding();
+  const [brand, setBrand] = useState<Branding>(initialBrand);
+  const options = useMemo(
+    () => (themeInLink ? parsed : { ...parsed, theme: brand.displayBackground }),
+    [parsed, themeInLink, brand.displayBackground],
+  );
   const sound = options.sound;
   const wantQr = options.qr && options.token !== null;
 
@@ -79,6 +90,12 @@ export function DisplayClient() {
         return;
       }
       setTitle(res.data.display?.title ?? "Meet & Greet · Køstatus");
+      if (res.data.brand) {
+        const b = res.data.brand;
+        setBrand(b);
+        // Ny farge og font uten ny innlasting.
+        for (const [k, v] of Object.entries(brandingVars(b))) document.documentElement.style.setProperty(k, v);
+      }
       const changed = res.data.audio.url !== audioSettings.current.url;
       audioSettings.current = res.data.audio;
       if (sound && changed && res.data.audio.url && player.current) await player.current.preload(res.data.audio.url);
@@ -149,6 +166,7 @@ export function DisplayClient() {
         title={title}
         blink={blink}
         qr={wantQr ? qr : null}
+        logoUrl={brand.logoUrl}
         corner={headerVisible ? fullscreenButton : null}
       />
       {/* Uten topplinje: fullskjermknappen ligger diskret i hjørnet. */}

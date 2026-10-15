@@ -23,6 +23,7 @@ Alt er på norsk, laget for mobil og kjører gratis på **Vercel Hobby** med **N
 | `/audio` | Lydside for PC/iPad mot lydanlegg (`?station=A` for én stasjon) | Åpen |
 | `/operator?station=A` | Funksjonærer | PIN |
 | `/admin` | Ansvarlig | PIN (samme PIN som operator) |
+| `/admin/utseende` | Ansvarlig: navn, logo, farge og fonter per arrangement | PIN |
 
 ## Kom i gang lokalt
 
@@ -59,7 +60,7 @@ npm run dev                       # http://localhost:3000
 | [`docs/SIKKERHET.md`](docs/SIKKERHET.md) | Trusselbilde, tiltak og hva du gjør ved lekkasje |
 | [`docs/UI-SPEC.md`](docs/UI-SPEC.md) | Alle tekster, farger og tilstander per side |
 | [`docs/KJOREPLAN.md`](docs/KJOREPLAN.md) | Sjekkliste før, under og etter arrangementet |
-| [`docs/ADMIN-GUIDE.md`](docs/ADMIN-GUIDE.md) | Admin steg for steg: stasjoner, stenging med melding, skjermer, lydsignal |
+| [`docs/ADMIN-GUIDE.md`](docs/ADMIN-GUIDE.md) | Admin steg for steg: stasjoner, stenging med melding, skjermer, utseende og logo, lydsignal |
 | [`docs/LYD-OPPSETT.md`](docs/LYD-OPPSETT.md) | Oppsett og feilsøking av lydsignal (PC med musikk, iPad, storskjerm) |
 | [`docs/DRIFT.md`](docs/DRIFT.md) | Overvåking, brannmur, grenser og feilsøking i drift |
 | [`docs/PRODKLARHET.md`](docs/PRODKLARHET.md) | Vurdering av prodklarhet og gjenstående risiko |

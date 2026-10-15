@@ -89,6 +89,7 @@ Et nettverk er én IPv4-adresse, eller ett IPv6-/64-nett. Grensene settes i `src
 | «Det står allerede svært mange i kø fra dette nettverket» | Over 100 ventende fra samme nett | Skjer ved flom fra en delt QR. Fjern falske lapper og bytt nøkkel. |
 | Operatørsiden viser «Mistet kontakten» eller gammelt klokkeslett ved «Oppdatert» | Nettet på enheten | Sjekk Wi-Fi/mobilnett. Siden henter seg inn igjen selv, eller trykk «Oppdater». |
 | Ingen lydsignal | Lydsiden ikke startet, satt på pause eller lagt i dvale | Se feilsøking i `docs/LYD-OPPSETT.md`. |
+| Nytt utseende vises ikke | Siden var åpen fra før, eller utseendet er endret direkte i databasen | Last siden på nytt. Storskjermer oppdateres selv innen 20 s. Endringer direkte i databasen vises etter maks 5 minutter – bruk alltid admin. |
 | Operatør kastes ut til PIN-skjermen | PIN er byttet, eller økta er utløpt (24 t uten bruk) | Logg inn igjen. Køen er uendret. |
 | `/api/health` gir `db: "error"` | Neon utilgjengelig eller kvote brukt opp | Neon-konsollen → Monitoring. Vercel → Storage. |
 | Prosjektet er pauset | Hobby-kvote brukt opp | Oppgrader til Pro, eller vent 30 dager. Se `AGENTS.md` §7. |

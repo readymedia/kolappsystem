@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { DisplayClient } from "./DisplayClient";
 
-export const metadata = { title: "Storskjerm – Meet & Greet" };
+export const metadata = { title: "Storskjerm" };
 
 export default function DisplayPage() {
   return (

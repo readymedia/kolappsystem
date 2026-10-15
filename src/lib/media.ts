@@ -38,3 +38,44 @@ export const AUDIO_LABEL: Record<AudioMime, string> = {
   "audio/flac": "FLAC",
   "audio/aiff": "AIFF",
 };
+
+export type ImageMime = "image/png" | "image/jpeg" | "image/webp" | "image/svg+xml";
+
+export const IMAGE_LABEL: Record<ImageMime, string> = {
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+  "image/webp": "WebP",
+  "image/svg+xml": "SVG",
+};
+
+/** Gjenkjenner PNG, JPEG, WebP og SVG. SVG må i tillegg passere svgProblem(). */
+export function detectImageType(b: Uint8Array): ImageMime | null {
+  if (b.length < 12) return null;
+  if (b[0] === 0x89 && ascii(b, 1, 3) === "PNG" && b[4] === 0x0d && b[5] === 0x0a) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 4) === "WEBP") return "image/webp";
+  const head = new TextDecoder("utf-8", { fatal: false }).decode(b.subarray(0, 1024)).replace(/^\uFEFF/, "").trimStart();
+  if (/^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^>]*>\s*)?<svg[\s>]/i.test(head)) return "image/svg+xml";
+  return null;
+}
+
+/**
+ * SVG-vern: avviser alt som kan kjøre kode eller hente noe utenfra. Returnerer en grunn, eller null hvis OK.
+ * Logoen vises i tillegg bare som <img> og serveres med sandbox-CSP, så dette er ekstra lag.
+ */
+export function svgProblem(b: Uint8Array): string | null {
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(b);
+  const checks: [RegExp, string][] = [
+    [/<script/i, "skript"],
+    [/\son[a-z]+\s*=/i, "hendelser (on…=)"],
+    [/<foreignObject/i, "foreignObject"],
+    [/<!ENTITY/i, "entiteter"],
+    [/<(iframe|embed|object|audio|video|link|meta|style[^>]*>[^<]*@import)/i, "innebygde elementer"],
+    [/javascript:/i, "javascript:-lenker"],
+    // Lenker er bare lov internt i filen (#id) eller som innebygd bilde (data:image/…).
+    [/(?:xlink:)?href\s*=\s*["']\s*(?!#|data:image\/(?:png|jpeg|gif|webp);)/i, "eksterne lenker"],
+    [/url\(\s*["']?\s*(?!#)/i, "eksterne url()"],
+  ];
+  for (const [re, why] of checks) if (re.test(text)) return why;
+  return null;
+}

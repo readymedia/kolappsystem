@@ -17,9 +17,17 @@ Kilden til sannhet for utseende og tekster. Oppdater denne når du endrer noe pu
 | Tittel | «Kølapp – Meet & Greet», app-navn «KøKlar» |
 | Oppdatering | Hvert 3. sekund, pauser når fanen er skjult |
 
+## Utseende per arrangement (v1.4)
+
+Alle sider følger innstillingene fra `/admin/utseende`. Uten innstillinger: dagens utseende (navn «Meet & Greet», ingen logo, hovedfarge `#0f172a`, Space Grotesk/Inter, mørk storskjerm).
+- **Logo** (når lastet opp, alltid som `<img>`): forsiden over arrangementsnavnet, kølappen øverst, `/join` og «Fant ikke kølappen» over kortet, storskjermen til venstre i topplinjen, utskrift av QR øverst.
+- **Arrangementsnavn**: overtekst på forsiden, fanetittel («Storskjerm – <navn>», «Kølapp – <navn>»), utskrift. Tomt navn skjules.
+- **Hovedfarge**: alle primærknapper. Tekstfarge hvit eller mørk etter kontrast.
+- **Fonter**: overskrifter/nummer og brødtekst overalt.
+
 ## `/` Forside
 
-Overtekst «MEET & GREET», tittel «Kølappsystem», ingress «Tre stasjoner, én digital kø. Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.» Tre kort per stasjon («STASJON A», beskrivelse, «ÅPEN»/«STENGT»). Knapper: «Storskjerm», «Operator», «Admin».
+Logo (om satt), overtekst med arrangementsnavnet (standard «MEET & GREET»), tittel «Kølappsystem», ingress «Tre stasjoner, én digital kø. Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.» Tre kort per stasjon («STASJON A», beskrivelse, «ÅPEN»/«STENGT»). Knapper: «Storskjerm», «Operator», «Admin».
 
 ## `/join`
 
@@ -98,14 +106,25 @@ Mørk bakgrunn. «LYDSIGNAL», overskrift «Alle stasjoner» eller «Stasjon A, 
 
 - Samme PIN-skjerm med tittel «Admin».
 - Gult varsel øverst så lenge standard-PIN brukes: «Du bruker fortsatt standard-PIN 1234. Bytt den nederst på siden før arrangementet (minst 6 sifre).»
-- «ADMIN», «Stasjoner og QR-koder», forklaring, knappene «Logg ut» og «Skriv ut».
+- «ADMIN», «Stasjoner og QR-koder», forklaring, knappene «Logg ut», «Utseende» (til `/admin/utseende`) og «Skriv ut».
 - Kort per stasjon: navn, «Aktiv»/«Stengt», QR-kode, lenke, «Kopier lenke», «N venter · M lapper delt ut», beskrivelse med redigering, «Nullstill kø» (bekreft: «Bekreft nullstilling»), «Deaktiver» (åpner felt «Melding til publikum (valgfri, maks 80 tegn)» med plassholder «F.eks. «Tilbake kl. 14.00»», hjelpetekst «Vises på storskjermen, ved skann og på kølappene. De som står i kø beholder plassen.», knappene «Steng stasjonen» og «Avbryt») / «Aktiver». Mens stengt: felt «Melding mens stengt» med «Lagre melding» («Lagret»). «Bytt nøkkel» (bekreft: «Bekreft – gamle QR slutter å virke»), lenker «Operator» og «Storskjerm».
 - «Fjern ventende lapper …» per stasjon: felt «Fra A…» og «til A…», knapp «Fjern», svar «Fjernet N ventende lapper.»
-- Kort «Skjermer»: «Lag lenker til storskjermer …». Felt «Overskrift på storskjerm» (plassholder «Tom = ingen overskrift») med «Lagre overskrift» → «Lagret. Storskjermene oppdateres innen 20 sekunder.» Valg: «Stasjoner» A/B/C, «Størrelse på nummeret» (Liten/Normal/Stor/Ekstra stor), «Antall i «Neste»» (Skjul, 1–5), «Vis» (Stasjonsnavn, Beskrivelse, Overskrift, Klokke, Lydsignal, QR-kode for kølapp), «Bakgrunn» Mørk/Lys, «Tilbakestill valg». Forhåndsvisning 16:9 med ekte køtall («Forhåndsvisning med ekte køtall (QR-koden er et eksempel).»). Med QR: gult risikovarsel «QR-koden på storskjermen kan fotograferes og deles. Alle som har bildet kan ta kølapp uten å være på stedet, og også skjermlenken gir tilgang til QR-koden. Vern som er aktivt: maks 100 ventende per nettverk, «Bytt nøkkel» (gjør både QR og skjermlenke ugyldig) og «Fjern ventende lapper». Vurdert som akseptabelt nå. Slå av hvis misbruk oppstår.» «SKJERMLENKE» med lenken («Lager signert lenke …» mens token hentes), «Kopier lenke» («Kopiert»), «Åpne i nytt vindu». Utvidbar «Én skjerm per stasjon» med én lenke per stasjon, «Kopier» og åpne-ikon.
+- Kort «Skjermer»: «Lag lenker til storskjermer …». Felt «Overskrift på storskjerm» (plassholder «Tom = ingen overskrift») med «Lagre overskrift» → «Lagret. Storskjermene oppdateres innen 20 sekunder.» og «Bruk arrangementsnavnet» (når navnet er satt og overskriften er en annen). Valg: «Stasjoner» A/B/C, «Størrelse på nummeret» (Liten/Normal/Stor/Ekstra stor), «Antall i «Neste»» (Skjul, 1–5), «Vis» (Stasjonsnavn, Beskrivelse, Overskrift, Klokke, Lydsignal, QR-kode for kølapp), «Bakgrunn» Mørk/Lys, «Tilbakestill valg». Forhåndsvisning 16:9 med ekte køtall («Forhåndsvisning med ekte køtall (QR-koden er et eksempel).»). Med QR: gult risikovarsel «QR-koden på storskjermen kan fotograferes og deles. Alle som har bildet kan ta kølapp uten å være på stedet, og også skjermlenken gir tilgang til QR-koden. Vern som er aktivt: maks 100 ventende per nettverk, «Bytt nøkkel» (gjør både QR og skjermlenke ugyldig) og «Fjern ventende lapper». Vurdert som akseptabelt nå. Slå av hvis misbruk oppstår.» «SKJERMLENKE» med lenken («Lager signert lenke …» mens token hentes), «Kopier lenke» («Kopiert»), «Åpne i nytt vindu». Utvidbar «Én skjerm per stasjon» med én lenke per stasjon, «Kopier» og åpne-ikon.
 - Kort «Lydsignal»: valg «Standardlyd» / «Egen lyd» (bare når fil finnes) / «Av», glidebryter «Volum: 80 %», «Spill av», «Last opp lyd …»/«Bytt lyd …», filinfo («WAV · 12 kB») med «Fjern», hjelpetekst om formater, gult varsel for AIFF/OGG, «Åpne lydsiden» og tips om `/audio?station=A` og `/display?sound=1`.
 - Kort «PIN-kode»: «Felles for operator og admin. Ny PIN logger ut alle andre enheter.», felt «Ny PIN», «Lagre», feil «PIN må være 6–12 sifre.», bekreftelse «PIN-koden er lagret. Alle andre er logget ut.»
 - Kort «Om appen» (kun i admin, aldri for publikum): App «KøKlar – kølappsystem for meet-and-greet», Versjon «1.1.0 · <commit>», Utvikler «Andreas Aarlott · andreas.aarlott@ntnu.no» (mailto-lenke), Utvikling «AI-støttet utvikling».
-- Utskrift: én stasjon per side med stort navn, beskrivelse, QR (12 cm) og «Skann for å få kølapp».
+- Utskrift: én stasjon per side med logo og arrangementsnavn (om satt), stort navn, beskrivelse, QR (12 cm) og «Skann for å få kølapp».
+
+## `/admin/utseende`
+
+- Samme PIN-skjerm. «Til admin», «ADMIN», «Utseende», ingress «Tilpass navn, logo, farge og fonter for dette arrangementet. …».
+- **Arrangementsnavn** (maks 60, plassholder «Tomt = ikke vist»), hjelpetekst «Vises på forsiden, i fanetittelen og på utskriften av QR-kodene.» Når navnet endres og storskjermens overskrift ikke er egendefinert: avkrysset «Bruk også som overskrift på storskjermen: «<navn> · Køstatus»». Ellers: «Storskjermen har egen overskrift («…»). Endre den under «Skjermer» i admin.»
+- **Logo**: ramme med logo eller «Ingen logo», «Last opp logo …»/«Bytt logo …», «Fjern logo», filinfo («SVG · 1 kB»), «PNG, JPEG, WebP eller SVG, maks 512 kB. Gjerne liggende format med gjennomsiktig bakgrunn.» Svar: «Logoen er lastet opp og i bruk.», «Logoen er fjernet.», feil «Filen er for stor (maks 512 kB).», «Filtypen støttes ikke.», «SVG-filen inneholder skript, lenker eller annet som ikke er tillatt. Lagre den på nytt som enkel SVG, eller bruk PNG.»
+- **Hovedfarge**: fargevelger + hex-felt + knapp «Eksempel», «Brukes på knapper. Tekstfargen (hvit eller mørk) velges automatisk.» Gult varsel under 4,5:1: «Lav kontrast (4,3:1). Tekst på knappene kan bli vanskelig å lese – velg en mørkere eller lysere farge.»
+- **Storskjermbakgrunn**: «Mørk»/«Lys», «Standard for storskjermen. En skjermlenke med eget valg for bakgrunn overstyrer dette.»
+- **Font for overskrifter og nummer** og **Font for brødtekst**: Space Grotesk, Inter, Manrope, DM Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible (lettlest), Systemfont. Standard merket «(standard)». Hver vises i sin egen font.
+- Knapper: «Lagre» (bare ved endringer) → «Lagret. Alle sider bruker nytt utseende nå (storskjermer innen 20 sekunder).», «Angre endringer», «Tilbakestill til standard» (bekreft: «Bekreft – fjerner også logo») → «Tilbakestilt til standard utseende.»
+- Forhåndsvisning (til høyre / under på mobil): «FORHÅNDSVISNING · STORSKJERM» med ekte køtall, og «FORHÅNDSVISNING · FORSIDE OG KØLAPP».
 
 ## 404
 

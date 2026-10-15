@@ -14,7 +14,8 @@ test.beforeEach(async () => {
   await sql`DELETE FROM rate_limits`;
   await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true, closed_message = ''`;
   await sql`UPDATE settings SET pin_hash = ${await hashPin(PIN)}, pin_version = pin_version + 1`;
-  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT WHERE id = 1`;
+  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT WHERE id = 1`;
+  await sql`DELETE FROM media`;
   for (const r of await sql<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`) keys[r.id] = r.join_key;
 });
 

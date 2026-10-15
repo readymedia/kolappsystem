@@ -7,7 +7,7 @@ import { APP_COMMIT, APP_VERSION } from "@/lib/version";
 import { AdminClient } from "./AdminClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin – Meet & Greet" };
+export const metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   let authed = false;

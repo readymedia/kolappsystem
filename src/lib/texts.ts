@@ -30,6 +30,7 @@ export const ERROR_TEXT = {
   bad_request: "Ugyldig forespørsel.",
   file_too_large: "Filen er for stor.",
   unsupported_file: "Filtypen støttes ikke.",
+  unsafe_svg: "SVG-filen inneholder skript, lenker eller annet som ikke er tillatt. Lagre den på nytt som enkel SVG, eller bruk PNG.",
   forbidden_origin: "Forespørselen ble avvist.",
   display_link_expired: "Skjermlenken er utdatert. Lag en ny under «Skjermer» i admin.",
   db_missing: "Databasen er ikke koblet til ennå. Se docs/VERCEL-OPPSETT.md.",

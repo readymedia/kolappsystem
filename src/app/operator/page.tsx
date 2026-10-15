@@ -7,7 +7,7 @@ import { ERROR_TEXT } from "@/lib/texts";
 import { OperatorClient } from "./OperatorClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Operator – Meet & Greet" };
+export const metadata = { title: "Operator" };
 
 export default async function OperatorPage({ searchParams }: { searchParams: Promise<{ station?: string }> }) {
   const station = parseStationId((await searchParams).station) ?? "A";

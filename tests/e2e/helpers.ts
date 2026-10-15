@@ -14,7 +14,7 @@ export async function resetAll() {
   await sql`DELETE FROM rate_limits`;
   await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true, closed_message = ''`;
   await sql`UPDATE settings SET pin_hash = ${await hashPin(PIN)}, pin_version = pin_version + 1`;
-  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT WHERE id = 1`;
+  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT WHERE id = 1`;
   await sql`DELETE FROM media`;
   for (const r of await sql<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`) keys[r.id] = r.join_key;
 }
@@ -62,3 +62,15 @@ export function makeWav(seconds = 0.25, rate = 8000): Buffer {
 
 export const soundCount = (page: Page) => page.evaluate(() => Number(document.documentElement.dataset.soundCount ?? 0));
 export const soundLast = (page: Page) => page.evaluate(() => document.documentElement.dataset.soundLast ?? "");
+
+/**
+ * Tilbakestiller utseendet via API-et (ikke bare i databasen), så Next.js-mellomlagringen av utseendet
+ * også tømmes. Brukes av tester som sjekker utseende.
+ */
+export async function resetBrandingViaApi(request: APIRequestContext, baseURL: string) {
+  const login = await request.post("/api/auth/login", { headers: { origin: baseURL }, data: { pin: PIN } });
+  if (!login.ok()) throw new Error(`innlogging feilet: ${login.status()}`);
+  const res = await request.delete("/api/admin/branding", { headers: { origin: baseURL } });
+  if (!res.ok()) throw new Error(`tilbakestilling feilet: ${res.status()}`);
+  await request.post("/api/auth/logout", { headers: { origin: baseURL } });
+}

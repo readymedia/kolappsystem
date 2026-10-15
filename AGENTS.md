@@ -43,7 +43,11 @@ src/lib/
   display-options.ts  Skjermvalg for /display: parseDisplayOptions(), buildDisplayQuery() (ren, testet).
   display-token.ts    Signert token for QR på storskjerm (server-only, testet).
   join-link.ts        Felles join-lenke og QR-SVG for admin og storskjerm (server-only).
-src/components/       hooks.ts (usePolling, useWakeLock), ui.tsx, PinGate, LogoutButton, DisplayBoard (storskjermen, også forhåndsvisning i admin).
+  branding.ts         Utseende: fontliste, standard, brandingVars() (ren, trygg i nettleser).
+  branding-server.ts  getBranding() med Next.js datacache (tag «branding»), brandingChanged() (server-only).
+  color.ts            Hex, kontrast (WCAG), tekstfarge på knapper (ren, testet).
+src/components/       hooks.ts (usePolling, useWakeLock), ui.tsx, PinGate, LogoutButton, DisplayBoard (storskjermen, også forhåndsvisning i admin),
+                      ScaledPreview, BrandingContext (useBranding(), Logo).
 src/app/              Sider (App Router) og API-ruter under src/app/api/. Lydsiden: src/app/audio/ (med poller.worker.ts).
 tests/unit/           Rene tester (ingen database).
 tests/integration/    Tester mot ekte Postgres (krever TEST_DATABASE_URL). Sletter data!
@@ -64,13 +68,14 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 9. **Alle køtransaksjoner går via `begin()` i `queue.ts`** (setter `lock_timeout`/`statement_timeout`). Aldri `getSql().begin` direkte for skriving.
 10. **Utviklerinfo («Om appen») vises bare i `/admin`.** Publikumssidene skal ikke vise den (E2E-test sjekker dette).
 11. **IP-adresser lagres aldri**, bare `networkFingerprint()` (HMAC) i `tickets.ip_hash`.
-12. **Opplastede filer** sjekkes på innhold (`media.ts`), lagres i `media` og serveres bare via `/api/media/<sha256>` med `sandbox`-CSP. `/api/config` skal aldri inneholde hemmeligheter.
+12. **Opplastede filer** sjekkes på innhold (`media.ts`), lagres i `media` og serveres bare via `/api/media/<sha256>` med `sandbox`-CSP (satt i `next.config.ts` – hoder derfra overstyrer rutens egne). Logo vises bare som `<img>`, aldri inline. `/api/config` skal aldri inneholde hemmeligheter.
 13. **Storskjerm-QR** krever signert token (`display-token.ts`) og svarer bare med SVG. Nøkkelen skal aldri stå i skjermlenken eller i tekst fra `/api/display/qr`.
+14. **Utseende endres bare via `/api/admin/branding` og `/api/admin/logo`**, som kaller `brandingChanged()`. Endres `site_config` direkte i databasen, vises det gamle utseendet i opptil 5 minutter. Standardverdiene skal alltid gi dagens utseende.
 
 ## 4. Planlagt arbeid
 
 Neste utvidelser (v1.2 lydsignal, v1.3 skjermer, v1.4 utseende/logo, v1.5 push-varsel, v1.6 fleksible stasjoner,
-2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.4 er godkjent (15.10). 1.2 og 1.3 er levert.** 1.5, 1.6 og 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.4 er godkjent (15.10) og levert.** 1.5, 1.6 og 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
 alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
 
 ## 5. Vanlige oppgaver
@@ -79,6 +84,7 @@ alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesi
 | --- | --- |
 | Endre en tekst publikum ser | `src/lib/texts.ts` eller siden i `src/app/…` + oppdater `docs/UI-SPEC.md` |
 | Endre farger per stasjon | `STATION_THEME` i `src/lib/config.ts` |
+| Ny font i «Utseende» | Installer `@fontsource(-variable)/…`, importer i `src/app/layout.tsx`, legg til i `FONTS` i `src/lib/branding.ts` (+ test) |
 | Endre ventetid-formel | `waitText()` i `src/lib/texts.ts` (+ test i `tests/unit/logic.test.ts`) |
 | Ny kolonne/tabell | Ny fil `db/migrations/00N_navn.sql`, oppdater typer i `queue.ts` |
 | Ny API-rute | `src/app/api/…/route.ts`, bruk `handle()` fra `http.ts` |

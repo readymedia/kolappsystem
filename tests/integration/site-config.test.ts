@@ -1,6 +1,7 @@
 // Innstillinger og opplastede filer mot ekte Postgres (krever TEST_DATABASE_URL). Sletter data!
 
 import { execFileSync } from "node:child_process";
+import { DEFAULT_BRANDING } from "@/lib/branding";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const url = process.env.TEST_DATABASE_URL;
@@ -19,7 +20,7 @@ run("innstillinger og mediefiler", () => {
   });
 
   beforeEach(async () => {
-    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT WHERE id = 1`;
+    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT WHERE id = 1`;
     await sql`DELETE FROM media`;
   });
 
@@ -28,15 +29,12 @@ run("innstillinger og mediefiler", () => {
   });
 
   it("standard er dagens oppførsel: standardlyd, 80 %", async () => {
-    expect(await cfg.getSiteConfig()).toEqual({
-      displayTitle: "Meet & Greet · Køstatus",
-      audioMode: "default",
-      audioVolume: 80,
-      audioFile: null,
-    });
+    expect(await cfg.getSiteConfig()).toEqual(cfg.DEFAULT_CONFIG);
+    expect(cfg.DEFAULT_CONFIG).toMatchObject({ displayTitle: "Meet & Greet · Køstatus", audioMode: "default", audioVolume: 80, audioFile: null });
     expect(cfg.toPublicConfig(await cfg.getSiteConfig())).toEqual({
       audio: { mode: "default", volume: 80, url: null },
       display: { title: "Meet & Greet · Køstatus" },
+      brand: DEFAULT_BRANDING,
     });
   });
 
@@ -83,5 +81,64 @@ run("innstillinger og mediefiler", () => {
     expect(cfg.toPublicConfig(await cfg.getSiteConfig()).display.title).toBe("Konferansen 2027");
     await cfg.updateDisplayTitle("");
     expect((await cfg.getSiteConfig()).displayTitle).toBe("");
+  });
+
+  const png = (n: number) => new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...Array(n).fill(n % 256)]);
+
+  it("utseende lagres, leses og tilbakestilles uten å røre lyd og overskrift", async () => {
+    await cfg.updateBranding({ eventName: "Fagdag 2027", primaryColor: "#2563eb", displayBackground: "light", fontDisplay: "manrope", fontBody: "atkinson" });
+    await cfg.updateDisplayTitle("Min overskrift");
+    await cfg.updateAudioSettings({ volume: 40 });
+    const brand = cfg.toPublicConfig(await cfg.getSiteConfig()).brand;
+    expect(brand).toEqual({ eventName: "Fagdag 2027", logoUrl: null, primaryColor: "#2563eb", displayBackground: "light", fontDisplay: "manrope", fontBody: "atkinson" });
+    // Delvis oppdatering endrer bare det som sendes.
+    await cfg.updateBranding({ eventName: "" });
+    expect((await cfg.getSiteConfig()).primaryColor).toBe("#2563eb");
+    expect((await cfg.getSiteConfig()).eventName).toBe("");
+    await cfg.resetBranding();
+    const c = await cfg.getSiteConfig();
+    expect(cfg.toBranding(c)).toEqual(DEFAULT_BRANDING);
+    expect(c.displayTitle).toBe("Min overskrift");
+    expect(c.audioVolume).toBe(40);
+  });
+
+  it("«Tilbakestill» tar med overskriften bare når den er laget fra arrangementsnavnet", async () => {
+    await cfg.updateBranding({ eventName: "Fagdag" });
+    await cfg.updateDisplayTitle("Fagdag · Køstatus");
+    await cfg.resetBranding();
+    expect((await cfg.getSiteConfig()).displayTitle).toBe("Meet & Greet · Køstatus");
+  });
+
+  it("databasen avviser ugyldig farge og bakgrunn", async () => {
+    await expect(sql`UPDATE site_config SET primary_color = 'red' WHERE id = 1`).rejects.toThrow();
+    await expect(sql`UPDATE site_config SET display_background = 'blue' WHERE id = 1`).rejects.toThrow();
+  });
+
+  it("ukjent font i databasen gir standard i stedet for feil", async () => {
+    await sql`UPDATE site_config SET font_display = 'comic-sans' WHERE id = 1`;
+    expect((await cfg.getSiteConfig()).fontDisplay).toBe("space-grotesk");
+  });
+
+  it("logo erstattes, gammel slettes, og lyd og logo sletter aldri hverandre", async () => {
+    const audio = await cfg.setCustomAudio("audio/wav", wav(20));
+    const first = await cfg.setLogo("image/png", png(10));
+    expect(cfg.toBranding(await cfg.getSiteConfig()).logoUrl).toBe(`/api/media/${first}`);
+    expect(await cfg.getMedia(audio)).not.toBeNull();
+    const second = await cfg.setLogo("image/png", png(11));
+    expect(await cfg.getMedia(first)).toBeNull();
+    expect(await cfg.getMedia(second)).not.toBeNull();
+    // Ny lyd skal ikke slette logoen (feil før v1.4: oppryddingen så bare på lyd).
+    await cfg.setCustomAudio("audio/wav", wav(21));
+    expect(await cfg.getMedia(second)).not.toBeNull();
+    await cfg.removeLogo();
+    expect(await cfg.getMedia(second)).toBeNull();
+    expect((await cfg.getSiteConfig()).audioFile).not.toBeNull();
+  });
+
+  it("«Tilbakestill» fjerner logoen", async () => {
+    const sha = await cfg.setLogo("image/png", png(12));
+    await cfg.resetBranding();
+    expect(await cfg.getMedia(sha)).toBeNull();
+    expect((await cfg.getSiteConfig()).logoFile).toBeNull();
   });
 });

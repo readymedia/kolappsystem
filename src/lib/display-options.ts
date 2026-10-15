@@ -39,6 +39,12 @@ type Params = { get(name: string): string | null };
 
 const flag = (v: string | null, fallback: boolean) => (v === "1" ? true : v === "0" ? false : fallback);
 
+/** Om adressen selv bestemmer tema (ellers brukes storskjermbakgrunnen fra «Utseende»). */
+export function hasThemeParam(p: Params): boolean {
+  const t = p.get("theme");
+  return t === "dark" || t === "light";
+}
+
 export function parseDisplayOptions(p: Params): DisplayOptions {
   const d = DEFAULT_DISPLAY_OPTIONS;
   const size = p.get("size");
@@ -61,9 +67,12 @@ export function parseDisplayOptions(p: Params): DisplayOptions {
   };
 }
 
-/** Bygger spørringen til en skjermlenke. Utelater standardverdier, så lenken blir kort. */
-export function buildDisplayQuery(o: DisplayOptions): string {
-  const d = DEFAULT_DISPLAY_OPTIONS;
+/**
+ * Bygger spørringen til en skjermlenke. Utelater standardverdier, så lenken blir kort.
+ * `siteTheme`: storskjermbakgrunnen fra «Utseende» – tema tas bare med når det avviker fra den.
+ */
+export function buildDisplayQuery(o: DisplayOptions, siteTheme: DisplayTheme = "dark"): string {
+  const d = { ...DEFAULT_DISPLAY_OPTIONS, theme: siteTheme };
   const q = new URLSearchParams();
   if (o.stations?.length) q.set("station", o.stations.join(","));
   if (o.size !== d.size) q.set("size", o.size);

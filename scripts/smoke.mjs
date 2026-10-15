@@ -71,6 +71,9 @@ await check("offentlig konfig: lydinnstillinger, ingen hemmeligheter", async () 
 await check("ugyldig mediefil gir 404", async () => {
   const res = await get("/api/media/" + "0".repeat(64));
   assert(res.status === 404, `forventet 404, fikk ${res.status}`);
+  // Opplastede filer skal alltid ha sandbox-CSP (ikke sidenes CSP).
+  const csp = res.headers.get("content-security-policy") || "";
+  assert(csp.includes("sandbox") && !csp.includes("script-src"), `feil CSP på /api/media: ${csp}`);
 });
 
 await check("offentlig konfig: overskrift på storskjerm", async () => {
@@ -89,6 +92,11 @@ await check("storskjerm-QR uten gyldig signert lenke gir 403", async () => {
 await check("storskjerm med skjermvalg svarer", async () => {
   const res = await get("/display?station=A&size=xl");
   assert(res.ok, `status ${res.status}`);
+});
+
+await check("utseende-API krever innlogging", async () => {
+  const res = await fetch(base + "/api/admin/branding", { method: "PUT", headers: { origin: base, "content-type": "application/json" }, body: "{}" });
+  assert(res.status === 401, `forventet 401, fikk ${res.status}`);
 });
 
 await check("lydsiden svarer", async () => {

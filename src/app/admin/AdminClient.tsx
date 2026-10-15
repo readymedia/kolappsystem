@@ -1,10 +1,11 @@
 "use client";
 
-import { AlertTriangle, Copy, Eraser, Info, KeyRound, Monitor, Pencil, Power, Printer, RotateCcw, UserCog } from "lucide-react";
+import { AlertTriangle, Copy, Palette, Eraser, Info, KeyRound, Monitor, Pencil, Power, Printer, RotateCcw, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { usePolling } from "@/components/hooks";
+import { useBranding } from "@/components/BrandingContext";
 import { AudioCard } from "./AudioCard";
 import { DisplayCard } from "./DisplayCard";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -72,8 +73,12 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
               Skriv ut QR-kodene og heng dem opp. Hver kode inneholder stasjonens hemmelige nøkkel – del den ikke på nett.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <LogoutButton />
+            <Link href="/admin/utseende" className={buttonClass("outline", "md")}>
+              <Palette className="h-4 w-4" aria-hidden />
+              Utseende
+            </Link>
             <button type="button" onClick={() => window.print()} className={buttonClass("primary", "md")}>
               <Printer className="h-4 w-4" aria-hidden />
               Skriv ut
@@ -148,6 +153,7 @@ function StationCard({
 
   return (
     <Card className={`print-page p-6 ${t.border} print:mx-auto print:max-w-lg print:border-0 print:p-0 print:pt-16 print:text-center`}>
+      <PrintBrand />
       <div className="flex items-center justify-between print:block">
         <h2 className="font-display text-2xl text-slate-900 print:text-7xl">Stasjon {s.id}</h2>
         <span
@@ -465,5 +471,20 @@ function AboutCard({ version, commit }: { version: string; commit: string }) {
         <dd className="text-slate-800">AI-støttet utvikling</dd>
       </dl>
     </Card>
+  );
+}
+
+/** Logo og arrangementsnavn øverst på hver utskrevne QR-side (v1.4). Vises bare ved utskrift. */
+function PrintBrand() {
+  const { logoUrl, eventName } = useBranding();
+  if (!logoUrl && !eventName) return null;
+  return (
+    <div className="hidden print:mb-10 print:block">
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- egen fil fra /api/media
+        <img src={logoUrl} alt="" className="mx-auto h-24 w-auto max-w-[12cm] object-contain" />
+      )}
+      {eventName && <p className="mt-4 text-xl uppercase tracking-[0.3em] text-slate-500">{eventName}</p>}
+    </div>
   );
 }

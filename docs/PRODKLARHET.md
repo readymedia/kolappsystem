@@ -12,14 +12,15 @@
 | Robusthet i database | Klar | Tidsgrenser for lås/spørring (5 s / 10 s), tilkoblinger fornyes hvert 10. minutt, lesing prøves én gang til ved død tilkobling. |
 | Sikkerhet – hemmeligheter | Klar | Nøkler og PIN forlater aldri serveren. Testet i integrasjons-, E2E- og røyktest. |
 | Sikkerhet – innlogging | Klar | scrypt-hash, sjekk på serveren, 5 forsøk/15 min per nettverk + global grense, ny PIN krever 6+ sifre, varsel ved standard-PIN. |
+| Sikkerhet – opplastede filer | Klar | Lyd og logo sjekkes på innhold, SVG-vern, `sandbox`-CSP på `/api/media` (rettet i v1.4, se `SIKKERHET.md`). |
 | Sikkerhet – misbruk av delt QR | Klar | Maks 100 ventende per nettverk per stasjon, egen grense for feil nøkkel, «Fjern ventende lapper» og «Bytt nøkkel» i admin. |
 | Sikkerhet – nettleser | Klar med forbehold | Streng CSP, nosniff, DENY-ramming, no-referrer, Origin-sjekk. Forbehold: `script-src 'unsafe-inline'` (Next.js uten nonce). |
 | Kvoter på Vercel Hobby | Klar med forbehold | Beregnet ca. 17 % av CDN-kvoten per dag. Forbehold: kall med tilfeldige parametere kan omgå CDN-et. Lukkes med én brannmurregel (`docs/DRIFT.md`). |
 | Feilsider | Klar | Norske feilsider for 404, sidekrasj og rammekrasj. Publikum ser aldri tekniske detaljer. |
 | Overvåking | Klar | `/api/health` og `npm run smoke` (kan kjøres mot produksjon uten å endre data). |
-| Tester og CI | Klar | 10 enhetstester, 18 integrasjonstester mot Postgres, 5 E2E-tester i ekte nettleser og røyktest. Alt kjører i GitHub Actions ved hver push. |
+| Tester og CI | Klar | 47 enhetstester, 33 integrasjonstester mot Postgres, 22 E2E-tester i ekte nettleser og 18 røyktester (v1.4). Alt kjører i GitHub Actions ved hver push. |
 | Avhengigheter | Klar | Dependabot ukentlig. `npm audit`-varsler gjelder kun ESLint-verktøy i utvikling. |
-| Dokumentasjon | Klar | README, AGENTS.md, startprompt, arkitektur, sikkerhet, drift, oppsett, kjøreplan, operatørguide, beslutninger. |
+| Dokumentasjon | Klar | README, AGENTS.md, startprompt, arkitektur, sikkerhet, drift, oppsett, kjøreplan, operatørguide, admin-guide, lydoppsett, beslutninger. |
 | Enheter | Delvis testet | iPhone/Safari testet i produksjon. Android/Chrome testet i automatisk nettleser, ikke på fysisk telefon. |
 
 ## Gjenstående risiko
@@ -28,6 +29,7 @@
 | --- | --- | --- | --- |
 | Vercel Hobby er etter vilkårene for ikke-kommersiell bruk | Avhenger av arrangementet | Prosjektet kan bli begrenset | Bruk Pro (gjerne prøveperiode) hvis arrangementet er kommersielt. Ingen kodeendring. |
 | Kvote brukt opp ved målrettet angrep | Lav | Prosjektet pauses i 30 dager | Brannmurregel i `DRIFT.md`, følg med på Usage, Attack Challenge Mode ved behov |
+| QR vist på storskjerm (valgfritt) | Middels hvis slått på | Lapper tas uten å være på stedet | Bevisst akseptert, varsel i admin. «Bytt nøkkel» gjør QR og skjermlenke ugyldige. |
 | Ustabilt nett i lokalet | Middels | Gjester ser varsel, mister ikke plassen | Ha storskjermen synlig, operatør roper opp nummer |
 | Felles PIN kjent av mange | Middels | En operatør kan også nullstille køer | Del PIN med få. Kan deles i operator-/admin-PIN senere. |
 | Deploy under arrangementet | Lav | Kort nedetid eller skjemaendring | Frys `main` under arrangementet |

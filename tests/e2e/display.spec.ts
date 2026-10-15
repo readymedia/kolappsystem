@@ -4,9 +4,7 @@ import { join, keys, login, phone, resetAll, sql } from "./helpers";
 // v1.3 Skjermer: skjermvalg i adressen, overskrift, stengt stasjon med melding, QR med signert lenke og lenkebygger.
 
 test.beforeEach(resetAll);
-test.afterAll(async () => {
-  await sql.end({ timeout: 5 });
-});
+// Merk: ikke sql.end() her – tilkoblingen i helpers.ts deles av alle testfilene i samme prosess.
 
 async function screen(browser: Browser, path: string): Promise<Page> {
   const page = await (await browser.newContext({ viewport: { width: 1600, height: 900 } })).newPage();

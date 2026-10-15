@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { AudioClient } from "./AudioClient";
 
-export const metadata = { title: "Lydsignal – Meet & Greet" };
+export const metadata = { title: "Lydsignal" };
 
 export default function AudioPage() {
   return (

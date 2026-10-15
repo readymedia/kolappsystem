@@ -77,3 +77,11 @@ oppsett uten innlogging, lenken kan bokmerkes, og standard-`/display` er uendret
 `frame-ancestors 'none'` beholdes. QR på storskjermen er valgfri og bevisst akseptert risiko (varsel i admin). Den krever et
 signert token i lenken (HMAC av stasjonsutvalget og nøklene), så nøkkelen aldri står i lenken, og «Bytt nøkkel» gjør
 lenken ugyldig uten egen tilbakekallingsliste. Ett token dekker hele utvalget i én lenke.
+
+## ADR-016 – Utseende via CSS-variabler og Next.js datacache (v1.4)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Utseendet (navn, logo, hovedfarge, fonter, storskjermbakgrunn) lagres i `site_config` og leveres som CSS-variabler på
+`<html>` fra rotlayouten. Layouten leser via `unstable_cache` med tag `branding`, så statiske sider forblir statiske (ISR)
+og besøkende ikke gir databasekall. Lagring i admin fornyer straks. Standardverdiene i CSS er dagens verdier, så uten
+innstillinger er utseendet uendret. Fonter er en kuratert liste som ligger i appen (personvern, CSP, ingen Google Fonts).
+Logo lagres i `media` og vises bare som `<img>`. Arrangementsnavn og storskjermoverskrift er adskilt (se PLAN §6.1).

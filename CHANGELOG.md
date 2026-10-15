@@ -2,6 +2,29 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.4.0] – 2026-10-15
+
+Utseende og logo per arrangement. Uten innstillinger ser alt ut som før. Se `docs/ADMIN-GUIDE.md`.
+
+### Lagt til
+- Ny side `/admin/utseende` (knappen «Utseende» i admin): arrangementsnavn, logo (PNG, JPEG, WebP eller SVG, maks 512 kB), hovedfarge med kontrastvarsel og automatisk tekstfarge, storskjermbakgrunn (mørk/lys) og fonter for overskrifter og brødtekst. Live forhåndsvisning av storskjerm, forside og kølapp. «Tilbakestill til standard».
+- Åtte kuraterte fonter som ligger i appen: Space Grotesk, Inter, Manrope, DM Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible og systemfont.
+- Logo og navn på forsiden, kølappen, skann, storskjermen, fanetittelen og utskriften av QR-kodene.
+- Storskjermen får nytt navn, logo, farge og font uten å lastes på nytt.
+- «Bruk også som overskrift på storskjermen» ved nytt arrangementsnavn, og «Bruk arrangementsnavnet» under «Skjermer».
+- `PUT`/`DELETE /api/admin/branding`, `POST`/`DELETE /api/admin/logo`, `brand` i `/api/config`.
+- Tester: farger og kontrast, bildetyper og SVG-vern (enhet), utseende, logo og opprydding (integrasjon), 5 nye E2E-scenarier, 2 nye røyktester.
+
+### Rettet
+- **Sikkerhet:** `sandbox`-CSP på opplastede filer (`/api/media`) ble overstyrt av sidenes felles CSP. Settes nå i `next.config.ts`. Se `docs/SIKKERHET.md`.
+- Opprydding av gamle filer så bare på lyd, og ville ha slettet en logo ved neste lydopplasting.
+
+### Database
+- Migrering `005_branding.sql`: `event_name`, `logo_media_id`, `primary_color`, `display_background`, `font_display`, `font_body` i `site_config`. Bare tillegg.
+
+### Drift
+- Forside, storskjerm, skann og lydside er nå statiske sider som fornyes når utseendet lagres (eller senest hvert 5. minutt). Ubetydelig ekstra kvote.
+
 ## [1.3.0] – 2026-10-15
 
 Skjermer. Standard `/display` ser ut som før, bortsett fra tydeligere stengt stasjon. Se `docs/ADMIN-GUIDE.md`.
