@@ -9,6 +9,7 @@ import type { AudioMime } from "./media";
 export type AudioMode = "default" | "custom" | "off";
 
 export interface SiteConfig {
+  displayTitle: string;
   audioMode: AudioMode;
   audioVolume: number;
   audioFile: { sha256: string; mime: string; size: number } | null;
@@ -17,11 +18,19 @@ export interface SiteConfig {
 /** Det publikum (lydside, storskjerm) trenger. Mellomlagres på CDN. */
 export interface PublicConfig {
   audio: { mode: AudioMode; volume: number; url: string | null };
+  display: { title: string };
 }
 
-export const DEFAULT_CONFIG: SiteConfig = { audioMode: "default", audioVolume: 80, audioFile: null };
+export const DEFAULT_DISPLAY_TITLE = "Meet & Greet · Køstatus";
+export const DEFAULT_CONFIG: SiteConfig = {
+  displayTitle: DEFAULT_DISPLAY_TITLE,
+  audioMode: "default",
+  audioVolume: 80,
+  audioFile: null,
+};
 
 interface ConfigRow {
+  display_title: string;
   audio_mode: AudioMode;
   audio_volume: number;
   audio_sha256: string | null;
@@ -31,11 +40,12 @@ interface ConfigRow {
 
 export async function getSiteConfig(): Promise<SiteConfig> {
   const [row] = await getSql()<ConfigRow[]>`
-    SELECT c.audio_mode, c.audio_volume, m.sha256 AS audio_sha256, m.mime AS audio_mime, m.size AS audio_size
+    SELECT c.display_title, c.audio_mode, c.audio_volume, m.sha256 AS audio_sha256, m.mime AS audio_mime, m.size AS audio_size
     FROM site_config c LEFT JOIN media m ON m.id = c.audio_media_id
     WHERE c.id = 1`;
   if (!row) return DEFAULT_CONFIG;
   return {
+    displayTitle: row.display_title,
     audioMode: row.audio_mode,
     audioVolume: row.audio_volume,
     audioFile: row.audio_sha256 ? { sha256: row.audio_sha256, mime: row.audio_mime!, size: row.audio_size! } : null,
@@ -47,6 +57,7 @@ export function toPublicConfig(c: SiteConfig): PublicConfig {
   const mode: AudioMode = c.audioMode === "custom" && !c.audioFile ? "default" : c.audioMode;
   return {
     audio: { mode, volume: c.audioVolume, url: mode === "custom" && c.audioFile ? `/api/media/${c.audioFile.sha256}` : null },
+    display: { title: c.displayTitle },
   };
 }
 
@@ -54,6 +65,10 @@ export async function updateAudioSettings(input: { mode?: AudioMode; volume?: nu
   const sql = getSql();
   if (input.mode !== undefined) await sql`UPDATE site_config SET audio_mode = ${input.mode}, updated_at = now() WHERE id = 1`;
   if (input.volume !== undefined) await sql`UPDATE site_config SET audio_volume = ${input.volume}, updated_at = now() WHERE id = 1`;
+}
+
+export async function updateDisplayTitle(title: string): Promise<void> {
+  await getSql()`UPDATE site_config SET display_title = ${title}, updated_at = now() WHERE id = 1`;
 }
 
 /** Lagrer (eller gjenbruker) en fil og returnerer id og sha256. Samme innhold lagres bare én gang. */

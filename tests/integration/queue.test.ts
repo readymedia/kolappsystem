@@ -24,7 +24,7 @@ run("kølogikk mot Postgres", () => {
 
   beforeEach(async () => {
     for (const s of ["A", "B", "C"] as const) await q.resetStation(s);
-    await sql`UPDATE stations SET active = true`;
+    await sql`UPDATE stations SET active = true, closed_message = ''`;
     for (const r of await sql<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`) {
       keys[r.id] = r.join_key;
     }
@@ -41,6 +41,26 @@ run("kølogikk mot Postgres", () => {
     expect(await q.joinQueue({ station: "A", key: "feil" })).toEqual({ ok: false, error: "invalid_link" });
     await q.setStationActive("A", false);
     expect(await join("A")).toEqual({ ok: false, error: "closed" });
+  });
+
+  it("melding ved stengt stasjon er offentlig bare mens den er stengt, og hemmeligheter lekker ikke", async () => {
+    await q.setStationActive("A", false, "Tilbake kl. 14.00");
+    let st = (await q.getPublicState()).stations.find((x) => x.id === "A")!;
+    expect(st).toMatchObject({ active: false, closedMessage: "Tilbake kl. 14.00" });
+    expect((await q.getOperatorView("A")).closedMessage).toBe("Tilbake kl. 14.00");
+    await q.setClosedMessage("A", "Pause til 13");
+    expect((await q.getAdminStations())!.find((x) => x.id === "A")!.closedMessage).toBe("Pause til 13");
+    await q.setStationActive("A", true);
+    st = (await q.getPublicState()).stations.find((x) => x.id === "A")!;
+    expect(st).toMatchObject({ active: true, closedMessage: "" });
+    // Meldingen huskes til neste stenging uten ny melding.
+    await q.setStationActive("A", false);
+    expect((await q.getPublicState()).stations.find((x) => x.id === "A")!.closedMessage).toBe("Pause til 13");
+    expect(JSON.stringify(await q.getPublicState())).not.toContain(keys.A!);
+  });
+
+  it("nøkler for signering av skjermlenker", async () => {
+    expect(await q.getJoinKeys()).toEqual(keys);
   });
 
   it("gir 200 unike, sammenhengende nummer ved samtidige skann", async () => {

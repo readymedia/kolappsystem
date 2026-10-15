@@ -40,7 +40,7 @@ await check("offentlig status: tre stasjoner, riktig form", async () => {
   const body = await res.json();
   assert(Array.isArray(body.stations) && body.stations.length === 3, "forventet 3 stasjoner");
   for (const s of body.stations) {
-    for (const k of ["id", "description", "active", "generation", "nextNumber", "current", "waiting", "skipped"]) {
+    for (const k of ["id", "description", "active", "closedMessage", "generation", "nextNumber", "current", "waiting", "skipped"]) {
       assert(k in s, `mangler felt ${k} på stasjon ${s.id}`);
     }
   }
@@ -71,6 +71,24 @@ await check("offentlig konfig: lydinnstillinger, ingen hemmeligheter", async () 
 await check("ugyldig mediefil gir 404", async () => {
   const res = await get("/api/media/" + "0".repeat(64));
   assert(res.status === 404, `forventet 404, fikk ${res.status}`);
+});
+
+await check("offentlig konfig: overskrift på storskjerm", async () => {
+  const body = await (await get("/api/config")).json();
+  assert(typeof body?.display?.title === "string", "mangler display.title");
+});
+
+await check("storskjerm-QR uten gyldig signert lenke gir 403", async () => {
+  const none = await get("/api/display/qr?station=A");
+  assert(none.status === 403, `uten token: forventet 403, fikk ${none.status}`);
+  const bad = await get("/api/display/qr?station=A&t=" + "a".repeat(32));
+  assert(bad.status === 403, `feil token: forventet 403, fikk ${bad.status}`);
+  assert(!/<svg/.test(await bad.text()), "QR lekket uten gyldig token");
+});
+
+await check("storskjerm med skjermvalg svarer", async () => {
+  const res = await get("/display?station=A&size=xl");
+  assert(res.ok, `status ${res.status}`);
 });
 
 await check("lydsiden svarer", async () => {

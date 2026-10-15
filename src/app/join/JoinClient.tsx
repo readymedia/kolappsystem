@@ -6,12 +6,13 @@ import { useEffect, useRef, useState } from "react";
 import { CenteredMessage, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
 import { parseStationId, STATION_THEME } from "@/lib/config";
+import type { PublicState } from "@/lib/public-state";
 import { ERROR_TEXT } from "@/lib/texts";
 
 // Åpnes fra QR-koden: /join?station=A&key=...
 // Lappen lages med POST (ikke ved selve sidebesøket), så forhåndsvisning i meldingsapper lager ingen lapper.
 
-type View = { kind: "loading" } | { kind: "closed" } | { kind: "error"; text: string };
+type View = { kind: "loading" } | { kind: "closed"; message: string } | { kind: "error"; text: string };
 
 export function JoinClient() {
   const router = useRouter();
@@ -55,7 +56,13 @@ export function JoinClient() {
         router.replace(`/ticket/${res.data.ticketId}`);
         return;
       }
-      if (res.error === "closed") setView({ kind: "closed" });
+      if (res.error === "closed") {
+        // Valgfri melding fra admin («Tilbake kl. 14.00») ligger i den offentlige køstatusen.
+        setView({ kind: "closed", message: "" });
+        const state = await api<PublicState>("/api/state", { cache: "default" });
+        const message = state.ok ? (state.data.stations.find((s) => s.id === station)?.closedMessage ?? "") : "";
+        if (message) setView({ kind: "closed", message });
+      }
       else if (["invalid_link", "invalid_station", "rate_limited", "too_many_waiting", "busy"].includes(res.error)) {
         setView({ kind: "error", text: res.message });
       } else setView({ kind: "error", text: "Noe gikk galt. Prøv å skanne koden på nytt." });
@@ -67,7 +74,7 @@ export function JoinClient() {
       <CenteredMessage
         icon={<CircleSlash className="h-8 w-8 text-slate-400" aria-hidden />}
         title={`Stasjon ${station} er stengt`}
-        text={ERROR_TEXT.closed}
+        text={view.message ? `${view.message}\n\n${ERROR_TEXT.closed}` : ERROR_TEXT.closed}
       />
     );
   }

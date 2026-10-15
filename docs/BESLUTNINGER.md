@@ -68,3 +68,12 @@ tidtakere i bakgrunnsfaner (lydsiden skal kunne ligge bak musikkspilleren). Web 
 standardlyd og egen lyd, og spiller i bakgrunnen etter ett klikk. Standardlyden lages i koden, så det er ingen fil eller
 lisens. Opplastede filer lagres i Postgres (`media`) i stedet for en egen fillagringstjeneste, for å holde driften gratis
 og enkel. De serveres med innholds-hash i adressen og evig mellomlagring.
+
+## ADR-015 – Skjermvalg i adressen og signert QR-lenke (v1.3)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Skjermvalg (stasjoner, størrelse, tema m.m.) ligger i adressen i stedet for i databasen: hver skjerm kan ha sitt eget
+oppsett uten innlogging, lenken kan bokmerkes, og standard-`/display` er uendret. Overskriften er felles og lagres i
+`site_config`. Forhåndsvisningen i admin er samme komponent (`DisplayBoard`) i stedet for en iframe, så
+`frame-ancestors 'none'` beholdes. QR på storskjermen er valgfri og bevisst akseptert risiko (varsel i admin). Den krever et
+signert token i lenken (HMAC av stasjonsutvalget og nøklene), så nøkkelen aldri står i lenken, og «Bytt nøkkel» gjør
+lenken ugyldig uten egen tilbakekallingsliste. Ett token dekker hele utvalget i én lenke.

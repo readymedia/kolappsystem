@@ -21,6 +21,11 @@ import { clearRateLimit, hitRateLimit, isRateLimited } from "./rate-limit";
 
 let cachedSecret: Uint8Array | null = null;
 
+/** Serverens hemmelighet (for signering). Aldri send den til nettleseren. */
+export async function serverSecret(): Promise<Uint8Array> {
+  return getSecret();
+}
+
 async function getSecret(): Promise<Uint8Array> {
   if (cachedSecret) return cachedSecret;
   const fromEnv = process.env.SESSION_SECRET;

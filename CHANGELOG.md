@@ -2,6 +2,29 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.3.0] – 2026-10-15
+
+Skjermer. Standard `/display` ser ut som før, bortsett fra tydeligere stengt stasjon. Se `docs/ADMIN-GUIDE.md`.
+
+### Lagt til
+- Skjermvalg i adressen til `/display`: `station` (én stasjon fyller hele skjermen), `size`, `title`, `desc`, `next`, `header`, `clock`, `theme` (lys/mørk), `sound` og `qr`. Ugyldige verdier gir standard.
+- Kortet «Skjermer» i `/admin`: overskrift på storskjermen (tom = ingen), lenkebygger med forhåndsvisning med ekte køtall, «Kopier lenke», «Åpne i nytt vindu» og «Én skjerm per stasjon».
+- Valgfri QR-kode for kølapp på storskjermen via signert skjermlenke, med risikovarsel i admin. «Bytt nøkkel» gjør lenken ugyldig, og skjermen sier ifra.
+- Melding til publikum når en stasjon stenges («Tilbake kl. 14.00»), maks 80 tegn. Vises på storskjerm, ved skann, på kølappen og hos operatøren. Kan endres mens stasjonen er stengt.
+- Kølappen sier ifra når stasjonen er stengt, og at plassen beholdes.
+- `GET /api/display/qr`, `GET /api/admin/display-token`, `display.title` i `/api/config` og `closedMessage` i `/api/state`.
+- `docs/ADMIN-GUIDE.md`.
+- Tester: skjermvalg og QR-token (enhet), stengt-melding og overskrift (integrasjon), 7 nye E2E-scenarier for skjermer, 3 nye røyktester.
+
+### Endret
+- Stengt stasjon på storskjermen vises i gråtone med skråstriper, stort «STENGT» og eventuell melding, uten «Neste».
+
+### Rettet
+- Admin: innstillinger i kortene (lydsignal, overskrift) ble hentet på nytt ved hver oppdatering av siden og kunne overskrive det man holdt på å skrive.
+
+### Database
+- Migrering `004_display.sql`: `site_config.display_title` og `stations.closed_message`. Bare tillegg.
+
 ## [1.2.0] – 2026-10-15
 
 Lydsignal (need-to-have fra bestiller). Se `docs/LYD-OPPSETT.md`.

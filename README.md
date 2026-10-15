@@ -19,7 +19,7 @@ Alt er på norsk, laget for mobil og kjører gratis på **Vercel Hobby** med **N
 | `/` | Alle | Åpen. Oversikt over stasjoner og lenker. |
 | `/join?station=A&key=…` | Publikum (via QR) | Åpen, men krever stasjonens hemmelige nøkkel |
 | `/ticket/:id` | Publikum | Åpen, id-en er en tilfeldig UUID |
-| `/display` | Storskjerm (PC/TV) | Åpen. `?sound=1` spiller lydsignal. |
+| `/display` | Storskjerm (PC/TV) | Åpen. Valg i adressen (`?station=A&size=xl` …) lages under «Skjermer» i admin. `?sound=1` spiller lydsignal. |
 | `/audio` | Lydside for PC/iPad mot lydanlegg (`?station=A` for én stasjon) | Åpen |
 | `/operator?station=A` | Funksjonærer | PIN |
 | `/admin` | Ansvarlig | PIN (samme PIN som operator) |
@@ -59,10 +59,11 @@ npm run dev                       # http://localhost:3000
 | [`docs/SIKKERHET.md`](docs/SIKKERHET.md) | Trusselbilde, tiltak og hva du gjør ved lekkasje |
 | [`docs/UI-SPEC.md`](docs/UI-SPEC.md) | Alle tekster, farger og tilstander per side |
 | [`docs/KJOREPLAN.md`](docs/KJOREPLAN.md) | Sjekkliste før, under og etter arrangementet |
+| [`docs/ADMIN-GUIDE.md`](docs/ADMIN-GUIDE.md) | Admin steg for steg: stasjoner, stenging med melding, skjermer, lydsignal |
 | [`docs/LYD-OPPSETT.md`](docs/LYD-OPPSETT.md) | Oppsett og feilsøking av lydsignal (PC med musikk, iPad, storskjerm) |
 | [`docs/DRIFT.md`](docs/DRIFT.md) | Overvåking, brannmur, grenser og feilsøking i drift |
 | [`docs/PRODKLARHET.md`](docs/PRODKLARHET.md) | Vurdering av prodklarhet og gjenstående risiko |
-| [`docs/PLAN-UTVIDELSER.md`](docs/PLAN-UTVIDELSER.md) | Implementasjonsplan v1.2–2.0: lyd, skjermer, utseende/logo, push, fleksible stasjoner (til godkjenning) |
+| [`docs/PLAN-UTVIDELSER.md`](docs/PLAN-UTVIDELSER.md) | Implementasjonsplan v1.2–2.0: lyd, skjermer, utseende/logo, push, fleksible stasjoner (1.2–1.4 godkjent) |
 | [`docs/OPERATOR-GUIDE.md`](docs/OPERATOR-GUIDE.md) | Én side for funksjonærene |
 | [`docs/BESLUTNINGER.md`](docs/BESLUTNINGER.md) | Arkitekturbeslutninger (ADR) med begrunnelse |
 | [`CHANGELOG.md`](CHANGELOG.md) | Versjonshistorikk |

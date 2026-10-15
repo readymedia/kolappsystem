@@ -2,33 +2,49 @@
 
 import { Maximize, Volume2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DisplayBoard } from "@/components/DisplayBoard";
 import { usePolling, useWakeLock } from "@/components/hooks";
 import { detectNewCalls, takeSnapshot, type Snapshot } from "@/lib/announce";
 import { api } from "@/lib/client-api";
+import { POLL_INTERVAL_MS, type StationId } from "@/lib/config";
+import { parseDisplayOptions } from "@/lib/display-options";
+import type { PublicState } from "@/lib/public-state";
 import { type AudioSettings, SoundPlayer } from "@/lib/sound";
-import { DISPLAY_NEXT_COUNT, POLL_INTERVAL_MS, STATION_IDS, STATION_THEME, type StationId } from "@/lib/config";
-import type { PublicState, PublicStation } from "@/lib/public-state";
 
-// Fullskjerm på PC/TV: tre kolonner, «NÅ BETJENES», gigantisk nummer og de neste tre.
-// Kolonnen blinker i 4,5 s når et nytt nummer kalles. Ingen innlogging.
+// Storskjerm på PC/TV. Uten valg i adressen: tre kolonner som før. Valg (?station=A&size=xl …) se
+// src/lib/display-options.ts og docs/UI-SPEC.md. Kolonnen blinker i 4,5 s når et nytt nummer kalles.
 
 const BLINK_MS = 4500;
+const CONFIG_INTERVAL_MS = 15_000;
+const QR_INTERVAL_MS = 60_000;
+
+interface PublicConfigResponse {
+  audio: AudioSettings;
+  display?: { title: string };
+}
 
 export function DisplayClient() {
-  // ?sound=1: storskjermen spiller lydsignal selv (krever ett klikk på skjermen, nettleserkrav).
-  const sound = useSearchParams().get("sound") === "1";
+  const params = useSearchParams();
+  const query = params.toString();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- query er nøkkelen for params
+  const options = useMemo(() => parseDisplayOptions(params), [query]);
+  const sound = options.sound;
+  const wantQr = options.qr && options.token !== null;
+
   const player = useRef<SoundPlayer | null>(null);
   const soundSnap = useRef<Snapshot | null>(null);
   const audioSettings = useRef<AudioSettings>({ mode: "default", volume: 80, url: null });
   const [soundOn, setSoundOn] = useState(false);
   const [state, setState] = useState<PublicState | null>(null);
+  const [title, setTitle] = useState<string | null>(null);
+  const [qr, setQr] = useState<Partial<Record<StationId, string>> | null>(null);
+  const [qrExpired, setQrExpired] = useState(false);
   const [offline, setOffline] = useState(false);
   const [blink, setBlink] = useState<Partial<Record<StationId, boolean>>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const lastCurrent = useRef<Partial<Record<StationId, number | null>>>({});
   const initialized = useRef(false);
-
   const blinkTimers = useRef<Partial<Record<StationId, ReturnType<typeof setTimeout>>>>({});
 
   usePolling(async () => {
@@ -37,7 +53,7 @@ export function DisplayClient() {
     if (!res.ok) return;
     setState(res.data);
     if (sound) {
-      const calls = detectNewCalls(soundSnap.current, res.data.stations, null);
+      const calls = detectNewCalls(soundSnap.current, res.data.stations, options.stations);
       soundSnap.current = takeSnapshot(res.data.stations);
       if (calls.length && player.current) void player.current.play(audioSettings.current);
     }
@@ -54,18 +70,41 @@ export function DisplayClient() {
   }, POLL_INTERVAL_MS, true, { whenHidden: sound });
   useWakeLock(true);
 
-  // Lydinnstillinger fra admin (bare når lyd er slått på for skjermen).
+  // Overskrift og lydinnstillinger fra admin (CDN-mellomlagret 5 s, hentes hvert 15. s).
   usePolling(
     async () => {
-      const res = await api<{ audio: AudioSettings }>("/api/config", { cache: "default" });
-      if (!res.ok) return;
+      const res = await api<PublicConfigResponse>("/api/config", { cache: "default" });
+      if (!res.ok) {
+        setTitle((t) => t ?? "Meet & Greet · Køstatus");
+        return;
+      }
+      setTitle(res.data.display?.title ?? "Meet & Greet · Køstatus");
       const changed = res.data.audio.url !== audioSettings.current.url;
       audioSettings.current = res.data.audio;
-      if (changed && res.data.audio.url && player.current) await player.current.preload(res.data.audio.url);
+      if (sound && changed && res.data.audio.url && player.current) await player.current.preload(res.data.audio.url);
     },
-    15_000,
-    sound,
-    { whenHidden: true },
+    CONFIG_INTERVAL_MS,
+    true,
+    { whenHidden: sound },
+  );
+
+  // QR-koder (bare med signert skjermlenke). Hentes hvert minutt, så «Bytt nøkkel» slår inn raskt.
+  usePolling(
+    async () => {
+      const station = options.stations?.join(",") ?? "";
+      const res = await api<{ qr: Partial<Record<StationId, string>> }>(
+        `/api/display/qr?station=${station}&t=${options.token ?? ""}`,
+      );
+      if (res.ok) {
+        setQr(res.data.qr);
+        setQrExpired(false);
+      } else if (res.status === 403) {
+        setQr(null);
+        setQrExpired(true);
+      }
+    },
+    QR_INTERVAL_MS,
+    wantQr,
   );
 
   async function enableSound() {
@@ -89,69 +128,51 @@ export function DisplayClient() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  const fullscreenButton = !isFullscreen && (
+    <button
+      type="button"
+      onClick={() => void document.documentElement.requestFullscreen?.().catch(() => {})}
+      className={`rounded-full p-2 ${options.theme === "light" ? "text-slate-300 hover:text-slate-600" : "text-white/30 hover:text-white/70"}`}
+      aria-label="Fullskjerm"
+      title="Fullskjerm"
+    >
+      <Maximize className="h-5 w-5" aria-hidden />
+    </button>
+  );
+  const headerVisible = options.header || options.clock;
+
   return (
-    <main className="min-h-[100dvh] bg-black px-6 py-8">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="relative">
-          <p className="text-center text-xs uppercase tracking-[0.6em] text-white/35">Meet &amp; Greet · Køstatus</p>
-          {!isFullscreen && (
-            <button
-              type="button"
-              onClick={() => void document.documentElement.requestFullscreen?.().catch(() => {})}
-              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-white/30 hover:text-white/70"
-              aria-label="Fullskjerm"
-              title="Fullskjerm"
-            >
-              <Maximize className="h-5 w-5" aria-hidden />
-            </button>
+    <>
+      <DisplayBoard
+        state={state}
+        options={options}
+        title={title}
+        blink={blink}
+        qr={wantQr ? qr : null}
+        corner={headerVisible ? fullscreenButton : null}
+      />
+      {/* Uten topplinje: fullskjermknappen ligger diskret i hjørnet. */}
+      {!headerVisible && fullscreenButton && <div className="fixed right-4 top-4">{fullscreenButton}</div>}
+      {sound && !soundOn && (
+        <button
+          type="button"
+          onClick={enableSound}
+          className="fixed inset-x-0 bottom-6 mx-auto flex w-fit items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
+        >
+          <Volume2 className="h-5 w-5" aria-hidden />
+          Klikk for å slå på lyd
+        </button>
+      )}
+      {(offline || qrExpired) && (
+        <div className="fixed inset-x-0 bottom-2 space-y-1 text-center text-sm">
+          {offline && <p className="text-amber-500/90">Mistet kontakten med serveren – prøver igjen …</p>}
+          {qrExpired && (
+            <p className={options.theme === "light" ? "text-slate-400" : "text-white/40"} data-testid="qr-expired">
+              QR-lenken er utdatert – lag en ny under «Skjermer» i admin.
+            </p>
           )}
         </div>
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {STATION_IDS.map((id) => (
-            <Column key={id} id={id} station={state?.stations.find((s) => s.id === id)} blink={Boolean(blink[id])} />
-          ))}
-        </div>
-        {sound && !soundOn && (
-          <button
-            type="button"
-            onClick={enableSound}
-            className="fixed inset-x-0 bottom-6 mx-auto flex w-fit items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
-          >
-            <Volume2 className="h-5 w-5" aria-hidden />
-            Klikk for å slå på lyd
-          </button>
-        )}
-        {offline && (
-          <p className="mt-6 text-center text-sm text-amber-300/80">Mistet kontakten med serveren – prøver igjen …</p>
-        )}
-      </div>
-    </main>
-  );
-}
-
-function Column({ id, station, blink }: { id: StationId; station?: PublicStation; blink: boolean }) {
-  const t = STATION_THEME[id];
-  const active = station?.active !== false;
-  const current = station?.current ?? null;
-  const next = station?.waiting.slice(0, DISPLAY_NEXT_COUNT) ?? [];
-  return (
-    <section className={`rounded-[2rem] border border-white/10 bg-white/[0.04] p-7 ${blink ? "kallblink" : ""}`}>
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-3xl text-white">Stasjon {id}</h2>
-        <span className={`text-xs uppercase tracking-[0.25em] ${active ? t.display : "text-white/30"}`}>
-          {active ? "Åpen" : "Stengt"}
-        </span>
-      </div>
-      <p className="mt-10 text-xs uppercase tracking-[0.4em] text-white/40">Nå betjenes</p>
-      <p
-        className={`mt-2 font-display text-[7rem] leading-[0.85] tabular-nums sm:text-[9rem] ${current !== null ? t.display : "text-white/15"}`}
-        aria-live="polite"
-      >
-        {current !== null ? `${id}${current}` : "–"}
-      </p>
-      <p className="mt-10 text-lg text-white/50">
-        Neste: <span className="text-white/90">{next.length ? next.map((n) => `${id}${n}`).join(", ") : "–"}</span>
-      </p>
-    </section>
+      )}
+    </>
   );
 }

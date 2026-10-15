@@ -11,6 +11,7 @@
 - [ ] Skriv ut QR-kodene (én side per stasjon). Gjerne laminert og i A4 eller større.
 - [ ] Test én QR-kode med mobil, og nullstill den køen etterpå.
 - [ ] Sjekk at PC-en for storskjermen har nett og kan åpne `/display`.
+- [ ] Skjermer: sett overskrift og lag skjermlenker under «Skjermer» i admin (gjerne «Én skjerm per stasjon»). Lag lenkene **etter** «Bytt nøkkel» hvis QR vises på skjermen. Se `docs/ADMIN-GUIDE.md`.
 - [ ] Lydsignal: velg lyd og volum i admin, sett opp lydsiden etter `docs/LYD-OPPSETT.md`, og test med lydanlegget.
 
 ## Rett før dørene åpner
@@ -31,7 +32,7 @@ Ikke push kode til `main` mens arrangementet pågår (hver push deployer produks
 | Gjest kommer ikke når nummeret ropes | Operatør trykker «Hopp over». |
 | Gjest som ble hoppet over dukker opp | Operatør trykker «Sett tilbake i kø» på nummeret. Gjesten blir neste. |
 | Trykket feil | «Angre siste». Kan trykkes flere ganger. |
-| Pause eller stenging av en stasjon | `/admin` → «Deaktiver». Nye skann får beskjed om at stasjonen er stengt. De som står i kø beholder plassen. |
+| Pause eller stenging av en stasjon | `/admin` → «Deaktiver», skriv gjerne en melding («Tilbake kl. 14.00») og trykk «Steng stasjonen». Storskjermen viser «STENGT» med meldingen, nye skann får beskjed, og de som står i kø beholder plassen. |
 | QR-koden er delt på nett | `/admin` → «Bytt nøkkel» for stasjonen, skriv ut og heng opp ny. Fjern falske lapper med «Fjern ventende lapper …». |
 | Mange falske lapper / mistenkelig trafikk | Se «Ved mistanke om misbruk» i `docs/DRIFT.md`. |
 | Operatør er logget ut | Logg inn med PIN igjen. Køen er uendret. |

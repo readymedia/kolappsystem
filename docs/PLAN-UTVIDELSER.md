@@ -18,7 +18,7 @@
 | Versjon | Innhold | Status |
 | --- | --- | --- |
 | 1.2 | Lydsignal | **Levert i v1.2.0** |
-| 1.3 | Skjermer | Godkjent – denne runden |
+| 1.3 | Skjermer | **Levert i v1.3.0** |
 | 1.4 | Utseende og logo | Godkjent – denne runden |
 | 1.5 | Push-varsel | Roadmap – Now (neste runde) |
 | 1.6 | Fritt antall stasjoner | Roadmap – Next |
@@ -214,7 +214,7 @@ Teksten «Meet & Greet · Køstatus» blir en innstilling i admin («Overskrift 
 ### 5.4 QR-kode på storskjermen (valgfritt, med risikovarsel)
 
 - **Signert skjermlenke:** Når «Vis QR» krysses av, legger lenkebyggeren til `&t=<token>`. `token` = HMAC(serverhemmelighet, `qr:<stasjon>:<gjeldende nøkkel>`).
-- **Henting:** Ny rute `GET /api/display/qr?station=A&t=…` sjekker tokenet i konstant tid og svarer med QR-SVG. Selve nøkkelen sendes aldri som tekst. QR hentes på nytt hvert 60. sekund.
+- **Henting:** Ny rute `GET /api/display/qr?station=A&t=…` sjekker tokenet i konstant tid og svarer med QR-SVG. *(Levert: tokenet dekker hele stasjonsutvalget i lenken – `qr:<A,C>:<nøkkel A,nøkkel C>` – så en skjerm med flere stasjoner trenger ett token, og svaret er `{qr: {A, C}}`.)* Selve nøkkelen sendes aldri som tekst. QR hentes på nytt hvert 60. sekund.
 - **Bytt nøkkel** gjør tokenet ugyldig. Skjermen viser da en diskret melding om at lenken må oppdateres i admin.
 
 **Risikovarsel i admin** (vises når «Vis QR» krysses av):

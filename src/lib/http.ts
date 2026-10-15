@@ -17,6 +17,7 @@ const STATUS: Partial<Record<ErrorCode, number>> = {
   wrong_pin: 401,
   unauthorized: 401,
   forbidden_origin: 403,
+  display_link_expired: 403,
   not_found: 404,
   locked: 429,
   rate_limited: 429,
@@ -44,6 +45,20 @@ export function clientIp(req: Request): string {
   const raw =
     req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   return normalizeIp(raw);
+}
+
+/**
+ * Adressen QR-koder skal peke på – alltid produksjonsadressen, også om admin åpnes fra en forhåndsvisning.
+ * Rekkefølge: PUBLIC_BASE_URL > Vercel sitt produksjonsdomene > adressen forespørselen kom til.
+ */
+export function publicOrigin(req: Request): string {
+  return (
+    process.env.PUBLIC_BASE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null) ||
+    (req.headers.get("x-forwarded-host")
+      ? `${req.headers.get("x-forwarded-proto") ?? "https"}://${req.headers.get("x-forwarded-host")}`
+      : new URL(req.url).origin)
+  ).replace(/\/$/, "");
 }
 
 /** Endrings-kall må komme fra samme opprinnelse (beskytter mot CSRF i tillegg til SameSite). */

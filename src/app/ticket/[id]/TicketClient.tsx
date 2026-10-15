@@ -26,6 +26,8 @@ export function TicketClient({ id }: { id: string }) {
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [view, setView] = useState<DerivedTicket | { kind: "loading" }>({ kind: "loading" });
   const [description, setDescription] = useState("");
+  // Stasjonen er stengt mens gjesten venter: plassen beholdes, men vi sier ifra.
+  const [closed, setClosed] = useState<{ message: string } | null>(null);
   const previous = useRef<string>("");
   const [vibrationOn, setVibrationOn] = useState(false);
   const [failures, setFailures] = useState(0);
@@ -52,7 +54,10 @@ export function TicketClient({ id }: { id: string }) {
     if (res.data.generatedAt < lastGeneratedAt.current) return;
     lastGeneratedAt.current = res.data.generatedAt;
     const station = res.data.stations.find((s) => s.id === ticket.station);
-    if (station) setDescription(station.description);
+    if (station) {
+      setDescription(station.description);
+      setClosed(station.active ? null : { message: station.closedMessage });
+    }
     setView(deriveTicket(ticket, station));
   }, [ticket, id]);
 
@@ -139,6 +144,13 @@ export function TicketClient({ id }: { id: string }) {
             Venter
           </p>
         </div>
+        {closed && (
+          <div role="status" className="mt-6 rounded-3xl border border-slate-300 bg-slate-100 p-5 text-center" data-testid="ticket-closed">
+            <p className="font-medium text-slate-800">Stasjonen er midlertidig stengt</p>
+            <p className="mt-1 text-sm text-slate-600">Du beholder plassen din i køen.</p>
+            {closed.message && <p className="mt-3 font-medium text-slate-900">{closed.message}</p>}
+          </div>
+        )}
         <div className="mt-6 space-y-4 rounded-3xl border border-slate-200 bg-white p-6" aria-live="polite">
           <div className="flex items-center gap-3">
             <Users className="h-5 w-5 text-slate-400" aria-hidden />

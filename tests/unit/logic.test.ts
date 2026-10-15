@@ -46,6 +46,7 @@ describe("utledning av lappstatus fra delt køstatus", () => {
     id: "A",
     description: "",
     active: true,
+    closedMessage: "",
     generation: 1,
     nextNumber: 10,
     current: 4,

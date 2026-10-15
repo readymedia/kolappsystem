@@ -17,7 +17,7 @@ Lydsignalet spilles når et nytt nummer kalles (NESTE, Hopp over som kaller nest
 | `/audio` | Alle stasjoner |
 | `/audio?station=A` | Bare stasjon A |
 | `/audio?station=A,C` | Stasjon A og C |
-| `/display?sound=1` | Storskjermen spiller selv (klikk «Klikk for å slå på lyd» én gang) |
+| `/display?sound=1` | Storskjermen spiller selv (klikk «Klikk for å slå på lyd» én gang). Lages også med «Lydsignal» under «Skjermer» i admin, og kan kombineres med andre skjermvalg, f.eks. `/display?station=A&sound=1`. |
 | `/audiosignal` | Samme som `/audio` |
 
 ## Innstillinger i admin

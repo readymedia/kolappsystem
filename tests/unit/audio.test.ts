@@ -31,6 +31,7 @@ describe("når lydsignal spilles", () => {
     id,
     description: "",
     active: true,
+    closedMessage: "",
     generation,
     nextNumber: 10,
     current,

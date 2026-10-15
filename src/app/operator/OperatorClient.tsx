@@ -146,7 +146,9 @@ export function OperatorClient({ station }: { station: StationId }) {
             {view?.current ? `${station}${view.current.number}` : "–"}
           </p>
           <p className={`mt-3 text-sm ${view?.active === false ? "font-medium text-red-600" : "text-slate-500"}`}>
-            {view?.active === false ? "Stasjonen er satt til stengt" : "Åpen for kø"}
+            {view?.active === false
+              ? `Stasjonen er satt til stengt${view.closedMessage ? ` – «${view.closedMessage}»` : ""}`
+              : "Åpen for kø"}
           </p>
         </div>
 

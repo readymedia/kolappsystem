@@ -22,7 +22,7 @@ export function CenteredMessage({
       <Card className="w-full max-w-sm p-8 text-center shadow-[0_25px_60px_-40px_rgba(15,23,42,0.4)]">
         {icon && <div className="flex justify-center">{icon}</div>}
         <p className="mt-4 font-display text-xl text-slate-900">{title}</p>
-        {text && <p className="mt-2 text-sm text-slate-500">{text}</p>}
+        {text && <p className="mt-2 whitespace-pre-line text-sm text-slate-500">{text}</p>}
       </Card>
     </main>
   );

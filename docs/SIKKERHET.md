@@ -19,6 +19,7 @@ Målet er enkelt: publikum trenger bare QR-koden, og bare funksjonærer med PIN 
 | Direkte databasetilgang | Ingen. Databasen nås bare fra serveren med `DATABASE_URL` i Vercel. |
 | Test-versjon endrer ekte data | Databasen kobles bare til Production, og migrering kjøres bare i produksjonsbygg. |
 | Oppbrukt Vercel-kvote (DoS) | `/api/state` deles via CDN. Brannmurregel mot parametere på `/api/state` og Attack Challenge Mode, se `docs/DRIFT.md`. |
+| QR-kode vist på storskjerm (valgfritt, v1.3) | Bevisst akseptert risiko: bildet kan fotograferes og deles, og skjermlenken gir også tilgang. Admin viser risikovarsel når QR slås på. Skjermlenken inneholder et signert token (HMAC av stasjoner og nøkler), aldri nøkkelen. Tokenet sjekkes i konstant tid, og «Bytt nøkkel» gjør både QR og skjermlenke ugyldige. Ellers gjelder vernet over (maks 100 ventende per nettverk, «Fjern ventende lapper»). |
 | Ondsinnet opplasting (lyd) | Kun med admin-økt og riktig Origin. Maks 2 MB. Filtype sjekkes på innholdet (magiske bytes), ikke filnavnet. Filer serveres med `Content-Security-Policy: sandbox`, `nosniff` og egen `Content-Type`, så de aldri kan kjøres som side eller skript. |
 | Personvern | Ingen persondata. IP-adresser lagres aldri; kun en HMAC av nettverket (for flomvern) som slettes ved nullstilling. |
 
@@ -36,7 +37,7 @@ Funn fra piloten (Base44) som er rettet: nøkler og PIN lå åpent i nettleseren
 ## Rutiner
 
 - **Før arrangementet:** Bytt PIN, trykk «Bytt nøkkel» for alle stasjoner, skriv ut nye QR-koder.
-- **QR-kode delt på nett:** «Bytt nøkkel» for den stasjonen, heng opp ny utskrift. Lapper som allerede er delt ut, virker fortsatt.
+- **QR-kode delt på nett:** «Bytt nøkkel» for den stasjonen, heng opp ny utskrift. Lapper som allerede er delt ut, virker fortsatt. Bruker storskjermen QR: lag ny skjermlenke under «Skjermer» (den gamle slutter å virke), eller slå av QR.
 - **PIN kommet på avveie:** Bytt PIN i `/admin`. Alle andre logges ut med en gang.
 - **Etter arrangementet:** Nullstill alle køer og bytt PIN.
 

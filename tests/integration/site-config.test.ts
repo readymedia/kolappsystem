@@ -19,7 +19,7 @@ run("innstillinger og mediefiler", () => {
   });
 
   beforeEach(async () => {
-    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL WHERE id = 1`;
+    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT WHERE id = 1`;
     await sql`DELETE FROM media`;
   });
 
@@ -28,8 +28,16 @@ run("innstillinger og mediefiler", () => {
   });
 
   it("standard er dagens oppførsel: standardlyd, 80 %", async () => {
-    expect(await cfg.getSiteConfig()).toEqual({ audioMode: "default", audioVolume: 80, audioFile: null });
-    expect(cfg.toPublicConfig(await cfg.getSiteConfig())).toEqual({ audio: { mode: "default", volume: 80, url: null } });
+    expect(await cfg.getSiteConfig()).toEqual({
+      displayTitle: "Meet & Greet · Køstatus",
+      audioMode: "default",
+      audioVolume: 80,
+      audioFile: null,
+    });
+    expect(cfg.toPublicConfig(await cfg.getSiteConfig())).toEqual({
+      audio: { mode: "default", volume: 80, url: null },
+      display: { title: "Meet & Greet · Køstatus" },
+    });
   });
 
   it("egen lyd lagres, tas i bruk og gammel fil slettes ved bytte", async () => {
@@ -68,5 +76,12 @@ run("innstillinger og mediefiler", () => {
   it("offentlig konfig inneholder ingen hemmeligheter", async () => {
     const json = JSON.stringify(cfg.toPublicConfig(await cfg.getSiteConfig()));
     expect(json).not.toMatch(/join_key|pin|secret|ip_hash/i);
+  });
+
+  it("overskrift på storskjermen kan endres og tømmes", async () => {
+    await cfg.updateDisplayTitle("Konferansen 2027");
+    expect(cfg.toPublicConfig(await cfg.getSiteConfig()).display.title).toBe("Konferansen 2027");
+    await cfg.updateDisplayTitle("");
+    expect((await cfg.getSiteConfig()).displayTitle).toBe("");
   });
 });

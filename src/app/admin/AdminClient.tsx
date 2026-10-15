@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { usePolling } from "@/components/hooks";
 import { AudioCard } from "./AudioCard";
+import { DisplayCard } from "./DisplayCard";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Card, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
@@ -13,10 +14,11 @@ import { NEW_PIN_PATTERN, STATION_THEME, type StationId } from "@/lib/config";
 
 // Admin: utskriftsvennlige QR-koder, nullstill kø, aktiver/deaktiver, bytt nøkkel, rediger beskrivelse og bytt PIN.
 
-interface AdminStation {
+export interface AdminStation {
   id: StationId;
   description: string;
   active: boolean;
+  closedMessage: string;
   waitingCount: number;
   issued: number;
   joinUrl: string;
@@ -28,6 +30,9 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
   const [stations, setStations] = useState<AdminStation[] | null>(null);
   const [pinIsDefault, setPinIsDefault] = useState(false);
   const [error, setError] = useState("");
+  // Stabil referanse: kortene henter innstillinger i en effekt som ellers ville kjørt på nytt ved hver
+  // oppdatering (og overskrevet det admin holder på å skrive).
+  const onUnauthorized = useCallback(() => router.refresh(), [router]);
 
   const load = useCallback(async () => {
     const res = await api<{ stations: AdminStation[]; pinIsDefault: boolean }>("/api/admin/stations");
@@ -101,10 +106,12 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
           </div>
         )}
 
-        <AudioCard onUnauthorized={() => router.refresh()} />
+        <DisplayCard stations={stations} onUnauthorized={onUnauthorized} />
+
+        <AudioCard onUnauthorized={onUnauthorized} />
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 print:hidden">
-          <PinCard onUnauthorized={() => router.refresh()} />
+          <PinCard onUnauthorized={onUnauthorized} />
           <AboutCard version={version} commit={commit} />
         </div>
       </div>
@@ -126,6 +133,10 @@ function StationCard({
   const [desc, setDesc] = useState(s.description);
   const [copied, setCopied] = useState(false);
   const [cleanup, setCleanup] = useState<{ from: string; to: string; result: string } | null>(null);
+  // Stenging: skjema med valgfri melding til publikum. null = skjult.
+  const [closing, setClosing] = useState<string | null>(null);
+  const [closedMsg, setClosedMsg] = useState(s.closedMessage);
+  const [msgSaved, setMsgSaved] = useState(false);
 
   async function run(action: string, json?: unknown) {
     setBusy(true);
@@ -233,7 +244,7 @@ function StationCard({
             type="button"
             disabled={busy}
             className={buttonClass("outline", "sm")}
-            onClick={() => run(s.active ? "deactivate" : "activate")}
+            onClick={() => (s.active ? setClosing(closing === null ? s.closedMessage : null) : run("activate"))}
           >
             <Power className="h-4 w-4" aria-hidden />
             {s.active ? "Deaktiver" : "Aktiver"}
@@ -253,6 +264,64 @@ function StationCard({
             </button>
           )}
         </div>
+        {s.active && closing !== null && (
+          <form
+            className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (await run("deactivate", { message: closing })) {
+                setClosedMsg(closing.trim());
+                setClosing(null);
+              }
+            }}
+          >
+            <label className="block text-sm font-medium text-slate-800">
+              Melding til publikum <span className="font-normal text-slate-500">(valgfri, maks 80 tegn)</span>
+              <input
+                value={closing}
+                onChange={(e) => setClosing(e.target.value)}
+                maxLength={80}
+                placeholder="F.eks. «Tilbake kl. 14.00»"
+                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 font-normal"
+              />
+            </label>
+            <p className="text-xs text-slate-500">Vises på storskjermen, ved skann og på kølappene. De som står i kø beholder plassen.</p>
+            <div className="flex gap-2">
+              <button type="submit" disabled={busy} className={buttonClass("danger", "sm")}>
+                Steng stasjonen
+              </button>
+              <button type="button" className={buttonClass("ghost", "sm")} onClick={() => setClosing(null)}>
+                Avbryt
+              </button>
+            </div>
+          </form>
+        )}
+        {!s.active && (
+          <form
+            className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (await run("closed-message", { message: closedMsg })) {
+                setMsgSaved(true);
+                setTimeout(() => setMsgSaved(false), 2000);
+              }
+            }}
+          >
+            <label className="block text-sm font-medium text-slate-800">
+              Melding mens stengt
+              <input
+                value={closedMsg}
+                onChange={(e) => setClosedMsg(e.target.value)}
+                maxLength={80}
+                placeholder="Ingen melding"
+                className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 font-normal"
+              />
+            </label>
+            <button type="submit" disabled={busy || closedMsg === s.closedMessage} className={buttonClass("outline", "sm")}>
+              {msgSaved ? "Lagret" : "Lagre melding"}
+            </button>
+          </form>
+        )}
         {cleanup ? (
           <form
             className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3"

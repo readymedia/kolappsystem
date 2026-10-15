@@ -31,6 +31,7 @@ export const ERROR_TEXT = {
   file_too_large: "Filen er for stor.",
   unsupported_file: "Filtypen støttes ikke.",
   forbidden_origin: "Forespørselen ble avvist.",
+  display_link_expired: "Skjermlenken er utdatert. Lag en ny under «Skjermer» i admin.",
   db_missing: "Databasen er ikke koblet til ennå. Se docs/VERCEL-OPPSETT.md.",
   server_error: "Noe gikk galt. Prøv igjen.",
 } as const;

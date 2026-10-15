@@ -1,8 +1,15 @@
 import { parseStationId } from "@/lib/config";
 import { fail, handle, ok, readJson } from "@/lib/http";
-import { removeWaitingRange, resetStation, rotateStationKey, setStationActive, setStationDescription } from "@/lib/queue";
+import {
+  removeWaitingRange,
+  resetStation,
+  rotateStationKey,
+  setClosedMessage,
+  setStationActive,
+  setStationDescription,
+} from "@/lib/queue";
 
-// Admin-handlinger per stasjon: reset | activate | deactivate | rotate-key | description | remove-waiting
+// Admin-handlinger per stasjon: reset | activate | deactivate {message?} | closed-message | rotate-key | description | remove-waiting
 
 export async function POST(req: Request, { params }: { params: Promise<{ station: string; action: string }> }) {
   return handle(req, { mutation: true, requireSession: true }, async () => {
@@ -17,9 +24,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
       case "activate":
         await setStationActive(station, true);
         break;
-      case "deactivate":
-        await setStationActive(station, false);
+      case "deactivate": {
+        const body = await readJson(req);
+        const msg = body.message;
+        if (msg !== undefined && (typeof msg !== "string" || msg.length > 80)) return fail("bad_request");
+        await setStationActive(station, false, typeof msg === "string" ? msg.trim() : undefined);
         break;
+      }
+      case "closed-message": {
+        const body = await readJson(req);
+        if (typeof body.message !== "string" || body.message.length > 80) return fail("bad_request");
+        await setClosedMessage(station, body.message.trim());
+        break;
+      }
       case "rotate-key":
         await rotateStationKey(station);
         break;

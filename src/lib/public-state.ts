@@ -10,6 +10,8 @@ export interface PublicStation {
   id: StationId;
   description: string;
   active: boolean;
+  /** Valgfri melding når stasjonen er stengt («Tilbake kl. 14.00»). Tom streng = ingen. */
+  closedMessage: string;
   /** Økes ved nullstilling. */
   generation: number;
   /** Neste nummer som vil bli delt ut. */

@@ -148,8 +148,8 @@ export async function getTicket(id: string): Promise<PublicTicket | null> {
 export async function getPublicState(): Promise<PublicState> {
   // Begge spørringene i samme øyeblikksbilde, så en samtidig nullstilling aldri gir blandet svar.
   const { stations, tickets } = await getSql().begin("isolation level repeatable read read only", async (sql) => {
-    const stations = await sql<Omit<StationRow, "join_key">[]>`
-    SELECT id, description, active, next_number, generation FROM stations ORDER BY id`;
+    const stations = await sql<(Omit<StationRow, "join_key"> & { closed_message: string })[]>`
+    SELECT id, description, active, closed_message, next_number, generation FROM stations ORDER BY id`;
     const tickets = await sql<{ station: StationId; number: number; status: TicketStatus }[]>`
     SELECT t.station, t.number, t.status
     FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
@@ -164,6 +164,7 @@ export async function getPublicState(): Promise<PublicState> {
       id: s.id,
       description: s.description,
       active: s.active,
+      closedMessage: s.active ? "" : s.closed_message,
       generation: s.generation,
       nextNumber: s.next_number,
       current: mine.find((t) => t.status === "called")?.number ?? null,
@@ -179,6 +180,7 @@ export async function getPublicState(): Promise<PublicState> {
 export interface OperatorView {
   station: StationId;
   active: boolean;
+  closedMessage: string;
   description: string;
   current: { id: string; number: number } | null;
   next: { id: string; number: number }[];
@@ -191,8 +193,8 @@ export interface OperatorView {
 
 export async function getOperatorView(station: StationId): Promise<OperatorView> {
   const sql = getSql();
-  const [st] = await sql<StationRow[]>`
-    SELECT id, description, active, next_number, generation FROM stations WHERE id = ${station}`;
+  const [st] = await sql<(StationRow & { closed_message: string })[]>`
+    SELECT id, description, active, closed_message, next_number, generation FROM stations WHERE id = ${station}`;
   if (!st) throw new Error(`Stasjon ${station} finnes ikke`);
   const [current] = await sql<{ id: string; number: number }[]>`
     SELECT id, number FROM tickets
@@ -213,6 +215,7 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
   return {
     station,
     active: st.active,
+    closedMessage: st.active ? "" : st.closed_message,
     description: st.description,
     current: current ?? null,
     next: [...next],
@@ -311,6 +314,7 @@ export interface AdminStation {
   id: StationId;
   description: string;
   active: boolean;
+  closedMessage: string;
   joinKey: string;
   waitingCount: number;
   issued: number;
@@ -318,8 +322,8 @@ export interface AdminStation {
 
 export async function getAdminStations(): Promise<AdminStation[]> {
   const sql = getSql();
-  const rows = await sql<(StationRow & { waiting: number })[]>`
-    SELECT s.id, s.description, s.active, s.join_key, s.next_number, s.generation,
+  const rows = await sql<(StationRow & { waiting: number; closed_message: string })[]>`
+    SELECT s.id, s.description, s.active, s.closed_message, s.join_key, s.next_number, s.generation,
       (SELECT count(*)::int FROM tickets t
         WHERE t.station = s.id AND t.generation = s.generation AND t.status = 'waiting') AS waiting
     FROM stations s ORDER BY s.id`;
@@ -327,6 +331,7 @@ export async function getAdminStations(): Promise<AdminStation[]> {
     id: r.id,
     description: r.description,
     active: r.active,
+    closedMessage: r.closed_message,
     joinKey: r.join_key,
     waitingCount: r.waiting,
     issued: r.next_number - 1,
@@ -361,8 +366,23 @@ export async function removeWaitingRange(station: StationId, from: number, to: n
   });
 }
 
-export async function setStationActive(station: StationId, active: boolean): Promise<void> {
-  await getSql()`UPDATE stations SET active = ${active}, updated_at = now() WHERE id = ${station}`;
+/** Åpner eller stenger en stasjon. Ved stenging kan en melding til publikum settes (beholdes ved åpning). */
+export async function setStationActive(station: StationId, active: boolean, closedMessage?: string): Promise<void> {
+  if (closedMessage !== undefined) {
+    await getSql()`UPDATE stations SET active = ${active}, closed_message = ${closedMessage}, updated_at = now() WHERE id = ${station}`;
+  } else {
+    await getSql()`UPDATE stations SET active = ${active}, updated_at = now() WHERE id = ${station}`;
+  }
+}
+
+export async function setClosedMessage(station: StationId, message: string): Promise<void> {
+  await getSql()`UPDATE stations SET closed_message = ${message}, updated_at = now() WHERE id = ${station}`;
+}
+
+/** Nøklene for valgte stasjoner – kun til signering av skjermlenker på serveren. */
+export async function getJoinKeys(): Promise<Record<string, string>> {
+  const rows = await getSql()<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`;
+  return Object.fromEntries(rows.map((r) => [r.id, r.join_key]));
 }
 
 export async function rotateStationKey(station: StationId): Promise<void> {

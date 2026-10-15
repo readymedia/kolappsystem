@@ -1,5 +1,5 @@
 import { fail, handle, ok, readJson } from "@/lib/http";
-import { getSiteConfig, updateAudioSettings, type AudioMode } from "@/lib/site-config";
+import { getSiteConfig, updateAudioSettings, updateDisplayTitle, type AudioMode } from "@/lib/site-config";
 
 // Admin: les og endre innstillinger (lyd i v1.2, utvides i senere versjoner).
 
@@ -18,7 +18,10 @@ export async function PUT(req: Request) {
     if (volume !== undefined && !(Number.isInteger(volume) && (volume as number) >= 0 && (volume as number) <= 100)) {
       return fail("bad_request");
     }
+    const title = body.displayTitle;
+    if (title !== undefined && (typeof title !== "string" || title.length > 80)) return fail("bad_request");
     await updateAudioSettings({ mode: mode as AudioMode | undefined, volume: volume as number | undefined });
+    if (typeof title === "string") await updateDisplayTitle(title.trim());
     return ok(await getSiteConfig());
   });
 }
