@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { getSql, type Tx } from "./db";
 import { DEFAULT_BRANDING, isFontId, type Branding, type FontId } from "./branding";
 import type { AudioMime, ImageMime } from "./media";
-import type { WaitMode } from "./wait";
+import type { WaitDisplay, WaitMode } from "./wait";
 
 // Innstillinger som kan endres i /admin (tabellen site_config) og opplastede filer (tabellen media).
 // Offentlige deler leveres via /api/config. Ingen hemmeligheter her.
@@ -26,6 +26,9 @@ export interface SiteConfig {
   allowLeave: boolean;
   waitMode: WaitMode;
   waitMinutes: number;
+  /** v1.8 */
+  confirmJoin: boolean;
+  waitDisplay: WaitDisplay;
 }
 
 /** Det publikum (lydside, storskjerm) trenger. Mellomlagres på CDN. */
@@ -36,7 +39,7 @@ export interface PublicConfig {
   /** Push-varsel (v1.5). publicKey er VAPID-nøkkelen (offentlig). enabled=false: ingenting vises for publikum. */
   push: { enabled: boolean; publicKey: string | null };
   /** v1.7: om gjester kan gi fra seg plassen. */
-  queue: { allowLeave: boolean };
+  queue: { allowLeave: boolean; confirmJoin: boolean; waitDisplay: WaitDisplay };
 }
 
 export const DEFAULT_DISPLAY_TITLE = "Meet & Greet · Køstatus";
@@ -55,6 +58,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
   allowLeave: true,
   waitMode: "fixed",
   waitMinutes: 2,
+  confirmJoin: false,
+  waitDisplay: "duration",
 };
 
 interface ConfigRow {
@@ -76,6 +81,8 @@ interface ConfigRow {
   allow_leave: boolean;
   wait_mode: WaitMode;
   wait_minutes: string;
+  confirm_join: boolean;
+  wait_display: WaitDisplay;
 }
 
 export async function getSiteConfig(): Promise<SiteConfig> {
@@ -84,7 +91,7 @@ export async function getSiteConfig(): Promise<SiteConfig> {
       m.sha256 AS audio_sha256, m.mime AS audio_mime, m.size AS audio_size,
       c.event_name, l.sha256 AS logo_sha256, l.mime AS logo_mime, l.size AS logo_size,
       c.primary_color, c.display_background, c.font_display, c.font_body, c.push_enabled,
-      c.allow_leave, c.wait_mode, c.wait_minutes
+      c.allow_leave, c.wait_mode, c.wait_minutes, c.confirm_join, c.wait_display
     FROM site_config c
       LEFT JOIN media m ON m.id = c.audio_media_id
       LEFT JOIN media l ON l.id = c.logo_media_id
@@ -106,6 +113,8 @@ export async function getSiteConfig(): Promise<SiteConfig> {
     allowLeave: row.allow_leave,
     waitMode: row.wait_mode,
     waitMinutes: Number(row.wait_minutes),
+    confirmJoin: row.confirm_join,
+    waitDisplay: row.wait_display,
   };
 }
 
@@ -129,7 +138,7 @@ export function toPublicConfig(c: SiteConfig, vapidPublicKey: string | null = nu
     brand: toBranding(c),
     // Uten nøkkel kan ingen abonnere – da er push av for publikum uansett bryteren.
     push: { enabled: c.pushEnabled && Boolean(vapidPublicKey), publicKey: c.pushEnabled ? vapidPublicKey : null },
-    queue: { allowLeave: c.allowLeave },
+    queue: { allowLeave: c.allowLeave, confirmJoin: c.confirmJoin, waitDisplay: c.waitDisplay },
   };
 }
 
@@ -139,10 +148,18 @@ export async function updateAudioSettings(input: { mode?: AudioMode; volume?: nu
   if (input.volume !== undefined) await sql`UPDATE site_config SET audio_volume = ${input.volume}, updated_at = now() WHERE id = 1`;
 }
 
-export async function updateQueueSettings(input: { allowLeave?: boolean; waitMode?: WaitMode; waitMinutes?: number }): Promise<void> {
+export async function updateQueueSettings(input: {
+  allowLeave?: boolean;
+  waitMode?: WaitMode;
+  waitMinutes?: number;
+  confirmJoin?: boolean;
+  waitDisplay?: WaitDisplay;
+}): Promise<void> {
   await getSql()`
     UPDATE site_config SET
       allow_leave = COALESCE(${input.allowLeave ?? null}, allow_leave),
+      confirm_join = COALESCE(${input.confirmJoin ?? null}, confirm_join),
+      wait_display = COALESCE(${input.waitDisplay ?? null}, wait_display),
       wait_mode = COALESCE(${input.waitMode ?? null}, wait_mode),
       wait_minutes = COALESCE(${input.waitMinutes ?? null}, wait_minutes),
       updated_at = now()

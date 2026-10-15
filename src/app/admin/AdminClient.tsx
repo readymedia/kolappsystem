@@ -16,6 +16,8 @@ import { api } from "@/lib/client-api";
 import { NEW_PIN_PATTERN, type StationId } from "@/lib/config";
 import { MAX_ACTIVE_STATIONS, ST, stationLabel, stationVars } from "@/lib/stations";
 import { StationSettings } from "./StationSettings";
+import { capacityText } from "@/lib/wait";
+import { ReportCard, ResetAllButton } from "./ReportCard";
 
 // Admin: utskriftsvennlige QR-koder, nullstill kø, aktiver/deaktiver, bytt nøkkel, rediger beskrivelse og bytt PIN.
 
@@ -23,6 +25,10 @@ export interface AdminStation {
   id: StationId;
   name: string;
   color: string;
+  serviceEnd: string | null;
+  maxWaiting: number | null;
+  full: boolean;
+  capacityLeft: number | null;
   description: string;
   active: boolean;
   closedMessage: string;
@@ -38,6 +44,8 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
   const [stations, setStations] = useState<AdminStation[] | null>(null);
   const [archived, setArchived] = useState<{ id: string; name: string; color: string }[]>([]);
   const [creating, setCreating] = useState(false);
+  // Økes etter nullstilling, så rapporten hentes på nytt (v1.8).
+  const [reportKey, setReportKey] = useState(0);
   const [pinIsDefault, setPinIsDefault] = useState(false);
   const [error, setError] = useState("");
   // Stabil referanse: kortene henter innstillinger i en effekt som ellers ville kjørt på nytt ved hver
@@ -71,6 +79,7 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
       return null;
     }
     await load();
+    if (action === "reset") setReportKey((k) => k + 1);
     return res.data;
   }
 
@@ -130,7 +139,18 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
           </div>
         ) : (
           <>
-            <div className="mt-10 grid gap-6 md:grid-cols-3 print:block">
+            <div className="mt-8 flex justify-end print:hidden">
+              <ResetAllButton
+                waitingTotal={stations.reduce((n, s) => n + s.waitingCount, 0)}
+                onDone={() => {
+                  setError("");
+                  setReportKey((k) => k + 1);
+                  void load();
+                }}
+                onError={setError}
+              />
+            </div>
+            <div className="mt-4 grid gap-6 md:grid-cols-3 print:block">
               {stations.map((s, i) => (
                 <StationCard
                   key={s.id}
@@ -186,6 +206,8 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
         <AudioCard onUnauthorized={onUnauthorized} />
 
         <QueueCard onUnauthorized={onUnauthorized} />
+
+        <ReportCard onUnauthorized={onUnauthorized} refreshKey={reportKey} />
 
         <PushCard onUnauthorized={onUnauthorized} />
 
@@ -280,6 +302,14 @@ function StationCard({
           {s.waitingCount} venter · {s.issued} lapper delt ut
           {s.leftCount > 0 && ` · ${s.leftCount} ga fra seg plassen`}
         </p>
+        {s.capacityLeft !== null && (
+          <p
+            className={`mt-1 text-center text-sm font-medium ${s.full ? "text-red-600" : "text-slate-700"}`}
+            data-testid={`capacity-${s.id}`}
+          >
+            {capacityText(s.full, s.capacityLeft, s.serviceEnd)}
+          </p>
+        )}
 
         <div className="mt-4">
           {editing ? (
@@ -479,6 +509,8 @@ function StationCard({
           isFirst={isFirst}
           isLast={isLast}
           waitingCount={s.waitingCount}
+          serviceEnd={s.serviceEnd}
+          maxWaiting={s.maxWaiting}
           onAction={(action, json) => onAction(s.id, action, json)}
         />
         <div className="mt-2 flex flex-wrap gap-2 pt-1">
@@ -586,3 +618,4 @@ function PrintBrand() {
     </div>
   );
 }
+

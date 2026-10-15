@@ -25,6 +25,13 @@ export interface PublicStation {
   current: number | null;
   /** Minutter per person for ventetid-teksten (v1.7): fast fra admin, eller målt tempo. */
   minutesPerPerson: number;
+  /** Siste betjening «16:00» (norsk tid) og som tidspunkt i dag (v1.8), eller null. */
+  serviceEnd: string | null;
+  endAt: string | null;
+  /** Tar ikke imot nye lapper (sluttid eller maks i kø nådd) (v1.8). */
+  full: boolean;
+  /** Omtrent hvor mange flere som rekker fram, eller null når ingen grense er satt (v1.8). */
+  capacityLeft: number | null;
   /** Ventende nummer, stigende. */
   waiting: number[];
   /** Nummer som er hoppet over (og ikke satt tilbake i kø). */

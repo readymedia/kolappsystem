@@ -116,6 +116,23 @@ await check("gi fra seg plassen: ukjent lapp gir 404, valget finnes i konfig", a
   assert(typeof body?.queue?.allowLeave === "boolean", "mangler queue.allowLeave");
 });
 
+await check("kø-innsikt (v1.8): kapasitet i status, valg i konfig, rapport bak innlogging", async () => {
+  const state = await (await get("/api/state")).json();
+  for (const s of state.stations) {
+    for (const k of ["serviceEnd", "endAt", "full", "capacityLeft"]) assert(k in s, `stasjon ${s.id} mangler ${k}`);
+    assert(typeof s.full === "boolean", "full er ikke boolean");
+  }
+  const cfg = await (await get("/api/config")).json();
+  assert(typeof cfg?.queue?.confirmJoin === "boolean", "mangler queue.confirmJoin");
+  assert(["duration", "clock", "both"].includes(cfg?.queue?.waitDisplay), "ugyldig queue.waitDisplay");
+  for (const path of ["/api/admin/report", "/api/admin/report?format=csv"]) {
+    const res = await get(path);
+    assert(res.status === 401, `${path}: forventet 401, fikk ${res.status}`);
+  }
+  const reset = await fetch(base + "/api/admin/reset-all", { method: "POST", headers: { origin: base } });
+  assert(reset.status === 401, `nullstill alle: forventet 401, fikk ${reset.status}`);
+});
+
 await check("lydsiden svarer", async () => {
   const res = await get("/audio");
   assert(res.ok, `status ${res.status}`);

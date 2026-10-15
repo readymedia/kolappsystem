@@ -17,9 +17,10 @@ export async function resetAll() {
   await sql`DELETE FROM queue_actions WHERE station NOT IN ('A', 'B', 'C')`;
   await sql`DELETE FROM stations WHERE id NOT IN ('A', 'B', 'C')`;
   await sql`UPDATE stations SET archived_at = NULL, name = '', color = CASE id WHEN 'A' THEN 'sky' WHEN 'B' THEN 'violet' ELSE 'emerald' END, sort_order = ascii(id) - 64`;
-  await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true, closed_message = ''`;
+  await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true, closed_message = '', service_end = NULL, max_waiting = NULL`;
   await sql`UPDATE settings SET pin_hash = ${await hashPin(PIN)}, pin_version = pin_version + 1`;
-  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT, allow_leave = DEFAULT, wait_mode = DEFAULT, wait_minutes = DEFAULT WHERE id = 1`;
+  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT, allow_leave = DEFAULT, wait_mode = DEFAULT, wait_minutes = DEFAULT, confirm_join = DEFAULT, wait_display = DEFAULT WHERE id = 1`;
+  await sql`DELETE FROM station_stats`;
   await sql`DELETE FROM media`;
   for (const r of await sql<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`) keys[r.id] = r.join_key;
 }

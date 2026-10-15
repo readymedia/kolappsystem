@@ -18,6 +18,8 @@ export interface DisplayOptions {
   theme: DisplayTheme;
   sound: boolean;
   qr: boolean;
+  /** Køinfo under hver stasjon: «12 i kø · ca. 25 min» (v1.8). */
+  info: boolean;
   token: string | null;
 }
 
@@ -32,6 +34,7 @@ export const DEFAULT_DISPLAY_OPTIONS: DisplayOptions = {
   theme: "dark",
   sound: false,
   qr: false,
+  info: false,
   token: null,
 };
 
@@ -63,6 +66,7 @@ export function parseDisplayOptions(p: Params): DisplayOptions {
     theme: theme === "light" || theme === "dark" ? theme : d.theme,
     sound: flag(p.get("sound"), d.sound),
     qr: flag(p.get("qr"), d.qr),
+    info: flag(p.get("info"), d.info),
     token: token && /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : null,
   };
 }
@@ -83,6 +87,7 @@ export function buildDisplayQuery(o: DisplayOptions, siteTheme: DisplayTheme = "
   if (o.clock !== d.clock) q.set("clock", o.clock ? "1" : "0");
   if (o.theme !== d.theme) q.set("theme", o.theme);
   if (o.sound !== d.sound) q.set("sound", o.sound ? "1" : "0");
+  if (o.info !== d.info) q.set("info", o.info ? "1" : "0");
   if (o.qr && o.token) {
     q.set("qr", "1");
     q.set("t", o.token);

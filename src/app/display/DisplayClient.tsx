@@ -1,5 +1,6 @@
 "use client";
 
+import type { WaitDisplay } from "@/lib/wait";
 import { Maximize, Volume2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +26,7 @@ interface PublicConfigResponse {
   audio: AudioSettings;
   display?: { title: string };
   brand?: Branding;
+  queue?: { waitDisplay?: WaitDisplay };
 }
 
 export function DisplayClient() {
@@ -49,6 +51,7 @@ export function DisplayClient() {
   const [soundOn, setSoundOn] = useState(false);
   const [state, setState] = useState<PublicState | null>(null);
   const [title, setTitle] = useState<string | null>(null);
+  const [waitDisplay, setWaitDisplay] = useState<WaitDisplay>("duration");
   const [qr, setQr] = useState<Partial<Record<StationId, string>> | null>(null);
   const [qrExpired, setQrExpired] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -93,6 +96,7 @@ export function DisplayClient() {
         return;
       }
       setTitle(res.data.display?.title ?? "Meet & Greet · Køstatus");
+      setWaitDisplay(res.data.queue?.waitDisplay ?? "duration");
       if (res.data.brand) {
         const b = res.data.brand;
         setBrand(b);
@@ -171,6 +175,7 @@ export function DisplayClient() {
         blink={blink}
         qr={wantQr ? qr : null}
         logoUrl={brand.logoUrl}
+        waitDisplay={waitDisplay}
         corner={headerVisible ? fullscreenButton : null}
       />
       {/* Uten topplinje: fullskjermknappen ligger diskret i hjørnet. */}

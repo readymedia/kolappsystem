@@ -20,5 +20,6 @@ Du kan bytte stasjon med knappene **A B C** øverst.
 - Ser du PIN-skjermen igjen, er økta utløpt eller PIN byttet. Logg inn på nytt – køen er uendret.
 - Står det «Stasjonen er satt til stengt», får ingen nye kølapp. Snakk med ansvarlig.
 - Gjester kan gi fra seg plassen på mobilen. Da forsvinner de fra køen av seg selv, og du ser «N har gitt fra seg plassen». Gir den du har kalt fra seg plassen, står det «A12 ga fra seg plassen» – trykk NESTE.
+- Står det «Plass til ca. 18 til før kl. 16:00», er det satt sluttid eller maks i kø. «Full» betyr at nye gjester får «Køen er full» – de som står i kø beholder plassen.
 - Velg stasjon øverst. Er det mange stasjoner, kan du dra raden sidelengs. Bokstaven er stasjonens kode (står på lappene).
 - Er push-varsler slått på, får gjester med varsel beskjed på mobilen når de er nest og når du trykker NESTE. Noen kan derfor komme fra et annet sted i lokalet – gi dem et par sekunder før du trykker «Hopp over».

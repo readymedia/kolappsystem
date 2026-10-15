@@ -2,7 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { MAX_WAITING_PER_NETWORK, OPERATOR_NEXT_COUNT, type StationId } from "./config";
 import { MAX_ACTIVE_STATIONS, nextFreeColor, nextFreeStationId, StationNotFoundError } from "./stations";
-import { MEASURE_CALLS, measuredMinutes, type WaitMode } from "./wait";
+import { capacity, MEASURE_CALLS, measuredMinutes, type WaitMode } from "./wait";
 import { getSql, type Tx } from "./db";
 import { randomToken } from "./pin-hash.mjs";
 import type { PublicState, PublicStation, PublicTicket, TicketStatus } from "./public-state";
@@ -61,7 +61,7 @@ async function lockStation(tx: Tx, station: StationId): Promise<StationRow> {
 
 export type JoinResult =
   | { ok: true; ticketId: string; reused: boolean }
-  | { ok: false; error: "invalid_station" | "invalid_link" | "closed" | "too_many_waiting" };
+  | { ok: false; error: "invalid_station" | "invalid_link" | "closed" | "too_many_waiting" | "queue_full" };
 
 /**
  * Lager en ny kølapp, eller gjenbruker en eksisterende:
@@ -102,6 +102,23 @@ export async function joinQueue(input: {
     }
 
     if (!st.active) return { ok: false, error: "closed" } as const;
+
+    // Sluttid og maks i kø (v1.8). Samme utregning som /api/state. Eksisterende lapper over er ikke berørt.
+    const [limits] = await tx<{ end_at: Date | null; max_waiting: number | null; waiting: number; now: Date }[]>`
+      SELECT ${tx.unsafe(END_AT_SQL)} AS end_at, max_waiting, now() AS now,
+        (SELECT count(*)::int FROM tickets t WHERE t.station = ${st.id} AND t.generation = ${st.generation} AND t.status = 'waiting') AS waiting
+      FROM stations WHERE id = ${st.id}`;
+    if (limits && (limits.end_at || limits.max_waiting !== null)) {
+      const m = await minutesPerPerson(tx, st.id);
+      const cap = capacity({
+        waiting: limits.waiting,
+        minutesPerPerson: m.byStation.get(st.id) ?? m.fallback,
+        endAt: limits.end_at,
+        maxWaiting: limits.max_waiting,
+        now: limits.now,
+      });
+      if (cap.full) return { ok: false, error: "queue_full" } as const;
+    }
 
     if (input.ipHash) {
       const [c] = await tx<{ n: number }[]>`
@@ -152,36 +169,67 @@ export async function getTicket(id: string): Promise<PublicTicket | null> {
   };
 }
 
+type Sql = Tx | ReturnType<typeof getSql>;
+
+/** SQL-uttrykk: dagens sluttid (service_end, norsk tid) som tidspunkt, eller NULL. */
+const END_AT_SQL = `CASE WHEN service_end IS NULL THEN NULL
+  ELSE ((now() AT TIME ZONE 'Europe/Oslo')::date + service_end) AT TIME ZONE 'Europe/Oslo' END`;
+
+/**
+ * Minutter per person for stasjonene (v1.7): fast fra admin, eller målt tempo fra de siste oppropene.
+ * Brukes av både /api/state og kapasitetssjekken i joinQueue, så de alltid regner likt.
+ */
+async function minutesPerPerson(sql: Sql, station?: StationId): Promise<{ fallback: number; byStation: Map<string, number> }> {
+  const [cfg] = await sql<{ wait_mode: WaitMode; wait_minutes: string }[]>`
+    SELECT wait_mode, wait_minutes FROM site_config WHERE id = 1`;
+  const fallback = Number(cfg?.wait_minutes ?? 2);
+  const byStation = new Map<string, number>();
+  if (cfg?.wait_mode !== "measured") return { fallback, byStation };
+  const calls = await sql<{ station: StationId; called_at: Date }[]>`
+    SELECT station, called_at FROM (
+      SELECT t.station, t.called_at,
+        row_number() OVER (PARTITION BY t.station ORDER BY t.called_at DESC) AS rn
+      FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
+      WHERE t.called_at IS NOT NULL AND s.archived_at IS NULL
+        AND (${station ?? null}::text IS NULL OR t.station = ${station ?? null})
+    ) x WHERE rn <= ${MEASURE_CALLS}`;
+  const grouped = new Map<string, Date[]>();
+  for (const c of calls) grouped.set(c.station, [...(grouped.get(c.station) ?? []), c.called_at]);
+  for (const [id, dates] of grouped) byStation.set(id, measuredMinutes(dates, fallback));
+  return { fallback, byStation };
+}
+
 /** Offentlig køstatus for alle stasjoner. Inneholder aldri nøkler. */
 export async function getPublicState(): Promise<PublicState> {
-  // Begge spørringene i samme øyeblikksbilde, så en samtidig nullstilling aldri gir blandet svar.
-  const { stations, tickets, wait } = await getSql().begin("isolation level repeatable read read only", async (sql) => {
-    const stations = await sql<(Omit<StationRow, "join_key"> & { closed_message: string; name: string; color: string })[]>`
-    SELECT id, name, color, description, active, closed_message, next_number, generation
+  // Alle spørringene i samme øyeblikksbilde, så en samtidig nullstilling aldri gir blandet svar.
+  const { stations, tickets, minutes, now } = await getSql().begin("isolation level repeatable read read only", async (sql) => {
+    const stations = await sql<
+      (Omit<StationRow, "join_key"> & {
+        closed_message: string;
+        name: string;
+        color: string;
+        service_end_text: string | null;
+        end_at: Date | null;
+        max_waiting: number | null;
+      })[]
+    >`
+    SELECT id, name, color, description, active, closed_message, next_number, generation,
+      to_char(service_end, 'HH24:MI') AS service_end_text, ${sql.unsafe(END_AT_SQL)} AS end_at, max_waiting
     FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
     const tickets = await sql<{ station: StationId; number: number; status: TicketStatus }[]>`
     SELECT t.station, t.number, t.status
     FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
     WHERE t.status IN ('waiting', 'called', 'skipped')
     ORDER BY t.number`;
-    // Ventetid (v1.7): fast fra admin, eller målt tempo fra de siste oppropene per stasjon.
-    const [cfg] = await sql<{ wait_mode: WaitMode; wait_minutes: string }[]>`
-      SELECT wait_mode, wait_minutes FROM site_config WHERE id = 1`;
-    const calls =
-      cfg?.wait_mode === "measured"
-        ? await sql<{ station: StationId; called_at: Date }[]>`
-          SELECT station, called_at FROM (
-            SELECT t.station, t.called_at,
-              row_number() OVER (PARTITION BY t.station ORDER BY t.called_at DESC) AS rn
-            FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
-            WHERE t.called_at IS NOT NULL AND s.archived_at IS NULL
-          ) x WHERE rn <= ${MEASURE_CALLS}`
-        : [];
-    return { stations, tickets, wait: { mode: cfg?.wait_mode ?? "fixed", minutes: Number(cfg?.wait_minutes ?? 2), calls } };
+    const [{ now }] = (await sql<{ now: Date }[]>`SELECT now() AS now`) as unknown as [{ now: Date }];
+    return { stations, tickets, minutes: await minutesPerPerson(sql), now };
   });
 
   const result: PublicStation[] = stations.map((s) => {
     const mine = tickets.filter((t) => t.station === s.id);
+    const waiting = mine.filter((t) => t.status === "waiting").map((t) => t.number);
+    const m = minutes.byStation.get(s.id) ?? minutes.fallback;
+    const cap = capacity({ waiting: waiting.length, minutesPerPerson: m, endAt: s.end_at, maxWaiting: s.max_waiting, now });
     return {
       id: s.id,
       name: s.name,
@@ -192,18 +240,30 @@ export async function getPublicState(): Promise<PublicState> {
       generation: s.generation,
       nextNumber: s.next_number,
       current: mine.find((t) => t.status === "called")?.number ?? null,
-      minutesPerPerson:
-        wait.mode === "measured"
-          ? measuredMinutes(wait.calls.filter((c) => c.station === s.id).map((c) => c.called_at), wait.minutes)
-          : wait.minutes,
-      waiting: mine.filter((t) => t.status === "waiting").map((t) => t.number),
+      minutesPerPerson: m,
+      serviceEnd: s.service_end_text,
+      endAt: s.end_at ? s.end_at.toISOString() : null,
+      full: cap.full,
+      capacityLeft: cap.left,
+      waiting,
       skipped: mine.filter((t) => t.status === "skipped").map((t) => t.number),
     };
   });
-  return { stations: result, generatedAt: new Date().toISOString() };
+  return { stations: result, generatedAt: now.toISOString() };
 }
 
 // ---------------------------------------------------------------- Operator
+
+/** Sluttid, full og plass igjen for én stasjon (samme regel som /api/state og joinQueue). */
+async function stationCapacity(sql: Sql, station: StationId, waiting: number) {
+  const [lim] = await sql<{ end_at: Date | null; max_waiting: number | null; service_end_text: string | null; now: Date }[]>`
+    SELECT ${sql.unsafe(END_AT_SQL)} AS end_at, max_waiting, to_char(service_end, 'HH24:MI') AS service_end_text, now() AS now
+    FROM stations WHERE id = ${station}`;
+  if (!lim || (!lim.end_at && lim.max_waiting === null)) return { serviceEnd: null, full: false, capacityLeft: null };
+  const m = await minutesPerPerson(sql, station);
+  const cap = capacity({ waiting, minutesPerPerson: m.byStation.get(station) ?? m.fallback, endAt: lim.end_at, maxWaiting: lim.max_waiting, now: lim.now });
+  return { serviceEnd: lim.service_end_text, full: cap.full, capacityLeft: cap.left };
+}
 
 export interface OperatorView {
   station: StationId;
@@ -221,6 +281,10 @@ export interface OperatorView {
   leftCount: number;
   /** Den sist kalte ga fra seg plassen og ingen er kalt nå – operatøren bør trykke NESTE (v1.7). */
   calledLeft: { id: string; number: number } | null;
+  /** Sluttid og kapasitet (v1.8). */
+  serviceEnd: string | null;
+  full: boolean;
+  capacityLeft: number | null;
 }
 
 export async function getOperatorView(station: StationId): Promise<OperatorView> {
@@ -263,6 +327,7 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
     waitingCount: count?.n ?? 0,
     skipped: [...skipped],
     leftCount: left?.n ?? 0,
+    ...(await stationCapacity(sql, station, count?.n ?? 0)),
     calledLeft: lastCalled?.status === "left" ? { id: lastCalled.id, number: lastCalled.number } : null,
     canUndo: Boolean(undo),
     lastActionId: undo ? String(undo.id) : null,
@@ -363,6 +428,9 @@ export interface AdminStation {
   id: StationId;
   name: string;
   color: string;
+  /** v1.8: sluttid «16:00» og maks i kø, eller null. */
+  serviceEnd: string | null;
+  maxWaiting: number | null;
   description: string;
   active: boolean;
   closedMessage: string;
@@ -375,8 +443,10 @@ export interface AdminStation {
 
 export async function getAdminStations(): Promise<AdminStation[]> {
   const sql = getSql();
-  const rows = await sql<(StationRow & { waiting: number; left_count: number; closed_message: string; name: string; color: string })[]>`
-    SELECT s.id, s.name, s.color, s.description, s.active, s.closed_message, s.join_key, s.next_number, s.generation,
+  const rows = await sql<
+    (StationRow & { waiting: number; left_count: number; closed_message: string; name: string; color: string; service_end_text: string | null; max_waiting: number | null })[]
+  >`
+    SELECT s.id, s.name, s.color, to_char(s.service_end, 'HH24:MI') AS service_end_text, s.max_waiting, s.description, s.active, s.closed_message, s.join_key, s.next_number, s.generation,
       (SELECT count(*)::int FROM tickets t
         WHERE t.station = s.id AND t.generation = s.generation AND t.status = 'waiting') AS waiting,
       (SELECT count(*)::int FROM tickets t
@@ -386,6 +456,8 @@ export async function getAdminStations(): Promise<AdminStation[]> {
     id: r.id,
     name: r.name,
     color: r.color,
+    serviceEnd: r.service_end_text,
+    maxWaiting: r.max_waiting,
     description: r.description,
     active: r.active,
     closedMessage: r.closed_message,
@@ -397,15 +469,141 @@ export async function getAdminStations(): Promise<AdminStation[]> {
 }
 
 /** Tømmer køen for en stasjon og starter nummereringen på 1 igjen. */
+// ---------------------------------------------------------------- Rapport (v1.8)
+
+export interface StationStats {
+  station: StationId;
+  label: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  issued: number;
+  served: number;
+  skipped: number;
+  left: number;
+  waiting: number;
+  avgWaitSeconds: number | null;
+  maxWaitSeconds: number | null;
+  minutesPerPerson: number | null;
+  busiestHour: string | null;
+}
+
+/** Sammendrag for stasjonens nåværende runde (siden siste nullstilling). Bare tall – ingen persondata. */
+async function computeStats(sql: Sql, station: StationId): Promise<StationStats | null> {
+  const [st] = await sql<{ id: string; name: string; generation: number; next_number: number }[]>`
+    SELECT id, name, generation, next_number FROM stations WHERE id = ${station}`;
+  if (!st) return null;
+  const [agg] = await sql<
+    {
+      started: Date | null;
+      served: number;
+      skipped: number;
+      left_count: number;
+      waiting: number;
+      avg_wait: number | null;
+      max_wait: number | null;
+    }[]
+  >`
+    SELECT min(created_at) AS started,
+      count(*) FILTER (WHERE status = 'done')::int AS served,
+      count(*) FILTER (WHERE status = 'skipped')::int AS skipped,
+      count(*) FILTER (WHERE status = 'left')::int AS left_count,
+      count(*) FILTER (WHERE status = 'waiting')::int AS waiting,
+      round(avg(extract(epoch FROM called_at - created_at)) FILTER (WHERE called_at IS NOT NULL))::int AS avg_wait,
+      round(max(extract(epoch FROM called_at - created_at)) FILTER (WHERE called_at IS NOT NULL))::int AS max_wait
+    FROM tickets WHERE station = ${station} AND generation = ${st.generation}`;
+  const [busy] = await sql<{ hour: string }[]>`
+    SELECT to_char(date_trunc('hour', created_at AT TIME ZONE 'Europe/Oslo'), 'HH24:00') AS hour
+    FROM tickets WHERE station = ${station} AND generation = ${st.generation}
+    GROUP BY 1 ORDER BY count(*) DESC, 1 LIMIT 1`;
+  const calls = await sql<{ called_at: Date }[]>`
+    SELECT called_at FROM tickets WHERE station = ${station} AND generation = ${st.generation} AND called_at IS NOT NULL`;
+  const pace = measuredMinutes(
+    calls.map((c) => c.called_at),
+    Number.NaN,
+  );
+  return {
+    station: st.id,
+    label: st.name.trim() || `Stasjon ${st.id}`,
+    startedAt: agg?.started ? agg.started.toISOString() : null,
+    endedAt: null,
+    issued: st.next_number - 1,
+    served: agg?.served ?? 0,
+    skipped: agg?.skipped ?? 0,
+    left: agg?.left_count ?? 0,
+    waiting: agg?.waiting ?? 0,
+    avgWaitSeconds: agg?.avg_wait ?? null,
+    maxWaitSeconds: agg?.max_wait ?? null,
+    minutesPerPerson: Number.isNaN(pace) ? null : pace,
+    busiestHour: busy?.hour ?? null,
+  };
+}
+
+/** Rapport: nåværende runde for aktive stasjoner, og lagrede sammendrag fra tidligere runder (nyeste først). */
+export async function getReport(): Promise<{ current: StationStats[]; history: StationStats[] }> {
+  const sql = getSql();
+  const ids = await sql<{ id: string }[]>`SELECT id FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
+  const current = (await Promise.all(ids.map((r) => computeStats(sql, r.id)))).filter((s): s is StationStats => s !== null);
+  const rows = await sql<
+    {
+      station: string;
+      station_label: string;
+      started_at: Date | null;
+      ended_at: Date;
+      issued: number;
+      served: number;
+      skipped: number;
+      left_count: number;
+      waiting: number;
+      avg_wait_seconds: number | null;
+      max_wait_seconds: number | null;
+      minutes_per_person: string | null;
+      busiest_hour: string | null;
+    }[]
+  >`SELECT * FROM station_stats ORDER BY ended_at DESC, station LIMIT 200`;
+  const history = rows.map((r) => ({
+    station: r.station,
+    label: r.station_label,
+    startedAt: r.started_at ? r.started_at.toISOString() : null,
+    endedAt: r.ended_at.toISOString(),
+    issued: r.issued,
+    served: r.served,
+    skipped: r.skipped,
+    left: r.left_count,
+    waiting: r.waiting,
+    avgWaitSeconds: r.avg_wait_seconds,
+    maxWaitSeconds: r.max_wait_seconds,
+    minutesPerPerson: r.minutes_per_person === null ? null : Number(r.minutes_per_person),
+    busiestHour: r.busiest_hour,
+  }));
+  return { current, history };
+}
+
+/** Tømmer køen for en stasjon og starter nummereringen på 1 igjen. Lagrer rapport-sammendrag først (v1.8). */
 export async function resetStation(station: StationId): Promise<void> {
   await begin(async (tx) => {
     await lockStation(tx, station);
+    const stats = await computeStats(tx, station);
+    if (stats && stats.issued > 0) {
+      await tx`
+        INSERT INTO station_stats (station, station_label, started_at, issued, served, skipped, left_count, waiting,
+          avg_wait_seconds, max_wait_seconds, minutes_per_person, busiest_hour)
+        VALUES (${stats.station}, ${stats.label}, ${stats.startedAt}, ${stats.issued}, ${stats.served}, ${stats.skipped},
+          ${stats.left}, ${stats.waiting}, ${stats.avgWaitSeconds}, ${stats.maxWaitSeconds}, ${stats.minutesPerPerson},
+          ${stats.busiestHour})`;
+    }
     await tx`DELETE FROM queue_actions WHERE station = ${station}`;
     await tx`DELETE FROM tickets WHERE station = ${station}`;
     await tx`
       UPDATE stations SET next_number = 1, generation = generation + 1, updated_at = now()
       WHERE id = ${station}`;
   });
+}
+
+/** Nullstiller alle aktive stasjoner, hver i sin egen låste transaksjon (fast rekkefølge – ingen vranglås). */
+export async function resetAllStations(): Promise<number> {
+  const ids = await getSql()<{ id: string }[]>`SELECT id FROM stations WHERE archived_at IS NULL ORDER BY id`;
+  for (const { id } of ids) await resetStation(id);
+  return ids.length;
 }
 
 /**
@@ -568,6 +766,28 @@ export async function updateStationMeta(station: StationId, input: { name?: stri
       updated_at = now()
     WHERE id = ${station} AND archived_at IS NULL RETURNING id`;
   return rows.length > 0;
+}
+
+/**
+ * Sluttid («16:00», tom streng = ingen) og maks i kø (null = ingen) (v1.8).
+ * station = null: alle aktive stasjoner («Bruk på alle»). undefined-felt endres ikke.
+ */
+export async function updateStationLimits(
+  station: StationId | null,
+  input: { serviceEnd?: string; maxWaiting?: number | null },
+): Promise<number> {
+  const sql = getSql();
+  const setEnd = input.serviceEnd !== undefined;
+  const setMax = input.maxWaiting !== undefined;
+  if (!setEnd && !setMax) return 0;
+  const end = input.serviceEnd ? input.serviceEnd : null;
+  const rows = await sql`
+    UPDATE stations SET
+      service_end = CASE WHEN ${setEnd} THEN ${end}::time ELSE service_end END,
+      max_waiting = CASE WHEN ${setMax} THEN ${input.maxWaiting ?? null}::int ELSE max_waiting END,
+      updated_at = now()
+    WHERE archived_at IS NULL AND (${station}::text IS NULL OR id = ${station}) RETURNING id`;
+  return rows.length;
 }
 
 /** Flytter en stasjon ett steg opp (-1) eller ned (+1) blant de aktive. */

@@ -20,4 +20,4 @@ Omfang: **S** = timer, **M** = en dag, **L** = flere dager.
 
 - [ ] Manuell test av push på ekte iPhone og Android før push slås på (`docs/PUSH.md`).
 - [ ] Vurder Vercel Pro hvis arrangementet er kommersielt (Hobby er for ikke-kommersiell bruk).
-- [ ] Lag versjonsmerker (v1.3.0–v1.7.0) i GitHub under **Releases**.
+- [ ] Lag versjonsmerker (v1.3.0–v1.8.0) i GitHub under **Releases**.

@@ -34,8 +34,18 @@ export async function PUT(req: Request) {
     if (minutes !== undefined && !(typeof minutes === "number" && minutes >= 0.5 && minutes <= 60 && Number.isInteger(minutes * 2))) {
       return fail("bad_request");
     }
-    if (body.allowLeave !== undefined || body.waitMode !== undefined || minutes !== undefined) {
+    if (body.confirmJoin !== undefined && typeof body.confirmJoin !== "boolean") return fail("bad_request");
+    if (body.waitDisplay !== undefined && !["duration", "clock", "both"].includes(body.waitDisplay as string)) return fail("bad_request");
+    if (
+      body.allowLeave !== undefined ||
+      body.waitMode !== undefined ||
+      minutes !== undefined ||
+      body.confirmJoin !== undefined ||
+      body.waitDisplay !== undefined
+    ) {
       await updateQueueSettings({
+        confirmJoin: body.confirmJoin as boolean | undefined,
+        waitDisplay: body.waitDisplay as "duration" | "clock" | "both" | undefined,
         allowLeave: body.allowLeave as boolean | undefined,
         waitMode: body.waitMode as "fixed" | "measured" | undefined,
         waitMinutes: minutes as number | undefined,

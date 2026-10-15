@@ -16,17 +16,29 @@ Logg inn med PIN-koden. Alle innstillinger gjelder alle skjermer og telefoner in
 | Deaktiver / Aktiver | Stenger eller åpner stasjonen. Se under. |
 | Bytt nøkkel | Gamle QR-koder (og skjermlenker med QR) slutter å virke. Skriv ut nye. |
 | Fjern ventende lapper … | Fjerner ventende lapper i et nummerområde, f.eks. falske lapper fra en QR-kode delt på nett. |
+| Nullstill alle køer … (øverst, v1.8) | Tømmer alle køer på én gang og starter alle på nummer 1. Bekreftelsen viser hvor mange som mister lappen. Sammendrag lagres i «Rapport» først. |
 
 ### Flere stasjoner, navn og farger (v1.6)
 
 - **Ny stasjon:** trykk den stiplede ruten **Ny stasjon** sist i rutenettet. Den får neste ledige bokstav (D, E …) og en ledig farge. Maks 12 aktive stasjoner.
-- **Navn og farge:** **Navn, farge og rekkefølge …** på kortet. Navnet (f.eks. «Hovedscenen») vises på storskjerm, kølapp og hos operatøren. Tomt navn gir «Stasjon D». Velg en av 12 farger eller **Egen farge**. Trykk **Lagre**.
+- **Navn og farge:** **Navn, farge, sluttid og rekkefølge …** på kortet. Navnet (f.eks. «Hovedscenen») vises på storskjerm, kølapp og hos operatøren. Tomt navn gir «Stasjon D». Velg en av 12 farger eller **Egen farge**. Trykk **Lagre**.
 - **Rekkefølge:** pilene flytter stasjonen til venstre/høyre. Storskjermen og operatørens velger følger samme rekkefølge.
 - **Koden endres aldri.** Bokstaven står på QR-koden og lappene (D1, D2 …). Den gjenbrukes heller ikke etter arkivering.
 - **Arkivere:** **Arkiver stasjon …** (bare når ingen står i kø – nullstill først). Stasjonen forsvinner overalt, og QR-koden slutter å virke.
 - **Gjenopprette:** **Arkiverte stasjoner** nederst → **Gjenopprett**. Stasjonen får tom kø og **ny QR-kode** – skriv ut på nytt.
 - **Skjermer:** nye stasjoner kommer automatisk med på `/display`. Skjermlenker med QR for «alle stasjoner» må lages på nytt etter at en stasjon er lagt til eller fjernet.
 - **Lyd:** `/audio` spiller for alle stasjoner; `/audio?station=D` bare for D.
+
+### Sluttid og kapasitet (v1.8)
+
+Under **Navn, farge, sluttid og rekkefølge …** → «Sluttid og kapasitet». Begge er tomme som standard (ingen grense, som før).
+
+- **Siste betjening kl.** (f.eks. 16:00): nye gjester får «Køen er full» når de ikke rekker fram før sluttiden (antall ventende × minutter per person fra «Kø og ventetid»). Etter sluttiden tas ingen nye lapper. Klokkeslettet gjelder dagens dato i norsk tid – et arrangement som går over midnatt støttes ikke.
+- **Maks i kø:** nye gjester får «Køen er full» når så mange venter.
+- **Bruk på alle stasjoner:** kryss av før du lagrer for å sette samme verdier på alle aktive stasjoner.
+- De som allerede står i kø beholder plassen. Ligger deres beregnede tur etter sluttiden, viser kølappen «Det kan bli for sent – siste betjening er kl. 16:00. Snakk med en funksjonær.»
+- Stasjonskortet og operatøren viser «Plass til ca. 18 til før kl. 16:00» eller «Full – siste betjening kl. 16:00». Det er tallet for hvor mange dere må legge opp til.
+- Stengt vinner over full: en stengt stasjon viser stengt-meldingen.
 
 ### Stenge en stasjon (pause)
 
@@ -53,7 +65,7 @@ Kortet **Skjermer** lager lenker til storskjermer. Vanlig `/display` (uten valg)
 ### Lag en skjermlenke
 
 1. Velg stasjoner. Én stasjon gir en skjerm der nummeret fyller hele skjermen.
-2. Velg størrelse på nummeret, antall i «Neste» og hva som skal vises (stasjonsnavn, beskrivelse, overskrift, klokke, lydsignal, QR-kode).
+2. Velg størrelse på nummeret, antall i «Neste» og hva som skal vises (stasjonsnavn, beskrivelse, overskrift, klokke, lydsignal, QR-kode, køinfo). **Køinfo** (v1.8) viser «12 i kø · ca. 25 min» under hver åpen stasjon (format etter «Vis ventetiden som»), eller «Køen er full».
 3. Velg mørk eller lys bakgrunn.
 4. Sjekk forhåndsvisningen (viser ekte køtall).
 5. Trykk **Kopier lenke** og åpne lenken på PC-en til skjermen, eller **Åpne i nytt vindu**. Trykk fullskjerm-ikonet øverst til høyre.
@@ -101,6 +113,16 @@ Kortet **Kø og ventetid**:
 - **Ventetid på kølappen:** antall foran × minutter per person.
   - **Fast** (standard 2 minutter, som før): skriv inn et annet tall (hele eller halve minutter) og trykk **Lagre**.
   - **Faktisk tempo ved hver stasjon:** regnes ut fra tiden mellom de siste oppropene ved hver stasjon. Til det er minst 4 opprop (og etter en pause over 30 minutter) brukes det faste tallet. Linjen «Nå: …» viser tempoet akkurat nå.
+- **Vis køen før gjesten tar lapp** (v1.8, standard **Av**): etter skann ser gjesten stasjonen, «12 personer foran deg» og ventetiden, og trykker **Ta kølapp** eller **Ikke nå**. Av = lappen lages med en gang (som før). Har mobilen allerede en lapp, går den rett til lappen.
+- **Vis ventetiden som** (v1.8): **Tid** («Ca. 25 minutter», standard), **Klokkeslett** («Din tur ca. kl. 14:35») eller **Begge** («Ca. 25 minutter – ca. kl. 14:35»). Klokkeslettet rundes opp til nærmeste 5 minutter og vises ikke når ventetiden er under 5 minutter. Gjelder kølappen, «se køen før lapp», storskjermens køinfo og «Gi fra meg plassen».
+
+## Rapport (v1.8)
+
+Kortet **Rapport** viser per stasjon siden siste nullstilling: delt ut, betjent, hoppet over, ga fra seg plassen, venter nå, snitt og lengste ventetid (fra lapp til kalt), tempo (minutter per person) og travleste time.
+
+- Hver gang en kø nullstilles (også «Nullstill alle køer»), lagres et sammendrag under **Tidligere runder** med tidspunkt. Bare tall – ingen persondata.
+- **Last ned CSV** gir en fil (`kolapp-rapport-ÅÅÅÅ-MM-DD.csv`) med «Nå» og tidligere runder, som åpnes riktig i norsk Excel.
+- Tips: last ned CSV før «Nullstill alle køer» etter arrangementet – eller etterpå, sammendraget ligger under «Tidligere runder».
 
 ## Push-varsler
 

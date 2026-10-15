@@ -1,6 +1,7 @@
 // Rene hjelpefunksjoner for tekster som vises til publikum. Testes i tests/unit/texts.test.ts.
 
 import { MINUTES_PER_PERSON } from "./config";
+import { durationText } from "./wait";
 
 /** «Du er nest i køen» / «1 person foran deg» / «X personer foran deg». */
 export function aheadText(ahead: number): string {
@@ -9,22 +10,12 @@ export function aheadText(ahead: number): string {
   return `${ahead} personer foran deg`;
 }
 
-/** Minutter som tekst: «2 minutter», «1 minutt», «1 t 15 min». */
-function minutesText(min: number): string {
-  const m = Math.max(1, Math.round(min));
-  if (m < 60) return m === 1 ? "1 minutt" : `${m} minutter`;
-  const h = Math.floor(m / 60);
-  const rest = m % 60;
-  return rest ? `${h} t ${rest} min` : `${h} t`;
-}
-
 /**
- * Omtrentlig ventetid. Standard (som piloten): 2 minutter per person foran.
- * Fra v1.7 kan admin velge annet antall minutter eller faktisk tempo (minutesPerPerson fra /api/state).
+ * Omtrentlig ventetid som varighet. Standard (som piloten): 2 minutter per person foran.
+ * Fra v1.7 med minutter per person fra admin; v1.8 har klokkeslett i formatWait() (src/lib/wait.ts).
  */
 export function waitText(ahead: number, minutesPerPerson: number = MINUTES_PER_PERSON): string {
-  if (ahead <= 0) return `Under ${minutesText(Math.max(1, Math.ceil(minutesPerPerson)))}`;
-  return `Ca. ${minutesText(ahead * minutesPerPerson)}`;
+  return durationText(ahead, minutesPerPerson);
 }
 
 /** Feilkoder fra API-et og den vennlige teksten publikum ser. */
@@ -49,6 +40,7 @@ export const ERROR_TEXT = {
   no_free_station: "Alle bokstavene A–Z er brukt. Gjenopprett en arkivert stasjon i stedet.",
   leave_disabled: "Det er ikke mulig å gi fra seg plassen her. Snakk med en funksjonær.",
   too_late: "Plassen kan ikke tas tilbake lenger. Skann QR-koden igjen for å få en ny kølapp.",
+  queue_full: "Køen er full for i dag. Snakk med en funksjonær.",
   push_disabled: "Varsler er ikke slått på for dette arrangementet.",
   display_link_expired: "Skjermlenken er utdatert. Lag en ny under «Skjermer» i admin.",
   db_missing: "Databasen er ikke koblet til ennå. Se docs/VERCEL-OPPSETT.md.",

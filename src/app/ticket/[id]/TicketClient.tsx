@@ -11,7 +11,8 @@ import { api } from "@/lib/client-api";
 import { POLL_INTERVAL_MS } from "@/lib/config";
 import { ST, stationLabel, stationPlace, stationVars } from "@/lib/stations";
 import { deriveTicket, type DerivedTicket, type PublicState, type PublicTicket } from "@/lib/public-state";
-import { aheadText, ERROR_TEXT, waitText } from "@/lib/texts";
+import { aheadText, ERROR_TEXT } from "@/lib/texts";
+import { formatWait, type WaitDisplay } from "@/lib/wait";
 
 /** Samme som LEAVE_UNDO_SECONDS på serveren (queue.ts). Serveren avgjør uansett. */
 const LEAVE_UNDO_MS = 60_000;
@@ -41,15 +42,23 @@ export function TicketClient({ id }: { id: string }) {
   // Push-varsel (v1.5) og «Gi fra meg plassen» (v1.7) styres fra admin. Hentes én gang (CDN-mellomlagret).
   const [push, setPush] = useState<{ enabled: boolean; publicKey: string | null } | null>(null);
   const [allowLeave, setAllowLeave] = useState(false);
+  // Ventetid som varighet (standard), klokkeslett eller begge (v1.8).
+  const [waitDisplay, setWaitDisplay] = useState<WaitDisplay>("duration");
   useEffect(() => {
-    void api<{ push?: { enabled: boolean; publicKey: string | null }; queue?: { allowLeave: boolean } }>("/api/config", {
+    void api<{
+      push?: { enabled: boolean; publicKey: string | null };
+      queue?: { allowLeave: boolean; waitDisplay?: WaitDisplay };
+    }>("/api/config", {
       cache: "default",
     }).then((r) => {
       if (!r.ok) return;
       if (r.data.push) setPush(r.data.push);
       setAllowLeave(r.data.queue?.allowLeave ?? false);
+      setWaitDisplay(r.data.queue?.waitDisplay ?? "duration");
     });
   }, []);
+  // Sluttid for stasjonen (v1.8): varsle hvis beregnet tur er etter siste betjening.
+  const [lateEnd, setLateEnd] = useState<string | null>(null);
   // Minutter per person for ventetiden (v1.7): fra køstatusen (fast eller målt tempo).
   const [minutes, setMinutes] = useState<number | undefined>(undefined);
   // Gitt fra seg plassen: angre er mulig til dette tidspunktet (ms).
@@ -97,7 +106,14 @@ export function TicketClient({ id }: { id: string }) {
       setClosed(station.active ? null : { message: station.closedMessage });
       setMinutes(station.minutesPerPerson);
     }
-    setView(deriveTicket(t, station));
+    const derived = deriveTicket(t, station);
+    setView(derived);
+    // Beregnet tur etter siste betjening (v1.8)?
+    const late =
+      station?.serviceEnd && station.endAt && derived.kind === "waiting"
+        ? Date.now() + derived.ahead * station.minutesPerPerson * 60_000 > Date.parse(station.endAt)
+        : false;
+    setLateEnd(late ? station!.serviceEnd : null);
   }, [ticket, id]);
 
   /** Gjesten ga fra seg plassen: vis «gitt fra seg» lokalt (polling stopper). */
@@ -243,9 +259,14 @@ export function TicketClient({ id }: { id: string }) {
           </div>
           <div className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-slate-400" aria-hidden />
-            <p className="font-medium text-slate-800">{waitText(view.ahead, minutes)}</p>
+            <p className="font-medium text-slate-800">{formatWait(view.ahead, minutes ?? 2, waitDisplay)}</p>
           </div>
         </div>
+        {lateEnd && (
+          <p role="status" className="mt-4 rounded-2xl bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900" data-testid="late-warning">
+            Det kan bli for sent – siste betjening er kl. {lateEnd}. Snakk med en funksjonær.
+          </p>
+        )}
         {push?.enabled && push.publicKey && <PushPrompt ticketId={ticket.id} publicKey={push.publicKey} />}
         <VibrationHint on={vibrationOn} onEnable={() => setVibrationOn(true)} />
         {description && (
@@ -267,7 +288,7 @@ export function TicketClient({ id }: { id: string }) {
             ticketId={ticket.id}
             label="Gi fra meg plassen"
             question={`Vil du gi fra deg plassen ${label}?`}
-            detail={`${aheadText(view.ahead)} – ${waitText(view.ahead, minutes).toLowerCase()} ventetid.`}
+            detail={`${aheadText(view.ahead)} – ${formatWait(view.ahead, minutes ?? 2, waitDisplay).replace(/^./, (c) => c.toLowerCase())}${waitDisplay === "duration" ? " ventetid" : ""}.`}
             onLeft={onLeft}
           />
         )}

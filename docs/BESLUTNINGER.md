@@ -109,3 +109,13 @@ at stasjonsinnstillinger ligger bak én knapp per kort.
 er på som standard (avvik fra «nytt er av») fordi den hjelper både gjester og funksjonærer; admin kan slå den av. En
 diskret lenke, bekreftelse og 60 sekunders angring hindrer feiltrykk. Ventetiden kan være fast (standard 2 min, som før)
 eller målt: midtverdien av intervallene mellom de siste oppropene, som tåler enkeltavvik og ignorerer pauser.
+
+## ADR-020 – Kø-innsikt: kapasitet på serveren, rapport som sammendrag (v1.8)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Alt nytt er av som standard (forhåndsvisning, klokkeslett, sluttid/maks, køinfo), så dagens oppførsel er uendret.
+Kapasitetsregelen er én ren funksjon (`capacity()`) som brukes likt i `/api/state`, hos operatøren og i `joinQueue()`;
+avgjørelsen om ny lapp tas i stasjonens lås, så samtidige skann aldri går over grensen. Sluttid er ett klokkeslett per
+stasjon tolket i norsk tid med databasens klokke (enkelt å forstå; arrangementer går over én dag). Klokkeslett for
+ventetid rundes opp til 5 minutter for å unngå falsk presisjon. Siden «Nullstill kø» sletter lappene, lagres et
+sammendrag med bare tall i `station_stats` i samme transaksjon – rapporten overlever nullstilling uten å lagre persondata.
+«Se køen før lapp» bruker de CDN-mellomlagrede `/api/state` og `/api/config`, så det koster ingen ekstra databasekall.

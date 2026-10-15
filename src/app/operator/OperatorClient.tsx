@@ -1,5 +1,6 @@
 "use client";
 
+import { capacityText } from "@/lib/wait";
 import { RefreshCw, RotateCcw, SkipForward, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -129,6 +130,11 @@ export function OperatorClient({ station, stations }: { station: StationId; stat
           </span>
         </div>
 
+        {view && view.capacityLeft !== null && (
+          <p className={`mt-2 text-right text-xs font-medium ${view.full ? "text-red-600" : "text-slate-600"}`} data-testid="capacity">
+            {capacityText(view.full, view.capacityLeft, view.serviceEnd)}
+          </p>
+        )}
         {Boolean(view?.leftCount) && (
           <p className="mt-2 text-right text-xs text-slate-500" data-testid="left-count">
             {view!.leftCount === 1 ? "1 har gitt fra seg plassen" : `${view!.leftCount} har gitt fra seg plassen`}

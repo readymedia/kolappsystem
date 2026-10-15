@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { StationId } from "@/lib/config";
 import { displayColumns, ST, stationLabel, stationVars } from "@/lib/stations";
+import { formatQueueShort, type WaitDisplay } from "@/lib/wait";
 import type { DisplayOptions, DisplaySize } from "@/lib/display-options";
 import type { PublicState, PublicStation } from "@/lib/public-state";
 
@@ -20,6 +21,8 @@ export interface DisplayBoardProps {
   blink?: Partial<Record<StationId, boolean>>;
   /** QR-SVG per stasjon (bare med gyldig signert lenke). */
   qr?: Partial<Record<StationId, string>> | null;
+  /** Ventetid som varighet, klokkeslett eller begge i køinfo (v1.8). */
+  waitDisplay?: WaitDisplay;
   /** Arrangementets logo (v1.4), vises til venstre i topplinjen. */
   logoUrl?: string | null;
   /** Hjørneknapper (fullskjerm) – vises i topplinjen. */
@@ -70,6 +73,7 @@ export function DisplayBoard({
   title,
   blink = {},
   qr,
+  waitDisplay = "duration",
   logoUrl = null,
   corner,
   wide = false,
@@ -141,6 +145,7 @@ export function DisplayBoard({
             blink={Boolean(blink[only])}
             qr={qr?.[only]}
             light={light}
+            waitDisplay={waitDisplay}
           />
         ) : (
           <div className={`mt-8 grid ${compact ? "gap-4" : "gap-6"} ${cols}`}>
@@ -153,6 +158,7 @@ export function DisplayBoard({
                 blink={Boolean(blink[id])}
                 qr={qr?.[id]}
                 light={light}
+                waitDisplay={waitDisplay}
                 wide={wide}
                 compact={compact}
               />
@@ -171,13 +177,24 @@ interface StationProps {
   blink: boolean;
   qr?: string;
   light: boolean;
+  waitDisplay: WaitDisplay;
+}
+
+/** Køinfo (v1.8): «12 i kø · ca. 25 min», eller «Køen er full». */
+function QueueInfo({ station, waitDisplay, className }: { station?: PublicStation; waitDisplay: WaitDisplay; className: string }) {
+  if (!station || !station.active) return null;
+  return (
+    <p className={className} data-testid="queue-info">
+      {station.full ? "Køen er full" : formatQueueShort(station.waiting.length, station.minutesPerPerson, waitDisplay)}
+    </p>
+  );
 }
 
 /** Skråstriper for stengt stasjon. */
 const STRIPES_DARK = "bg-[repeating-linear-gradient(135deg,rgba(255,255,255,0.045)_0_14px,transparent_14px_28px)]";
 const STRIPES_LIGHT = "bg-[repeating-linear-gradient(135deg,rgba(15,23,42,0.045)_0_14px,transparent_14px_28px)]";
 
-function Column({ id, station, options, blink, qr, light, wide, compact }: StationProps & { wide: boolean; compact: 4 | 6 | null }) {
+function Column({ id, station, options, blink, qr, light, wide, compact, waitDisplay }: StationProps & { wide: boolean; compact: 4 | 6 | null }) {
   const active = station?.active !== false;
   const current = station?.current ?? null;
   const next = station?.waiting.slice(0, options.next) ?? [];
@@ -202,7 +219,7 @@ function Column({ id, station, options, blink, qr, light, wide, compact }: Stati
           <span />
         )}
         <span className={`text-xs uppercase tracking-[0.25em] ${active ? (light ? ST.text : ST.display) : light ? "text-slate-400" : "text-white/30"}`}>
-          {active ? "Åpen" : "Stengt"}
+          {!active ? "Stengt" : station?.full ? "Full" : "Åpen"}
         </span>
       </div>
       {options.desc && station?.description && <p className={`mt-2 text-lg ${muted}`}>{station.description}</p>}
@@ -224,6 +241,13 @@ function Column({ id, station, options, blink, qr, light, wide, compact }: Stati
               </span>
             </p>
           )}
+          {options.info && (
+            <QueueInfo
+              station={station}
+              waitDisplay={waitDisplay}
+              className={`${compact ? "mt-2 text-base" : "mt-3 text-xl"} font-medium ${light ? "text-slate-700" : "text-white/80"}`}
+            />
+          )}
           {qr && <QrBox svg={qr} className="mt-8 w-40" light={light} />}
         </>
       ) : (
@@ -233,7 +257,7 @@ function Column({ id, station, options, blink, qr, light, wide, compact }: Stati
   );
 }
 
-function SingleStation({ id, station, options, blink, qr, light }: StationProps) {
+function SingleStation({ id, station, options, blink, qr, light, waitDisplay }: StationProps) {
   const active = station?.active !== false;
   const current = station?.current ?? null;
   const next = station?.waiting.slice(0, options.next) ?? [];
@@ -270,6 +294,13 @@ function SingleStation({ id, station, options, blink, qr, light }: StationProps)
                 {next.length ? next.map((n) => `${id}${n}`).join(", ") : "–"}
               </span>
             </p>
+          )}
+          {options.info && (
+            <QueueInfo
+              station={station}
+              waitDisplay={waitDisplay}
+              className={`mt-[1.5cqh] text-[min(2.4cqw,3.8cqh)] font-medium ${light ? "text-slate-700" : "text-white/80"}`}
+            />
           )}
         </>
       ) : (

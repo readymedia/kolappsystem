@@ -23,7 +23,7 @@
 | 1.5 | Push-varsel | **Levert i v1.5.0** (godkjent 15.10, av som standard) |
 | 1.6 | Fritt antall stasjoner | **Levert i v1.6.0** |
 | 1.7 | Gi fra seg plassen + ventetid | **Levert i v1.7.0** (bestilt og godkjent 15.10) |
-| 1.8 | Kø-innsikt: se køen før lapp, køinfo på storskjerm, ventetid som klokkeslett, sluttid/kapasitet, rapport, nullstill alle | **Plan – venter på godkjenning** (§8c) |
+| 1.8 | Kø-innsikt: se køen før lapp, køinfo på storskjerm, ventetid som klokkeslett, sluttid/kapasitet, rapport, nullstill alle | **Levert i v1.8.0** (§8c) |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
 
 ## 1. Rammer – gjelder alle versjoner
@@ -371,7 +371,7 @@ Bestilt 15.10: «Får jeg vite at det er 45 minutter ventetid, vil jeg kanskje m
 | Data | Ny lappstatus `left` + `left_at`; `site_config.allow_leave`, `wait_mode`, `wait_minutes` (migrering `008_leave_and_wait.sql`) |
 | Sikkerhet | Lapp-id er adgangsbeviset, Origin-sjekk, forsøksgrense. Endringen skjer i stasjonens lås; operatørens «Angre siste» vekker aldri en lapp som er gitt fra seg |
 
-## 8c. v1.8 – Kø-innsikt (plan, venter på godkjenning)
+## 8c. v1.8 – Kø-innsikt (godkjent 15.10, levert i v1.8.0)
 
 Bestilt 15.10 (punkt 1, 2, 3, 4, 8 og 9 fra gjennomgangen). Øvrige forslag ligger i `docs/FEATURE-REQUESTS.md`.
 **Regel som før: alt nytt er av som standard, så dagens oppførsel er uendret til admin slår det på.**
@@ -449,7 +449,7 @@ Bestilt 15.10 (punkt 1, 2, 3, 4, 8 og 9 fra gjennomgangen). Øvrige forslag ligg
   - **Røyktest:** nye felt i `/api/state` og `/api/config`.
 - **Dokumentasjon:** UI-SPEC, ARKITEKTUR, ADMIN-GUIDE, OPERATOR-GUIDE, KJOREPLAN (sluttid og nullstill alle), SIKKERHET (rapport uten persondata), CHANGELOG, BESLUTNINGER.
 
-### 8c.8 Spørsmål til bestiller (forslag i parentes)
+### 8c.8 Spørsmål til bestiller (besvart: forslagene godkjent 15.10)
 
 1. Alle nye valg er av som standard. Skal «Vis køen før gjesten tar lapp» likevel være **på**? (Forslag: av, som regelen sier.)
 2. Klokkeslett rundet opp til **5 minutter**? (Forslag: ja – unngår falsk presisjon.)
@@ -495,4 +495,5 @@ Ikke i denne runden. Datamodellen over er laget for at dette blir et tillegg:
 | --- | --- |
 | 2026-10-15 | Bestiller godkjente 1.2 Lyd, 1.3 Skjermer og 1.4 Utseende, med valgene i §4–6 (standardlyd, maks 2 MB / 15 s, AIFF med Safari-varsel, QR på storskjerm med risikovarsel). |
 | 2026-10-15 | 1.5 Push, 1.6 Stasjoner og 2.0 settes på roadmap og planlegges på nytt i neste runde. |
+| 2026-10-15 | 1.5–1.7 godkjent og levert. 1.8 Kø-innsikt (§8c) godkjent med forslagene i §8c.8 og levert i v1.8.0. Avvik fra planen: «Snart» brukes ikke – nest i køen viser «Under N minutter» som før. |
 | Åpen | Dato for neste arrangement, så vi kan sette kodefrys (minst én uke før). |

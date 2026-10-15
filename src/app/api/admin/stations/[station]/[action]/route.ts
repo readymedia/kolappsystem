@@ -6,6 +6,7 @@ import {
   moveStation,
   restoreStation,
   updateStationMeta,
+  updateStationLimits,
   removeWaitingRange,
   resetStation,
   rotateStationKey,
@@ -16,7 +17,7 @@ import {
 import { notifyStation } from "@/lib/push";
 import { isStationColor } from "@/lib/stations";
 
-// Admin-handlinger per stasjon: meta {name?, color?} | move-up | move-down | archive | restore | reset | activate | deactivate {message?} | closed-message | rotate-key | description | remove-waiting
+// Admin-handlinger per stasjon: meta {name?, color?} | limits {serviceEnd?, maxWaiting?, applyToAll?} | move-up | move-down | archive | restore | reset | activate | deactivate {message?} | closed-message | rotate-key | description | remove-waiting
 
 export async function POST(req: Request, { params }: { params: Promise<{ station: string; action: string }> }) {
   return handle(req, { mutation: true, requireSession: true }, async () => {
@@ -34,6 +35,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
           color: body.color as string | undefined,
         });
         if (!okMeta) return fail("invalid_station");
+        break;
+      }
+      case "limits": {
+        // Sluttid «HH:MM» (tom = ingen) og maks i kø (null = ingen). applyToAll: alle aktive stasjoner (v1.8).
+        const body = await readJson(req);
+        const end = body.serviceEnd;
+        if (end !== undefined && (typeof end !== "string" || (end !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(end)))) return fail("bad_request");
+        const max = body.maxWaiting;
+        if (max !== undefined && max !== null && !(Number.isInteger(max) && (max as number) >= 1 && (max as number) <= 10000)) {
+          return fail("bad_request");
+        }
+        await updateStationLimits(body.applyToAll === true ? null : station, {
+          serviceEnd: end as string | undefined,
+          maxWaiting: max as number | null | undefined,
+        });
         break;
       }
       case "move-up":

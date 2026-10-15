@@ -29,7 +29,7 @@ test("ny stasjon med navn og farge vises på storskjerm, hos operatør, på køl
   await expect(a.getByText("4 av 12 i bruk")).toBeVisible();
 
   const d = card(a, "Stasjon D");
-  await d.getByRole("button", { name: /Navn, farge og rekkefølge/ }).click();
+  await d.getByRole("button", { name: /Navn, farge, sluttid og rekkefølge/ }).click();
   await d.getByLabel("Navn").fill("Hovedscenen");
   await d.getByRole("button", { name: "Rød" }).click();
   await d.getByRole("button", { name: "Lagre", exact: true }).click();
@@ -108,7 +108,7 @@ test("rekkefølge, arkivering (bare med tom kø) og gjenoppretting", async ({ br
   await expect(d).toBeVisible();
 
   // Flytt D først.
-  await d.getByRole("button", { name: /Navn, farge og rekkefølge/ }).click();
+  await d.getByRole("button", { name: /Navn, farge, sluttid og rekkefølge/ }).click();
   for (let i = 0; i < 3; i++) await card(a, "Stasjon D").getByRole("button", { name: "Flytt til venstre" }).click();
   await expect(a.locator(".print-page h2")).toHaveText(["Stasjon D", "Stasjon A", "Stasjon B", "Stasjon C"]);
   const screen = await (await browser.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
@@ -119,13 +119,13 @@ test("rekkefølge, arkivering (bare med tom kø) og gjenoppretting", async ({ br
   await request.post("/api/join", { headers: { origin: baseURL! }, data: { station: "A", key: keys.A, requestId: crypto.randomUUID() } });
   await a.reload();
   const cardA = card(a, "Stasjon A");
-  await cardA.getByRole("button", { name: /Navn, farge og rekkefølge/ }).click();
+  await cardA.getByRole("button", { name: /Navn, farge, sluttid og rekkefølge/ }).click();
   await expect(cardA.getByText(/Arkivering krever tom kø \(1 venter\)/)).toBeVisible();
 
   // D (tom) arkiveres: borte fra storskjerm og admin, QR virker ikke.
   const keyD = await stationKey("D");
   const cardD = card(a, "Stasjon D");
-  await cardD.getByRole("button", { name: /Navn, farge og rekkefølge/ }).click();
+  await cardD.getByRole("button", { name: /Navn, farge, sluttid og rekkefølge/ }).click();
   await cardD.getByRole("button", { name: "Arkiver stasjon …" }).click();
   await cardD.getByRole("button", { name: "Bekreft – arkiver stasjon D" }).click();
   await expect(cardHeading(a, "Stasjon D")).toHaveCount(0);

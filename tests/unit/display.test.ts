@@ -22,6 +22,7 @@ describe("skjermvalg fra adressen", () => {
       theme: "light",
       sound: true,
       qr: true,
+      info: false,
       token: "abcdefghijklmnop1234",
     });
   });
@@ -39,6 +40,12 @@ describe("skjermvalg fra adressen", () => {
     const q = buildDisplayQuery(o);
     expect(q).toBe("?station=A&size=xl&next=0&clock=1");
     expect(parse(q.slice(1))).toEqual(o);
+  });
+
+  it("køinfo (v1.8) er av som standard og kan slås på", () => {
+    expect(parse("").info).toBe(false);
+    expect(parse("info=1").info).toBe(true);
+    expect(buildDisplayQuery({ ...DEFAULT_DISPLAY_OPTIONS, info: true })).toBe("?info=1");
   });
 
   it("QR tas bare med når token finnes", () => {

@@ -32,11 +32,12 @@ const SIZES: { value: DisplaySize; label: string }[] = [
   { value: "xl", label: "Ekstra stor" },
 ];
 
-const TOGGLES: { key: "title" | "desc" | "header" | "clock" | "sound" | "qr"; label: string }[] = [
+const TOGGLES: { key: "title" | "desc" | "header" | "clock" | "sound" | "qr" | "info"; label: string }[] = [
   { key: "title", label: "Stasjonsnavn" },
   { key: "desc", label: "Beskrivelse" },
   { key: "header", label: "Overskrift" },
   { key: "clock", label: "Klokke" },
+  { key: "info", label: "Køinfo (antall og ventetid)" },
   { key: "sound", label: "Lydsignal" },
   { key: "qr", label: "QR-kode for kølapp" },
 ];

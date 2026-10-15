@@ -2,6 +2,28 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.8.0] – 2026-10-15
+
+Kø-innsikt. Alt nytt er av som standard – uten endringer i admin virker alt som før. Se `docs/ADMIN-GUIDE.md`.
+
+### Lagt til
+- **Se køen før du tar lapp** (bryter i «Kø og ventetid»): etter skann vises stasjonen, antall foran og ventetid med «Ta kølapp» / «Ikke nå». Mobil som allerede har lapp går rett til lappen.
+- **Ventetid som tid, klokkeslett eller begge** («Ca. 25 minutter», «Din tur ca. kl. 14:35», «Ca. 25 minutter – ca. kl. 14:35»), rundet opp til 5 minutter i norsk tid. Gjelder kølapp, forhåndsvisning, storskjerm og «Gi fra meg plassen».
+- **Køinfo på storskjermen** (skjermvalg «Køinfo», `info=1`): «12 i kø · ca. 25 min» eller «Køen er full» under hver åpen stasjon.
+- **Sluttid og maks i kø per stasjon** (med «Bruk på alle stasjoner»): nye gjester får «Køen er full» når de ikke rekker fram eller køen er full; de som står beholder plassen og får varsel «Det kan bli for sent …». Operatør og stasjonskort viser «Plass til ca. N til før kl. 16:00» / «Full». Avgjøres i stasjonens lås – samtidige skann går aldri over grensen.
+- **Rapport** i admin: delt ut, betjent, hoppet over, ga fra seg plassen, venter, snitt/lengste ventetid, tempo og travleste time per stasjon, med «Tidligere runder» (sammendrag lagres automatisk ved hver nullstilling) og «Last ned CSV» (norsk Excel). Bare tall, ingen persondata.
+- **Nullstill alle køer …** øverst i admin, med bekreftelse som viser hvor mange som mister lappen.
+- API: `full`, `capacityLeft`, `serviceEnd`, `endAt` i `/api/state`; `queue.confirmJoin`/`queue.waitDisplay` i `/api/config`; feilkode `queue_full`; `limits` på stasjonsruten; `POST /api/admin/reset-all`; `GET /api/admin/report` (`?format=csv`).
+- Tester: klokkeslett, visninger og kapasitet (enhet); sluttid/maks, samtidige skann ved grensen, sammendrag ved nullstilling, nullstill alle (integrasjon); 6 nye E2E-scenarier; ny røyktest.
+- `docs/FEATURE-REQUESTS.md` med vurderte forslag til senere.
+
+### Endret
+- Stengt-meldingen ved skann bruker stasjonens navn («Hovedscenen er stengt»), ikke bare «Stasjon X».
+- Knappen på stasjonskortet heter «Navn, farge, sluttid og rekkefølge …».
+
+### Database
+- Migrering `009_queue_insight.sql`: `site_config.confirm_join` (av), `site_config.wait_display` (`duration`), `stations.service_end`, `stations.max_waiting`, tabell `station_stats`. Bare tillegg.
+
 ## [1.7.0] – 2026-10-15
 
 Gi fra seg plassen i køen, og bedre ventetid. Se `docs/ADMIN-GUIDE.md` → «Kø og ventetid».

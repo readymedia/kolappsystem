@@ -16,10 +16,19 @@ export interface StationSettingsProps {
   isLast: boolean;
   /** Antall ventende – arkivering krever tom kø. */
   waitingCount: number;
+  /** Sluttid «16:00» og maks i kø (v1.8), eller null. */
+  serviceEnd: string | null;
+  maxWaiting: number | null;
   onAction: (action: string, json?: unknown) => Promise<unknown>;
 }
 
-export function StationSettings({ id, name, color, isFirst, isLast, waitingCount, onAction }: StationSettingsProps) {
+export function StationSettings({ id, name, color, isFirst, isLast, waitingCount, serviceEnd, maxWaiting, onAction }: StationSettingsProps) {
+  const [endDraft, setEndDraft] = useState(serviceEnd ?? "");
+  const [maxDraft, setMaxDraft] = useState(maxWaiting === null ? "" : String(maxWaiting));
+  const [applyAll, setApplyAll] = useState(false);
+  const [limitsSaved, setLimitsSaved] = useState(false);
+  const maxValid = maxDraft === "" || (/^\d+$/.test(maxDraft) && Number(maxDraft) >= 1 && Number(maxDraft) <= 10000);
+  const limitsDirty = applyAll || endDraft !== (serviceEnd ?? "") || maxDraft !== (maxWaiting === null ? "" : String(maxWaiting));
   const [open, setOpen] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [draftColor, setDraftColor] = useState(color);
@@ -43,11 +52,14 @@ export function StationSettings({ id, name, color, isFirst, isLast, waitingCount
         onClick={() => {
           setDraftName(name);
           setDraftColor(color);
+          setEndDraft(serviceEnd ?? "");
+          setMaxDraft(maxWaiting === null ? "" : String(maxWaiting));
+          setApplyAll(false);
           setOpen(true);
         }}
       >
         <Settings2 className="h-4 w-4" aria-hidden />
-        Navn, farge og rekkefølge …
+        Navn, farge, sluttid og rekkefølge …
       </button>
     );
   }
@@ -124,6 +136,59 @@ export function StationSettings({ id, name, color, isFirst, isLast, waitingCount
           Lukk
         </button>
       </div>
+
+      <fieldset className="space-y-2 border-t border-slate-100 pt-3">
+        <legend className="text-sm font-medium text-slate-800">Sluttid og kapasitet</legend>
+        <div className="flex flex-wrap items-end gap-3 text-sm">
+          <label className="block">
+            <span className="text-xs text-slate-600">Siste betjening kl.</span>
+            <input
+              type="time"
+              value={endDraft}
+              onChange={(e) => {
+                setEndDraft(e.target.value);
+                setLimitsSaved(false);
+              }}
+              className="mt-1 block h-9 rounded-lg border border-slate-200 px-2"
+              aria-label="Siste betjening"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Maks i kø</span>
+            <input
+              value={maxDraft}
+              onChange={(e) => {
+                setMaxDraft(e.target.value.replace(/\D/g, ""));
+                setLimitsSaved(false);
+              }}
+              inputMode="numeric"
+              placeholder="Ingen"
+              className="mt-1 block h-9 w-20 rounded-lg border border-slate-200 px-2"
+              aria-label="Maks i kø"
+            />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-slate-600">
+          <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />
+          Bruk på alle stasjoner
+        </label>
+        <p className="text-xs text-slate-500">
+          Tomt = ingen grense. Nye gjester får «Køen er full» når de ikke rekker fram før sluttid, eller når køen er full. De som står i
+          kø beholder plassen.
+        </p>
+        <button
+          type="button"
+          disabled={busy || !limitsDirty || !maxValid}
+          className={buttonClass("outline", "sm")}
+          onClick={async () => {
+            await run("limits", { serviceEnd: endDraft, maxWaiting: maxDraft === "" ? null : Number(maxDraft), applyToAll: applyAll });
+            setApplyAll(false);
+            setLimitsSaved(true);
+          }}
+        >
+          {limitsSaved && !limitsDirty ? "Lagret" : applyAll ? "Lagre for alle stasjoner" : "Lagre sluttid og kapasitet"}
+        </button>
+      </fieldset>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
         <span className="text-xs text-slate-500">Rekkefølge</span>

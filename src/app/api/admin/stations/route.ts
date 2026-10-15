@@ -1,7 +1,7 @@
 import { isDefaultPin } from "@/lib/auth";
 import { fail, handle, ok, publicOrigin, readJson } from "@/lib/http";
 import { joinUrl as makeJoinUrl, qrSvg as makeQr } from "@/lib/join-link";
-import { createStation, getAdminStations, getArchivedStations } from "@/lib/queue";
+import { createStation, getAdminStations, getArchivedStations, getPublicState } from "@/lib/queue";
 import { isStationColor } from "@/lib/stations";
 
 // Admin: stasjoner med hemmelig nøkkel, join-lenke og QR-kode (SVG laget her, aldri hos tredjepart),
@@ -12,6 +12,8 @@ export async function GET(req: Request) {
     const origin = publicOrigin(req);
     const stations = await getAdminStations();
     if (!stations) return fail("server_error");
+    // Kapasitet (v1.8) – samme utregning som publikum ser.
+    const pub = new Map((await getPublicState()).stations.map((s) => [s.id, s]));
     const withQr = await Promise.all(
       stations.map(async (s) => {
         const joinUrl = makeJoinUrl(origin, s.id, s.joinKey);
@@ -20,6 +22,10 @@ export async function GET(req: Request) {
           id: s.id,
           name: s.name,
           color: s.color,
+          serviceEnd: s.serviceEnd,
+          maxWaiting: s.maxWaiting,
+          full: pub.get(s.id)?.full ?? false,
+          capacityLeft: pub.get(s.id)?.capacityLeft ?? null,
           description: s.description,
           active: s.active,
           closedMessage: s.closedMessage,
