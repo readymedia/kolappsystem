@@ -18,5 +18,6 @@ export default async function OperatorPage({ searchParams }: { searchParams: Pro
     if (err instanceof DatabaseNotConfiguredError) return <CenteredMessage title="Databasen mangler" text={ERROR_TEXT.db_missing} />;
     throw err;
   }
-  return authed ? <OperatorClient station={station} /> : <PinGate title="Operator" />;
+  // key={station}: ny, tom visning ved bytte av stasjon, så tall fra forrige stasjon aldri vises.
+  return authed ? <OperatorClient key={station} station={station} /> : <PinGate title="Operator" />;
 }

@@ -74,6 +74,13 @@ await check("operatør-API krever innlogging", async () => {
   assert(res.status === 401, `forventet 401, fikk ${res.status}`);
 });
 
+await check("operatørdata mellomlagres aldri (alltid ferske tall)", async () => {
+  const res = await get("/api/operator/A");
+  const cc = res.headers.get("cache-control") || "";
+  assert(cc.includes("no-store"), `forventet no-store, fikk «${cc}»`);
+  assert(res.headers.get("x-vercel-cache") !== "HIT", "svaret kom fra CDN-cache");
+});
+
 await check("admin-API krever innlogging", async () => {
   const res = await get("/api/admin/stations");
   assert(res.status === 401, `forventet 401, fikk ${res.status}`);

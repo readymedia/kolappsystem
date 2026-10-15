@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, SkipForward, Undo2, Users } from "lucide-react";
+import { RefreshCw, RotateCcw, SkipForward, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -25,6 +25,9 @@ export function OperatorClient({ station }: { station: StationId }) {
   // Økes ved hver knappetrykk. Et polling-svar som startet før trykket forkastes,
   // så et gammelt svar aldri overskriver den ferske tilstanden fra handlingen.
   const actionSeq = useRef(0);
+  // Når siden sist fikk ferske data, og hvor mange oppdateringer på rad som har feilet.
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [failures, setFailures] = useState(0);
 
   const handleError = useCallback(
     (status: number, message: string) => {
@@ -42,7 +45,12 @@ export function OperatorClient({ station }: { station: StationId }) {
     if (res.ok) {
       setView(res.data);
       setError("");
-    } else handleError(res.status, res.message);
+      setUpdatedAt(new Date());
+      setFailures(0);
+    } else {
+      setFailures((f) => f + 1);
+      if (res.status === 401) handleError(res.status, res.message);
+    }
   }, [station, busy, handleError]);
 
   usePolling(load, POLL_INTERVAL_MS);
@@ -66,6 +74,8 @@ export function OperatorClient({ station }: { station: StationId }) {
     if (res.ok) {
       setView(res.data);
       setError("");
+      setUpdatedAt(new Date());
+      setFailures(0);
       try {
         navigator.vibrate?.(30);
       } catch {
@@ -105,6 +115,30 @@ export function OperatorClient({ station }: { station: StationId }) {
             {view?.waitingCount ?? "–"} venter
           </span>
         </div>
+
+        <div className="mt-2 flex items-center justify-end gap-2 text-xs text-slate-400">
+          <span aria-live="polite">
+            {updatedAt
+              ? `Oppdatert ${updatedAt.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+              : "Henter …"}
+          </span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+            aria-label="Oppdater nå"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+            Oppdater
+          </button>
+        </div>
+
+        {failures >= 2 && (
+          <p role="status" className="mt-3 rounded-2xl bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900">
+            Mistet kontakten – prøver igjen. Tallene kan være utdaterte.
+          </p>
+        )}
 
         <div className="mt-6 rounded-[2rem] bg-white p-7 text-center shadow-[0_25px_60px_-50px_rgba(15,23,42,0.6)]">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Betjenes nå</p>

@@ -73,6 +73,58 @@ test("publikum får lapp, blir kalt, hoppet over og kalt igjen", async ({ browse
   await expect(guest.getByText("Det er din tur!")).toBeVisible({ timeout: 25_000 });
 });
 
+test("operatør ser nye i køen uten å laste siden på nytt, og riktig tall ved bytte av stasjon", async ({ browser, request }) => {
+  const op = await phone(browser);
+  await login(op, "/operator?station=A");
+  await expect(op.getByText("0 venter")).toBeVisible();
+  await expect(op.getByText(/Oppdatert \d/)).toBeVisible();
+
+  // Tre gjester skanner fra andre enheter mens operatørsiden står åpen.
+  for (let i = 0; i < 3; i++) {
+    const res = await request.post("/api/join", {
+      headers: { origin: new URL(op.url()).origin },
+      data: { station: "A", key: keys.A, requestId: crypto.randomUUID() },
+    });
+    expect(res.ok()).toBe(true);
+  }
+  await expect(op.getByText("3 venter")).toBeVisible({ timeout: 10_000 });
+  await expect(op.getByText("A3", { exact: true })).toBeVisible();
+
+  // Bytt til B: aldri A sine tall under overskriften «Stasjon B».
+  await op.getByRole("link", { name: "B", exact: true }).click();
+  await expect(op.getByRole("heading", { name: "Stasjon B" })).toBeVisible();
+  await expect(op.getByText("3 venter")).toHaveCount(0);
+  await expect(op.getByText("0 venter")).toBeVisible();
+
+  // «Oppdater»-knappen henter med en gang.
+  await request.post("/api/join", {
+    headers: { origin: new URL(op.url()).origin },
+    data: { station: "B", key: keys.B, requestId: crypto.randomUUID() },
+  });
+  await op.getByRole("button", { name: "Oppdater nå" }).click();
+  await expect(op.getByText("1 venter")).toBeVisible({ timeout: 3_000 });
+});
+
+test("operatørsiden henter seg inn igjen selv etter nettbrudd", async ({ browser, request }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const op = await ctx.newPage();
+  await login(op, "/operator?station=C");
+  await expect(op.getByText("0 venter")).toBeVisible();
+
+  await ctx.setOffline(true);
+  await expect(op.getByText("Mistet kontakten – prøver igjen")).toBeVisible({ timeout: 15_000 });
+
+  // En gjest skanner mens operatøren er uten nett.
+  await request.post("/api/join", {
+    headers: { origin: new URL(op.url()).origin },
+    data: { station: "C", key: keys.C, requestId: crypto.randomUUID() },
+  });
+
+  await ctx.setOffline(false);
+  await expect(op.getByText("1 venter")).toBeVisible({ timeout: 10_000 });
+  await expect(op.getByText("Mistet kontakten – prøver igjen")).toHaveCount(0);
+});
+
 test("ugyldig og stengt QR gir vennlige meldinger", async ({ browser }) => {
   const guest = await phone(browser);
   await guest.goto("/join?station=A&key=feil");

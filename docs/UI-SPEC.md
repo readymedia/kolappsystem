@@ -53,6 +53,7 @@ Etter 3 mislykkede oppdateringer på rad vises et gult felt: «Mistet kontakten 
 
 - PIN-skjerm: lås-ikon, «Operator», «Skriv inn PIN-koden for å fortsette», felt «PIN», knapp «Lås opp», feil «Feil PIN-kode. Prøv igjen.» / «For mange feil forsøk. Vent 15 minutter og prøv igjen.»
 - Topp: stasjonsvelger A/B/C og «Logg ut».
+- Under «N venter»: «Oppdatert hh:mm:ss» og knapp «Oppdater». Etter to mislykkede oppdateringer: gult felt «Mistet kontakten – prøver igjen. Tallene kan være utdaterte.»
 - «OPERATOR», «Stasjon A», merke «N venter».
 - Kort «BETJENES NÅ» med nummer eller «–», undertekst «Åpen for kø» eller «Stasjonen er satt til stengt» (rød).
 - Kort «NESTE I KØEN» med 5 neste («Neste», «2. i kø» …) eller «Ingen venter akkurat nå.»

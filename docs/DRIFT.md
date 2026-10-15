@@ -87,6 +87,7 @@ Et nettverk er én IPv4-adresse, eller ett IPv6-/64-nett. Grensene settes i `src
 | Gjester ser «Mistet kontakten – prøver igjen» | Dårlig nett på stedet, eller Vercel/Neon nede | Sjekk `/api/health`. Siden henter seg inn igjen selv når nettet er tilbake. |
 | «Systemet er travelt akkurat nå» | Tidsgrense i databasen nådd | Forsvinner vanligvis av seg selv. Sjekk Neon-konsollen hvis det varer. |
 | «Det står allerede svært mange i kø fra dette nettverket» | Over 100 ventende fra samme nett | Skjer ved flom fra en delt QR. Fjern falske lapper og bytt nøkkel. |
+| Operatørsiden viser «Mistet kontakten» eller gammelt klokkeslett ved «Oppdatert» | Nettet på enheten | Sjekk Wi-Fi/mobilnett. Siden henter seg inn igjen selv, eller trykk «Oppdater». |
 | Operatør kastes ut til PIN-skjermen | PIN er byttet, eller økta er utløpt (24 t uten bruk) | Logg inn igjen. Køen er uendret. |
 | `/api/health` gir `db: "error"` | Neon utilgjengelig eller kvote brukt opp | Neon-konsollen → Monitoring. Vercel → Storage. |
 | Prosjektet er pauset | Hobby-kvote brukt opp | Oppgrader til Pro, eller vent 30 dager. Se `AGENTS.md` §7. |

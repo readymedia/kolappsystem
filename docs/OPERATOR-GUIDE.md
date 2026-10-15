@@ -12,7 +12,7 @@ Du kan bytte stasjon med knappene **A B C** øverst.
 | **Angre siste** | Tar tilbake forrige NESTE eller Hopp over. Kan trykkes flere ganger. |
 | **Sett tilbake i kø** | Under «Hoppet over»: gjesten kommer først i køen igjen. |
 
-**På skjermen ser du:** hvem som betjenes nå, de fem neste i køen og hvor mange som venter.
+**På skjermen ser du:** hvem som betjenes nå, de fem neste i køen og hvor mange som venter. Tallene oppdateres av seg selv hvert 3. sekund. «Oppdatert kl. …» viser når de sist ble hentet, og «Oppdater» henter med en gang. Står det «Mistet kontakten», sjekk nettet – siden henter seg inn igjen selv.
 
 **Tips**
 - Rop opp nummeret, f.eks. «A12», når du trykker NESTE. Storskjermen viser det også.

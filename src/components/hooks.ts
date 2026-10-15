@@ -6,6 +6,12 @@ import { useEffect, useRef } from "react";
  * Kaller fn straks og deretter hvert intervall så lenge siden er synlig.
  * Pauser når fanen er skjult eller telefonen er låst (sparer kall på Vercel Hobby),
  * og henter på nytt med en gang siden blir synlig igjen.
+ *
+ * Robust mot alt som kan stoppe oppdateringen:
+ * - en ny runde planlegges ALLTID, også om fn kaster en feil (ellers stopper siden til den lastes på nytt)
+ * - våkner på visibilitychange, focus, pageshow (tilbake-knapp / bfcache) og online (nettet tilbake),
+ *   fordi ikke alle nettlesere sender visibilitychange ved bytte av vindu eller opplåsing av telefon
+ * - et «vekk» mens en runde pågår gir en ny runde rett etter, så ingen oppdatering går tapt
  */
 export function usePolling(fn: () => void | Promise<void>, intervalMs: number, enabled = true): void {
   const fnRef = useRef(fn);
@@ -17,34 +23,58 @@ export function usePolling(fn: () => void | Promise<void>, intervalMs: number, e
     if (!enabled) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let running = false;
+    let pending = false;
     let stopped = false;
 
-    const tick = async () => {
-      if (stopped || running) return;
-      if (document.visibilityState === "visible") {
-        running = true;
-        try {
-          await fnRef.current();
-        } finally {
-          running = false;
-        }
-      }
-      if (!stopped) timer = setTimeout(tick, intervalMs);
+    const schedule = (ms: number) => {
+      clearTimeout(timer);
+      if (!stopped) timer = setTimeout(() => void tick(), ms);
     };
 
-    const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        clearTimeout(timer);
-        void tick();
+    const tick = async () => {
+      if (stopped) return;
+      if (running) {
+        pending = true;
+        return;
       }
+      if (document.visibilityState !== "visible") {
+        schedule(intervalMs);
+        return;
+      }
+      running = true;
+      try {
+        await fnRef.current();
+      } catch (err) {
+        console.warn("[polling] runde feilet, prøver igjen", err);
+      } finally {
+        running = false;
+      }
+      if (pending) {
+        pending = false;
+        schedule(0);
+      } else {
+        schedule(intervalMs);
+      }
+    };
+
+    const wake = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      void tick();
     };
 
     void tick();
-    document.addEventListener("visibilitychange", onVisible);
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("focus", wake);
+    window.addEventListener("pageshow", wake);
+    window.addEventListener("online", wake);
     return () => {
       stopped = true;
       clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("focus", wake);
+      window.removeEventListener("pageshow", wake);
+      window.removeEventListener("online", wake);
     };
   }, [intervalMs, enabled]);
 }

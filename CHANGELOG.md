@@ -2,7 +2,15 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
-## [Ikke utgitt]
+## [1.1.2] – 2026-10-15
+
+### Rettet
+- Operatørsiden kunne slutte å oppdatere antall i kø til siden ble lastet på nytt. Oppdateringen planlegger nå alltid en ny runde, også etter feil, og våkner når vinduet får fokus, siden vises igjen (tilbake-knapp) eller nettet kommer tilbake. Gjelder også kølapp og storskjerm.
+- Ved bytte av stasjon (A/B/C) på operatørsiden vises ikke lenger forrige stasjons tall i opptil 3 sekunder.
+
+### Lagt til
+- Operatørsiden viser «Oppdatert hh:mm:ss», har en «Oppdater»-knapp og varsler «Mistet kontakten – prøver igjen» etter to mislykkede oppdateringer.
+- E2E-tester: operatør ser nye i køen uten ny innlasting, riktig tall ved stasjonsbytte, og gjenoppretting etter nettbrudd. Røyktest sjekker at operatørdata aldri mellomlagres.
 
 ### Dokumentasjon
 - `docs/PLAN-UTVIDELSER.md`: implementasjonsplan for v1.2 (skjermer), v1.3 (fleksible stasjoner) og v1.4 (utseende/logo), basert på tilbakemeldinger fra brukerne.
