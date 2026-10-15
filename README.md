@@ -66,6 +66,7 @@ npm run dev                       # http://localhost:3000
 | [`docs/DRIFT.md`](docs/DRIFT.md) | Overvåking, brannmur, grenser og feilsøking i drift |
 | [`docs/PRODKLARHET.md`](docs/PRODKLARHET.md) | Vurdering av prodklarhet og gjenstående risiko |
 | [`docs/PLAN-UTVIDELSER.md`](docs/PLAN-UTVIDELSER.md) | Implementasjonsplan v1.2–2.0: lyd, skjermer, utseende/logo, push, fleksible stasjoner (1.2–1.4 godkjent) |
+| [`docs/FEATURE-REQUESTS.md`](docs/FEATURE-REQUESTS.md) | Ønskeliste: vurderte forslag som ikke er planlagt ennå |
 | [`docs/OPERATOR-GUIDE.md`](docs/OPERATOR-GUIDE.md) | Én side for funksjonærene |
 | [`docs/BESLUTNINGER.md`](docs/BESLUTNINGER.md) | Arkitekturbeslutninger (ADR) med begrunnelse |
 | [`CHANGELOG.md`](CHANGELOG.md) | Versjonshistorikk |

@@ -23,6 +23,7 @@
 | 1.5 | Push-varsel | **Levert i v1.5.0** (godkjent 15.10, av som standard) |
 | 1.6 | Fritt antall stasjoner | **Levert i v1.6.0** |
 | 1.7 | Gi fra seg plassen + ventetid | **Levert i v1.7.0** (bestilt og godkjent 15.10) |
+| 1.8 | Kø-innsikt: se køen før lapp, køinfo på storskjerm, ventetid som klokkeslett, sluttid/kapasitet, rapport, nullstill alle | **Plan – venter på godkjenning** (§8c) |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
 
 ## 1. Rammer – gjelder alle versjoner
@@ -369,6 +370,90 @@ Bestilt 15.10: «Får jeg vite at det er 45 minutter ventetid, vil jeg kanskje m
 | Ventetid | Admin velger fast antall minutter per person (standard 2 = som før) eller faktisk tempo (midtverdi av tiden mellom de siste oppropene, pauser over 30 min ignoreres, fast verdi til det er nok data) |
 | Data | Ny lappstatus `left` + `left_at`; `site_config.allow_leave`, `wait_mode`, `wait_minutes` (migrering `008_leave_and_wait.sql`) |
 | Sikkerhet | Lapp-id er adgangsbeviset, Origin-sjekk, forsøksgrense. Endringen skjer i stasjonens lås; operatørens «Angre siste» vekker aldri en lapp som er gitt fra seg |
+
+## 8c. v1.8 – Kø-innsikt (plan, venter på godkjenning)
+
+Bestilt 15.10 (punkt 1, 2, 3, 4, 8 og 9 fra gjennomgangen). Øvrige forslag ligger i `docs/FEATURE-REQUESTS.md`.
+**Regel som før: alt nytt er av som standard, så dagens oppførsel er uendret til admin slår det på.**
+
+### 8c.1 Se køen før du tar lapp
+
+| Spørsmål | Valg |
+| --- | --- |
+| Admin | «Kø og ventetid» → bryter **«Vis køen før gjesten tar lapp»**. Standard **av** (i dag: lapp med en gang). |
+| Gjesten ser | Stasjonens navn og beskrivelse, «12 foran deg · ca. 25 minutter» (format etter §8c.3), knapp **«Ta kølapp»** og en lenke «Ikke nå». |
+| Har allerede lapp | Samme mobil med aktiv lapp går rett til lappen (som i dag). |
+| Stengt / full | Viser stengt-meldingen eller «Køen er full for i dag» (§8c.4) – ingen knapp. |
+| Data | Tallene hentes fra den delte `/api/state` (CDN). Ingen ekstra databasekall. Nøkkelen sjekkes fortsatt først når lappen tas (`POST /api/join`). |
+| Bonus | Forhåndsvisning i meldingsapper lager fortsatt aldri lapper. |
+
+### 8c.2 Køinfo på storskjermen
+
+| Spørsmål | Valg |
+| --- | --- |
+| Valg | Nytt skjermvalg **«Køinfo»** i «Skjermer» (`info=1` i lenken). Standard **av**. |
+| Viser | Under hver stasjon: «12 i kø · ca. 25 min» (format etter §8c.3). Skjules for stengte stasjoner; «Køen er full» når §8c.4 slår inn. |
+| Én stasjon per skjerm | Vises under «Neste», skalert med skjermen. |
+| Data | Fra `/api/state` (har allerede antall og minutter per person). |
+
+### 8c.3 Ventetid som tid, klokkeslett eller begge
+
+| Innstilling (admin, «Kø og ventetid») | Eksempel | Standard |
+| --- | --- | --- |
+| **Varighet** | «Ca. 25 minutter» | **Ja (som i dag)** |
+| **Klokkeslett** | «Din tur ca. kl. 14:35» | |
+| **Begge** | «Ca. 25 minutter – ca. kl. 14:35» | |
+
+- Klokkeslettet = nå + antall foran × minutter per person (fast eller målt tempo fra v1.7), **rundet opp til nærmeste 5 minutter**, alltid i norsk tid (Europe/Oslo), regnet ut i nettleseren og oppdatert hvert minutt.
+- Nest i køen: «Under 2 minutter» / «Snart» (klokkeslett vises ikke for under 5 min).
+- Gjelder kølapp, «se køen før lapp», storskjermens køinfo og bekreftelsen i «Gi fra meg plassen».
+- Én ren, testet funksjon `formatWait(ahead, minutesPerPerson, mode, now)`.
+
+### 8c.4 Sluttid og kapasitet per stasjon
+
+| Spørsmål | Valg |
+| --- | --- |
+| Admin | Per stasjon under «Navn, farge og rekkefølge …» (og «Bruk på alle stasjoner»): **«Siste betjening kl.»** (f.eks. 16:00) og valgfritt **«Maks antall i kø»**. Begge tomme som standard = som i dag. |
+| Regel for nye lapper | Avvises med «Køen er full for i dag» når **(a)** antall ventende ≥ maks, eller **(b)** beregnet tur for en ny gjest (nå + ventende × minutter per person) er etter sluttiden. Etter sluttiden tas ingen nye lapper. |
+| De som står i kø | Beholder plassen. Ligger beregnet tur etter sluttiden, viser lappen: «Det kan bli for sent – siste betjening er kl. 16:00. Snakk med en funksjonær.» |
+| Funksjonærer | Operatør og stasjonskort i admin: «Plass til ca. 18 til før kl. 16:00» eller **«Full»**. Dette er tallet for «hvor mange vi må legge opp til». |
+| Storskjerm / forside | «Køen er full» på stasjonen (og i køinfo). |
+| Sikkerhet | Avgjøres på serveren i samme låste transaksjon som tildeler nummer (`joinQueue`), med samme ventetid-utregning som `/api/state`. Ny feilkode `queue_full` med vennlig tekst. |
+| Klokke | Sluttid lagres som klokkeslett og tolkes i norsk tid for dagens dato (enkelt å forstå; arrangementer går over én dag). |
+
+### 8c.5 Rapport («Rapport» i admin)
+
+| Spørsmål | Valg |
+| --- | --- |
+| Hvor | Nytt kort **«Rapport»** i `/admin`, med **«Last ned CSV»**. |
+| Per stasjon | Delt ut · betjent · hoppet over · ga fra seg plassen · venter nå · snitt og lengste ventetid (fra lapp til kalt) · tempo (minutter per person) · travleste time (flest nye lapper). |
+| Viktig detalj | «Nullstill kø» sletter lappene i dag. Derfor lagres **et sammendrag (bare tall, ingen persondata)** i ny tabell `station_stats` rett før hver nullstilling. Rapporten viser «Nå» og «Tidligere runder» med dato og klokkeslett. |
+| CSV | UTF-8 med semikolon (åpnes riktig i norsk Excel), én rad per stasjon og runde. |
+| Personvern | Bare tellinger og tider. Ingen lapp-id, IP-hash eller annet som kan knyttes til en person. |
+
+### 8c.6 Nullstill alle stasjoner
+
+- Knapp **«Nullstill alle køer …»** øverst i admin, med bekreftelse som viser «34 venter totalt – de mister lappene sine» → **«Bekreft – tøm alle køer»**.
+- Serveren nullstiller hver stasjon i sin egen låste transaksjon (fast rekkefølge, så ingen vranglås), og lagrer rapport-sammendrag (§8c.5) først.
+- Ny rute `POST /api/admin/reset-all` (økt + Origin-sjekk).
+
+### 8c.7 Data, API og tester
+
+- **Migrering `009_queue_insight.sql`** (bare tillegg): `site_config.confirm_join` (av), `site_config.wait_display` (`duration` | `clock` | `both`, standard `duration`), `stations.service_end` (klokkeslett, tom), `stations.max_waiting` (tom), tabell `station_stats`.
+- **API:** `/api/state` får `full` og `capacityLeft` per stasjon (ingen hemmeligheter); `/api/config` får `queue.confirmJoin` og `queue.waitDisplay`; `GET /api/admin/report` (+ `?format=csv`); `POST /api/admin/reset-all`; stasjonsinnstillinger får `serviceEnd` og `maxWaiting`.
+- **Budsjett:** ingen ny polling. Én liten ekstra beregning i `/api/state` (som allerede er CDN-mellomlagret).
+- **Tester:**
+  - **Enhet:** `formatWait` (alle tre visninger, avrunding, midnatt, nest i køen), kapasitetsregelen.
+  - **Integrasjon:** sluttid og maks avviser nye men ikke eksisterende, samtidige skann ved grensen, sammendrag lagres ved nullstilling, nullstill alle.
+  - **E2E:** forhåndsvisning med «Ta kølapp», køinfo på storskjerm, klokkeslett på lappen, «Køen er full», rapport og CSV, nullstill alle.
+  - **Røyktest:** nye felt i `/api/state` og `/api/config`.
+- **Dokumentasjon:** UI-SPEC, ARKITEKTUR, ADMIN-GUIDE, OPERATOR-GUIDE, KJOREPLAN (sluttid og nullstill alle), SIKKERHET (rapport uten persondata), CHANGELOG, BESLUTNINGER.
+
+### 8c.8 Spørsmål til bestiller (forslag i parentes)
+
+1. Alle nye valg er av som standard. Skal «Vis køen før gjesten tar lapp» likevel være **på**? (Forslag: av, som regelen sier.)
+2. Klokkeslett rundet opp til **5 minutter**? (Forslag: ja – unngår falsk presisjon.)
+3. Sluttid som ett klokkeslett per stasjon (med «Bruk på alle»), og ikke dato? (Forslag: ja.)
 
 ## 9. 2.0 – Flere instanser og brukere (Roadmap – Later)
 
