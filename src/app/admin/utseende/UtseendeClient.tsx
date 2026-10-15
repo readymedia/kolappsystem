@@ -65,13 +65,20 @@ export function UtseendeClient() {
   const [alsoTitle, setAlsoTitle] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
 
+  /**
+   * keepDraft: logo lastes opp/fjernes uten å kaste ulagrede endringer i skjemaet.
+   * Etter lagring: router.refresh(), så resten av admin (f.eks. «Skjermer») ser nytt utseende uten ny innlasting.
+   */
   const apply = useCallback(
-    (res: Awaited<ReturnType<typeof api<Config>>>, okText?: string) => {
+    (res: Awaited<ReturnType<typeof api<Config>>>, okText?: string, opts: { keepDraft?: boolean; saved?: boolean } = {}) => {
       if (res.ok) {
         setConfig(res.data);
-        setDraft(toDraft(res.data));
-        setColorText(res.data.primaryColor);
+        if (!opts.keepDraft) {
+          setDraft(toDraft(res.data));
+          setColorText(res.data.primaryColor);
+        }
         if (okText) setMessage({ ok: true, text: okText });
+        if (opts.saved) router.refresh();
       } else if (res.status === 401) router.refresh();
       else setMessage({ ok: false, text: res.message });
     },
@@ -111,14 +118,18 @@ export function UtseendeClient() {
     setBusy(true);
     setMessage(null);
     if (updateTitle) await api("/api/admin/config", { method: "PUT", json: { displayTitle: titleFromName } });
-    apply(await api<Config>("/api/admin/branding", { method: "PUT", json: draft }), "Lagret. Alle sider bruker nytt utseende nå (storskjermer innen 20 sekunder).");
+    apply(
+      await api<Config>("/api/admin/branding", { method: "PUT", json: draft }),
+      "Lagret. Alle sider bruker nytt utseende nå (storskjermer innen 20 sekunder).",
+      { saved: true },
+    );
     setBusy(false);
   }
 
   async function reset() {
     setBusy(true);
     setConfirmReset(false);
-    apply(await api<Config>("/api/admin/branding", { method: "DELETE" }), "Tilbakestilt til standard utseende.");
+    apply(await api<Config>("/api/admin/branding", { method: "DELETE" }), "Tilbakestilt til standard utseende.", { saved: true });
     setBusy(false);
   }
 
@@ -131,13 +142,16 @@ export function UtseendeClient() {
     setBusy(true);
     const form = new FormData();
     form.append("file", file);
-    apply(await api<Config>("/api/admin/logo", { method: "POST", body: form }), "Logoen er lastet opp og i bruk.");
+    apply(await api<Config>("/api/admin/logo", { method: "POST", body: form }), "Logoen er lastet opp og i bruk.", {
+      keepDraft: true,
+      saved: true,
+    });
     setBusy(false);
   }
 
   async function removeLogo() {
     setBusy(true);
-    apply(await api<Config>("/api/admin/logo", { method: "DELETE" }), "Logoen er fjernet.");
+    apply(await api<Config>("/api/admin/logo", { method: "DELETE" }), "Logoen er fjernet.", { keepDraft: true, saved: true });
     setBusy(false);
   }
 

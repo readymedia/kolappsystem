@@ -92,6 +92,8 @@ describe("SVG-vern", () => {
 
   it("godtar en vanlig logo (navnerom, interne lenker, innebygde bilder)", () => {
     expect(svgProblem(enc(ok))).toBeNull();
+    expect(svgProblem(enc('<svg><rect style="fill: url( #g )"/><text>R&amp;D &lt;3</text></svg>'))).toBeNull();
+    expect(svgProblem(enc('<svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href=" #a"/><animate attributeName="opacity"/></svg>'))).toBeNull();
   });
 
   it.each([
@@ -106,6 +108,15 @@ describe("SVG-vern", () => {
     ['<svg><image href="data:image/svg+xml;base64,AAAA"/></svg>', "eksterne lenker"],
     ['<svg><rect style="fill:url(https://evil.example/)"/></svg>', "url()"],
     ["<svg><iframe/></svg>", "innebygde"],
+    // Omgåelser funnet i uavhengig gjennomgang (v1.4.1):
+    ['<svg><s:script xmlns:s="http://www.w3.org/2000/svg">alert(1)</s:script></svg>', "skript"],
+    ['<svg><h:iframe xmlns:h="http://www.w3.org/1999/xhtml" src="https://evil"/></svg>', "prefiks"],
+    ['<svg><animate attributeName="href" values="jav&#x61;script:alert(1)"/></svg>', "tegnkoder"],
+    ['<svg><set attributeName="href" to="https://evil/x.png"/></svg>', "animert lenke"],
+    ['<svg><animate attributeName = "xlink:href" to="x"/></svg>', "animert lenke"],
+    ['<svg><style><![CDATA[@import "https://evil/x.css";]]></style></svg>', "@import"],
+    ['<svg><rect style="fill:u\\72l(https://evil)"/></svg>', "skråstrek"],
+    ['<svg><rect fill="&ext;"/></svg>', "tegnkoder"],
   ])("avviser %s", (svg, why) => {
     expect(svgProblem(enc(svg))).toContain(why);
   });

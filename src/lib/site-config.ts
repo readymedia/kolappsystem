@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { getSql } from "./db";
+import { getSql, type Tx } from "./db";
 import { DEFAULT_BRANDING, isFontId, type Branding, type FontId } from "./branding";
 import type { AudioMime, ImageMime } from "./media";
 
@@ -117,11 +117,23 @@ export async function updateDisplayTitle(title: string): Promise<void> {
   await getSql()`UPDATE site_config SET display_title = ${title}, updated_at = now() WHERE id = 1`;
 }
 
+/**
+ * Filendringer (lagre, koble til, rydde) skjer i én transaksjon som låser innstillingsraden. Ellers kan to
+ * samtidige opplastinger (eller opplasting + «Tilbakestill») rydde bort en fil den andre akkurat har lagret.
+ */
+function withConfigLock<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return getSql().begin(async (tx) => {
+    await tx.unsafe("SET LOCAL lock_timeout = '5s'; SET LOCAL statement_timeout = '10s'");
+    await tx`SELECT 1 FROM site_config WHERE id = 1 FOR UPDATE`;
+    return fn(tx);
+  }) as Promise<T>;
+}
+
 /** Lagrer (eller gjenbruker) en fil og returnerer id og sha256. Samme innhold lagres bare én gang. */
-async function saveMedia(kind: "audio" | "logo", mime: string, bytes: Uint8Array): Promise<{ id: string; sha256: string }> {
+async function saveMedia(tx: Tx, kind: "audio" | "logo", mime: string, bytes: Uint8Array): Promise<{ id: string; sha256: string }> {
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const [row] = await getSql()<{ id: string }[]>`
+  const [row] = await tx<{ id: string }[]>`
     INSERT INTO media (kind, mime, bytes, size, sha256)
     VALUES (${kind}, ${mime}, ${buf}, ${bytes.byteLength}, ${sha256})
     ON CONFLICT (sha256) DO UPDATE SET mime = EXCLUDED.mime
@@ -130,8 +142,8 @@ async function saveMedia(kind: "audio" | "logo", mime: string, bytes: Uint8Array
 }
 
 /** Sletter filer av en type som ingen innstilling peker på lenger (verken lyd eller logo). */
-async function pruneMedia(kind: "audio" | "logo"): Promise<void> {
-  await getSql()`
+async function pruneMedia(tx: Tx, kind: "audio" | "logo"): Promise<void> {
+  await tx`
     DELETE FROM media m
     WHERE m.kind = ${kind}
       AND NOT EXISTS (SELECT 1 FROM site_config c WHERE c.audio_media_id = m.id OR c.logo_media_id = m.id)`;
@@ -164,41 +176,51 @@ export async function updateBranding(b: BrandingInput): Promise<void> {
  * storskjermen tilbakestilles bare hvis den er laget fra arrangementsnavnet («<navn> · Køstatus»).
  */
 export async function resetBranding(): Promise<void> {
-  await getSql()`
+  await withConfigLock(async (tx) => {
+    await tx`
     UPDATE site_config SET
       display_title = CASE WHEN display_title = event_name || ' · Køstatus' THEN ${DEFAULT_DISPLAY_TITLE} ELSE display_title END,
       event_name = DEFAULT, primary_color = DEFAULT, display_background = DEFAULT,
       font_display = DEFAULT, font_body = DEFAULT, logo_media_id = NULL, updated_at = now()
     WHERE id = 1`;
-  await pruneMedia("logo");
+    await pruneMedia(tx, "logo");
+  });
 }
 
 export async function setLogo(mime: ImageMime, bytes: Uint8Array): Promise<string> {
-  const { id, sha256 } = await saveMedia("logo", mime, bytes);
-  await getSql()`UPDATE site_config SET logo_media_id = ${id}, updated_at = now() WHERE id = 1`;
-  await pruneMedia("logo");
-  return sha256;
+  return withConfigLock(async (tx) => {
+    const { id, sha256 } = await saveMedia(tx, "logo", mime, bytes);
+    await tx`UPDATE site_config SET logo_media_id = ${id}, updated_at = now() WHERE id = 1`;
+    await pruneMedia(tx, "logo");
+    return sha256;
+  });
 }
 
 export async function removeLogo(): Promise<void> {
-  await getSql()`UPDATE site_config SET logo_media_id = NULL, updated_at = now() WHERE id = 1`;
-  await pruneMedia("logo");
+  await withConfigLock(async (tx) => {
+    await tx`UPDATE site_config SET logo_media_id = NULL, updated_at = now() WHERE id = 1`;
+    await pruneMedia(tx, "logo");
+  });
 }
 
 export async function setCustomAudio(mime: AudioMime, bytes: Uint8Array): Promise<string> {
-  const { id, sha256 } = await saveMedia("audio", mime, bytes);
-  await getSql()`UPDATE site_config SET audio_media_id = ${id}, audio_mode = 'custom', updated_at = now() WHERE id = 1`;
-  await pruneMedia("audio");
-  return sha256;
+  return withConfigLock(async (tx) => {
+    const { id, sha256 } = await saveMedia(tx, "audio", mime, bytes);
+    await tx`UPDATE site_config SET audio_media_id = ${id}, audio_mode = 'custom', updated_at = now() WHERE id = 1`;
+    await pruneMedia(tx, "audio");
+    return sha256;
+  });
 }
 
 export async function removeCustomAudio(): Promise<void> {
-  await getSql()`
+  await withConfigLock(async (tx) => {
+    await tx`
     UPDATE site_config SET audio_media_id = NULL,
       audio_mode = CASE WHEN audio_mode = 'custom' THEN 'default' ELSE audio_mode END,
       updated_at = now()
     WHERE id = 1`;
-  await pruneMedia("audio");
+    await pruneMedia(tx, "audio");
+  });
 }
 
 export async function getMedia(sha256: string): Promise<{ mime: string; bytes: Buffer } | null> {

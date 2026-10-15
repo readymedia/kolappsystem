@@ -69,7 +69,7 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 | `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}}` – offentlige innstillinger, aldri hemmeligheter |
 | `GET /api/display/qr?station=A,C&t=<token>` | Åpen med signert token, aldri mellomlagret | `{qr: {A: "<svg>", C: "<svg>"}}`. Feil eller utdatert token: 403 `display_link_expired`. |
 | `GET /api/admin/display-token?station=A,C` | Økt | `{token}` for skjermlenke med QR |
-| `GET /api/media/<sha256>` | Åpen | Filen, `immutable` mellomlagring og `sandbox`-CSP |
+| `GET /api/media/<sha256>` | Åpen, CDN for alltid | Filen, `immutable` mellomlagring (også `CDN-Cache-Control`, så Vercel-CDN-et deler den) og `sandbox`-CSP |
 | `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`, `displayTitle` maks 80 tegn) |
 | `PUT`/`DELETE /api/admin/branding` | Økt | Lagre utseende (`eventName` maks 60, `primaryColor` hex, `displayBackground`, `fontDisplay`, `fontBody` fra fontlisten) / tilbakestill til standard (fjerner også logo). Svarer med innstillingene. |
 | `POST`/`DELETE /api/admin/logo` | Økt | Last opp (multipart `file`, PNG/JPEG/WebP/SVG, maks 512 kB, sjekket på innhold, SVG-vern) / fjern logo |

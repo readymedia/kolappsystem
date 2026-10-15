@@ -1,5 +1,5 @@
 // Ren gjenkjenning av filtyper på INNHOLDET (magiske bytes), aldri på filnavn eller oppgitt type.
-// Testet i tests/unit/media.test.ts. Brukes av opplasting av lyd (v1.2) og logo (v1.4).
+// Testet i tests/unit/audio.test.ts og tests/unit/branding.test.ts. Brukes av opplasting av lyd (v1.2) og logo (v1.4).
 
 export const AUDIO_MAX_BYTES = 2 * 1024 * 1024;
 export const AUDIO_MAX_SECONDS = 15;
@@ -66,15 +66,24 @@ export function detectImageType(b: Uint8Array): ImageMime | null {
 export function svgProblem(b: Uint8Array): string | null {
   const text = new TextDecoder("utf-8", { fatal: false }).decode(b);
   const checks: [RegExp, string][] = [
-    [/<script/i, "skript"],
+    [/<([a-z][\w.-]*:)?script/i, "skript"],
     [/\son[a-z]+\s*=/i, "hendelser (on…=)"],
-    [/<foreignObject/i, "foreignObject"],
+    [/<([a-z][\w.-]*:)?foreignObject/i, "foreignObject"],
     [/<!ENTITY/i, "entiteter"],
-    [/<(iframe|embed|object|audio|video|link|meta|style[^>]*>[^<]*@import)/i, "innebygde elementer"],
+    // Elementer med navnerom-prefiks (h:iframe o.l.) – vanlige logoer bruker ikke det.
+    [/<\/?[a-z][\w.-]*:[a-z]/i, "elementer med prefiks"],
+    [/<(iframe|embed|object|audio|video|link|meta|base)\b/i, "innebygde elementer"],
+    // Tegnkoder kan skjule «javascript:» o.l. Bare de fem vanlige XML-entitetene er lov.
+    [/&(?!(amp|lt|gt|quot|apos);)/i, "tegnkoder"],
     [/javascript:/i, "javascript:-lenker"],
+    [/@import/i, "@import"],
+    // CSS-escape (u\72l(…)) kan skjule url(). Logoer trenger ikke skråstrek bakover.
+    [/\\/, "skråstrek bakover"],
     // Lenker er bare lov internt i filen (#id) eller som innebygd bilde (data:image/…).
-    [/(?:xlink:)?href\s*=\s*["']\s*(?!#|data:image\/(?:png|jpeg|gif|webp);)/i, "eksterne lenker"],
-    [/url\(\s*["']?\s*(?!#)/i, "eksterne url()"],
+    [/(?:xlink:)?href\s*=\s*["'](?!\s*(?:#|data:image\/(?:png|jpeg|gif|webp);))/i, "eksterne lenker"],
+    [/url\((?!\s*["']?\s*#)/i, "eksterne url()"],
+    // <set>/<animate> som endrer en lenke.
+    [/attributeName\s*=\s*["']\s*(?:xlink:)?href/i, "animert lenke"],
   ];
   for (const [re, why] of checks) if (re.test(text)) return why;
   return null;

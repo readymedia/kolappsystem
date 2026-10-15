@@ -59,6 +59,7 @@ Lydsiden fortsetter å lytte når den ligger i bakgrunnen, men nettlesere sparer
 | Symptom | Løsning |
 | --- | --- |
 | Rød melding «Nettleseren har satt lyden på pause» | Trykk på meldingen. Skjer typisk på iPad etter et avbrudd. |
+| Storskjermen viser «Klikk for å slå på lyd» igjen | Nettleseren har satt lyden på pause (f.eks. etter dvale). Klikk på knappen. |
 | «Sist sjekket» står stille | Nettet er borte, eller fanen er lagt i dvale. Sjekk nettet, og at nettstedet ligger i «Alltid hold aktive» i Chrome. |
 | Gult varsel «Mistet kontakten» | Nettet er borte. Siden henter seg inn igjen selv. |
 | «Test lyd» gir ingen lyd | Sjekk volum på maskinen, lydanlegget og i admin, og at riktig lydutgang er valgt. |

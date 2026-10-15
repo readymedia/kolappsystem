@@ -66,7 +66,10 @@ export function DisplayClient() {
     if (sound) {
       const calls = detectNewCalls(soundSnap.current, res.data.stations, options.stations);
       soundSnap.current = takeSnapshot(res.data.stations);
-      if (calls.length && player.current) void player.current.play(audioSettings.current);
+      if (calls.length && player.current) {
+        // Har nettleseren satt lyden på pause (f.eks. etter dvale), vis knappen igjen.
+        void player.current.play(audioSettings.current).then((r) => r === "locked" && setSoundOn(false));
+      }
     }
     // Blink kolonnen når et nytt nummer kalles (ikke ved første innlasting).
     for (const s of res.data.stations) {
@@ -121,7 +124,8 @@ export function DisplayClient() {
       }
     },
     QR_INTERVAL_MS,
-    wantQr,
+    // Utdatert lenke er endelig for dette tokenet: slutt å spørre (ny lenke lages i admin).
+    wantQr && !qrExpired,
   );
 
   async function enableSound() {

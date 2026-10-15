@@ -18,7 +18,7 @@
 | Kvoter på Vercel Hobby | Klar med forbehold | Beregnet ca. 17 % av CDN-kvoten per dag. Forbehold: kall med tilfeldige parametere kan omgå CDN-et. Lukkes med én brannmurregel (`docs/DRIFT.md`). |
 | Feilsider | Klar | Norske feilsider for 404, sidekrasj og rammekrasj. Publikum ser aldri tekniske detaljer. |
 | Overvåking | Klar | `/api/health` og `npm run smoke` (kan kjøres mot produksjon uten å endre data). |
-| Tester og CI | Klar | 47 enhetstester, 33 integrasjonstester mot Postgres, 22 E2E-tester i ekte nettleser og 18 røyktester (v1.4). Alt kjører i GitHub Actions ved hver push. |
+| Tester og CI | Klar | 55 enhetstester, 34 integrasjonstester mot Postgres, 22 E2E-tester i ekte nettleser og 18 røyktester (v1.4.1). Uavhengig gjennomgang av v1.2–v1.4 gjort 15.10 (se `SIKKERHET.md`). Alt kjører i GitHub Actions ved hver push. |
 | Avhengigheter | Klar | Dependabot ukentlig. `npm audit`-varsler gjelder kun ESLint-verktøy i utvikling. |
 | Dokumentasjon | Klar | README, AGENTS.md, startprompt, arkitektur, sikkerhet, drift, oppsett, kjøreplan, operatørguide, admin-guide, lydoppsett, beslutninger. |
 | Enheter | Delvis testet | iPhone/Safari testet i produksjon. Android/Chrome testet i automatisk nettleser, ikke på fysisk telefon. |

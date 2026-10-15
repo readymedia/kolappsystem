@@ -1,4 +1,4 @@
-// Ren logikk for når et lydsignal skal spilles (testet i tests/unit/announce.test.ts).
+// Ren logikk for når et lydsignal skal spilles (testet i tests/unit/audio.test.ts).
 // Brukes av lydsiden /audio og storskjermen med ?sound=1.
 
 import { parseStationId, type StationId } from "./config";

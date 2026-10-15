@@ -135,6 +135,17 @@ run("innstillinger og mediefiler", () => {
     expect((await cfg.getSiteConfig()).audioFile).not.toBeNull();
   });
 
+  it("samtidige opplastinger og tilbakestilling gir aldri feil eller foreldreløse filer", async () => {
+    const jobs: Promise<unknown>[] = [];
+    for (let i = 0; i < 6; i++) jobs.push(cfg.setLogo("image/png", png(30 + i)));
+    jobs.push(cfg.resetBranding(), cfg.removeLogo(), cfg.setCustomAudio("audio/wav", wav(40)));
+    await Promise.all(jobs);
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM media m
+      WHERE NOT EXISTS (SELECT 1 FROM site_config c WHERE c.audio_media_id = m.id OR c.logo_media_id = m.id)`;
+    expect(row?.n).toBe(0);
+  });
+
   it("«Tilbakestill» fjerner logoen", async () => {
     const sha = await cfg.setLogo("image/png", png(12));
     await cfg.resetBranding();

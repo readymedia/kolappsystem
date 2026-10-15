@@ -2,6 +2,20 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.4.1] – 2026-10-15
+
+Rettelser etter uavhengig gjennomgang av v1.2–v1.4.
+
+### Rettet
+- **Sikkerhet:** SVG-filteret for logo kunne omgås (skript med navnerom-prefiks, tegnkoder, `<set>`/`<animate>` på lenker, `@import`, CSS-escape). Strammet inn og testet. Var ikke utnyttbart (logo vises bare som `<img>` med sandbox-CSP, og opplasting krever admin).
+- Opplastede filer (logo, lyd) ble ikke mellomlagret på Vercel-CDN-et, så hver ny enhet kostet et funksjonskall og en databaselesing. Nå `CDN-Cache-Control`.
+- Samtidige opplastinger (eller opplasting og «Tilbakestill») kunne gi feilmelding. Filendringer skjer nå i én låst transaksjon.
+- Utseende: opplasting eller fjerning av logo forkastet ulagrede endringer i skjemaet.
+- Utseende: «Skjermer» i admin brukte gammel storskjermbakgrunn til siden ble lastet på nytt.
+- Skjermer: etter «Bytt nøkkel» kunne den gamle, ugyldige skjermlenken vises og kopieres et øyeblikk. Feil ved henting av signert lenke gir nå melding og «Prøv igjen». «Åpne»-knappene er ekte deaktiverte knapper mens lenken lages.
+- Storskjerm med lyd: setter nettleseren lyden på pause, kommer «Klikk for å slå på lyd» tilbake. QR med utdatert lenke slutter å spørre serveren.
+- SVG-filteret avviste `url( #id )` med mellomrom.
+
 ## [1.4.0] – 2026-10-15
 
 Utseende og logo per arrangement. Uten innstillinger ser alt ut som før. Se `docs/ADMIN-GUIDE.md`.

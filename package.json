@@ -1,6 +1,6 @@
 {
   "name": "kolappsystem",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "description": "Digitalt kølappsystem for meet-and-greet med tre stasjoner (A, B, C). Next.js + Postgres på Vercel.",
   "license": "UNLICENSED",

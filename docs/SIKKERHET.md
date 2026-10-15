@@ -20,7 +20,7 @@ Målet er enkelt: publikum trenger bare QR-koden, og bare funksjonærer med PIN 
 | Test-versjon endrer ekte data | Databasen kobles bare til Production, og migrering kjøres bare i produksjonsbygg. |
 | Oppbrukt Vercel-kvote (DoS) | `/api/state` deles via CDN. Brannmurregel mot parametere på `/api/state` og Attack Challenge Mode, se `docs/DRIFT.md`. |
 | QR-kode vist på storskjerm (valgfritt, v1.3) | Bevisst akseptert risiko: bildet kan fotograferes og deles, og skjermlenken gir også tilgang. Admin viser risikovarsel når QR slås på. Skjermlenken inneholder et signert token (HMAC av stasjoner og nøkler), aldri nøkkelen. Tokenet sjekkes i konstant tid, og «Bytt nøkkel» gjør både QR og skjermlenke ugyldige. Ellers gjelder vernet over (maks 100 ventende per nettverk, «Fjern ventende lapper»). |
-| Ondsinnet logo (SVG med skript) | Kun med admin-økt og riktig Origin. Maks 512 kB, filtype sjekket på innhold. SVG avvises hvis den inneholder skript, hendelser (`on…=`), `foreignObject`, entiteter, `javascript:` eller lenker/`url()` til andre filer. Logoen vises alltid som `<img>` (der nettlesere aldri kjører skript), og serveres med `sandbox`-CSP. |
+| Ondsinnet logo (SVG med skript) | Kun med admin-økt og riktig Origin. Maks 512 kB, filtype sjekket på innhold. SVG avvises hvis den inneholder skript (også med navnerom-prefiks), hendelser (`on…=`), `foreignObject`, elementer med prefiks, entiteter og tegnkoder (utover `&amp;` `&lt;` `&gt;` `&quot;` `&apos;`), `javascript:`, `@import`, skråstrek bakover (CSS-escape), animasjon av lenker (`<set>`/`<animate>` på `href`) eller lenker/`url()` til andre filer. Filteret er et ekstra lag og ble strammet inn etter en uavhengig gjennomgang (v1.4.1). Logoen vises alltid som `<img>` (der nettlesere aldri kjører skript), og serveres med `sandbox`-CSP. |
 | Ondsinnet opplasting (lyd) | Kun med admin-økt og riktig Origin. Maks 2 MB. Filtype sjekkes på innholdet (magiske bytes), ikke filnavnet. Filer serveres med `Content-Security-Policy: sandbox`, `nosniff` og egen `Content-Type`, så de aldri kan kjøres som side eller skript. |
 | Personvern | Ingen persondata. IP-adresser lagres aldri; kun en HMAC av nettverket (for flomvern) som slettes ved nullstilling. |
 
@@ -56,6 +56,10 @@ PIN er nå 1234 og alle er logget ut. Bytt den i `/admin` med en gang.
 ## Rettet i v1.4
 
 - **Sandbox-CSP på opplastede filer virket ikke (v1.2–v1.3).** Sidenes felles CSP fra `next.config.ts` overstyrte hodet ruten `/api/media` satte. Nå settes `default-src 'none'; sandbox` for `/api/media/*` i `next.config.ts`, og sidenes CSP gjelder alle andre adresser. Røyktesten og E2E sjekker hodet. Lydfiler var aldri utsatt (kan ikke kjøre kode), og logo-opplasting fantes ikke før v1.4.
+
+## Uavhengig gjennomgang av v1.2–v1.4 (15.10)
+
+En egen gjennomgang uten kjennskap til arbeidet fant ingen lekkasjer av hemmeligheter og ingen utnyttbare hull. Rettet i v1.4.1: omgåelser av SVG-filteret (ikke utnyttbare pga. `<img>` og sandbox-CSP), samtidige filopplastinger kunne gi feil, og noen admin-detaljer (se `CHANGELOG.md`). Bevisst ikke endret: lydens lengde (15 s) sjekkes bare i nettleseren; `/api/display/qr` har ingen egen forsøksgrense (tokenet er 192 bit, og formatet sjekkes før databasen).
 
 ## Kjente begrensninger
 

@@ -80,6 +80,7 @@ test("logo, navn, farge, font og bakgrunn slår igjennom på forside, kølapp, s
   const res = await display.request.get(src!);
   expect(res.headers()["content-security-policy"]).toContain("sandbox");
   expect(res.headers()["cache-control"]).toContain("immutable");
+  expect(res.headers()["cdn-cache-control"]).toContain("immutable");
 
   // «Om appen» er fortsatt bare i admin.
   await expect(home.getByText("Andreas Aarlott")).toHaveCount(0);
@@ -116,14 +117,17 @@ test("farlig SVG, feil filtype og lav kontrast håndteres", async ({ browser }) 
   await expect(a.getByText(/SVG-filen inneholder skript/)).toBeVisible();
   await a.getByTestId("logo-input").setInputFiles({ name: "logo.gif", mimeType: "image/gif", buffer: Buffer.from("GIF89a...........") });
   await expect(a.getByText("Filtypen støttes ikke.")).toBeVisible();
+  await a.locator("#primary-text").fill("#7a7a7a");
+  await expect(a.getByText(/Lav kontrast/)).toBeVisible();
+  // Opplasting av logo skal ikke kaste ulagrede endringer i skjemaet.
   await a.getByTestId("logo-input").setInputFiles({
     name: "ok.svg",
     mimeType: "image/svg+xml",
     buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#2563eb"/></svg>'),
   });
   await expect(a.getByText("Logoen er lastet opp og i bruk.")).toBeVisible();
-  await a.locator("#primary-text").fill("#7a7a7a");
-  await expect(a.getByText(/Lav kontrast/)).toBeVisible();
+  await expect(a.locator("#primary-text")).toHaveValue("#7a7a7a");
+  await expect(a.getByRole("button", { name: "Lagre", exact: true })).toBeEnabled();
 });
 
 test("utseende-API krever økt og riktig Origin", async ({ request, baseURL }) => {

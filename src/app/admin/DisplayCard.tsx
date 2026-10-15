@@ -50,7 +50,14 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
   const [titleMsg, setTitleMsg] = useState("");
   const [state, setState] = useState<PublicState | null>(null);
-  const [tokens, setTokens] = useState<Record<string, string>>({});
+  // Tokens gjelder bare for den nøkkel-/utvalgskombinasjonen de ble hentet for (sig), så en gammel
+  // (ugyldig) lenke aldri vises etter «Bytt nøkkel».
+  const [tokenState, setTokenState] = useState<{ sig: string; map: Record<string, string>; failed: boolean }>({
+    sig: "",
+    map: {},
+    failed: false,
+  });
+  const [retry, setRetry] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
 
@@ -73,6 +80,7 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
   // Signerte tokens for QR (valgt utvalg + hver stasjon alene). Hentes på nytt når en nøkkel byttes.
   const keySig = stations?.map((s) => s.joinUrl).join("|") ?? "";
   const selKey = opts.stations?.join(",") ?? "";
+  const sig = `${keySig}#${selKey}#${retry}`;
   useEffect(() => {
     if (!opts.qr) return;
     let cancelled = false;
@@ -84,12 +92,16 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
         return [set, r.ok ? r.data.token : ""] as const;
       }),
     ).then((pairs) => {
-      if (!cancelled) setTokens(Object.fromEntries(pairs));
+      if (cancelled) return;
+      const map = Object.fromEntries(pairs.filter(([, t]) => t));
+      setTokenState({ sig, map, failed: pairs.some(([, t]) => !t) });
     });
     return () => {
       cancelled = true;
     };
-  }, [opts.qr, selKey, keySig, onUnauthorized]);
+  }, [opts.qr, selKey, sig, onUnauthorized]);
+  const tokens = tokenState.sig === sig ? tokenState.map : {};
+  const tokenFailed = opts.qr && tokenState.sig === sig && tokenState.failed;
 
   const linkFor = (stationsSel: StationId[] | null) => {
     const key = stationsSel?.join(",") ?? "";
@@ -260,23 +272,22 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
       <div className="mt-5 rounded-2xl bg-slate-50 p-4">
         <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Skjermlenke</p>
         <p className="mt-2 break-all font-mono text-sm text-slate-800" data-testid="display-link">
-          {qrPending ? "Lager signert lenke …" : mainLink}
+          {qrPending ? (tokenFailed ? "Kunne ikke lage signert lenke." : "Lager signert lenke …") : mainLink}
         </p>
+        {tokenFailed && (
+          <button type="button" className={`${buttonClass("ghost", "sm")} mt-1`} onClick={() => setRetry((n) => n + 1)}>
+            Prøv igjen
+          </button>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" disabled={qrPending} className={buttonClass("primary", "sm")} onClick={() => copy(mainLink, "main")}>
             <Copy className="h-4 w-4" aria-hidden />
             {copied === "main" ? "Kopiert" : "Kopier lenke"}
           </button>
-          <a
-            href={qrPending ? undefined : mainLink}
-            target="_blank"
-            rel="noopener"
-            aria-disabled={qrPending}
-            className={buttonClass("outline", "sm")}
-          >
+          <OpenLink href={qrPending ? null : mainLink} className={buttonClass("outline", "sm")}>
             <ExternalLink className="h-4 w-4" aria-hidden />
             Åpne i nytt vindu
-          </a>
+          </OpenLink>
         </div>
       </div>
 
@@ -297,15 +308,31 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
                   <Copy className="h-4 w-4" aria-hidden />
                   {copied === id ? "Kopiert" : "Kopier"}
                 </button>
-                <a href={pending ? undefined : link} target="_blank" rel="noopener" className={buttonClass("ghost", "sm")} aria-label={`Åpne skjerm for stasjon ${id}`}>
+                <OpenLink href={pending ? null : link} className={buttonClass("ghost", "sm")} label={`Åpne skjerm for stasjon ${id}`}>
                   <ExternalLink className="h-4 w-4" aria-hidden />
-                </a>
+                </OpenLink>
               </li>
             );
           })}
         </ul>
       </details>
     </Card>
+  );
+}
+
+/** Lenke som åpnes i nytt vindu, eller en deaktivert knapp mens lenken lages. */
+function OpenLink({ href, className, label, children }: { href: string | null; className: string; label?: string; children: React.ReactNode }) {
+  if (!href) {
+    return (
+      <button type="button" disabled className={className} aria-label={label}>
+        {children}
+      </button>
+    );
+  }
+  return (
+    <a href={href} target="_blank" rel="noopener" className={className} aria-label={label}>
+      {children}
+    </a>
   );
 }
 

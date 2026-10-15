@@ -13,6 +13,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ sha: st
         "Content-Type": file.mime,
         "Content-Length": String(file.bytes.byteLength),
         "Cache-Control": "public, max-age=31536000, immutable",
+        // Vercel mellomlagrer bare funksjonssvar med CDN-Cache-Control (eller s-maxage). Ny fil = ny adresse.
+        "CDN-Cache-Control": "public, max-age=31536000, immutable",
         "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
         "X-Content-Type-Options": "nosniff",
         "Cross-Origin-Resource-Policy": "same-origin",
