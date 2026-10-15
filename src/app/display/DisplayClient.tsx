@@ -1,9 +1,12 @@
 "use client";
 
-import { Maximize } from "lucide-react";
+import { Maximize, Volume2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { usePolling, useWakeLock } from "@/components/hooks";
+import { detectNewCalls, takeSnapshot, type Snapshot } from "@/lib/announce";
 import { api } from "@/lib/client-api";
+import { type AudioSettings, SoundPlayer } from "@/lib/sound";
 import { DISPLAY_NEXT_COUNT, POLL_INTERVAL_MS, STATION_IDS, STATION_THEME, type StationId } from "@/lib/config";
 import type { PublicState, PublicStation } from "@/lib/public-state";
 
@@ -13,6 +16,12 @@ import type { PublicState, PublicStation } from "@/lib/public-state";
 const BLINK_MS = 4500;
 
 export function DisplayClient() {
+  // ?sound=1: storskjermen spiller lydsignal selv (krever ett klikk på skjermen, nettleserkrav).
+  const sound = useSearchParams().get("sound") === "1";
+  const player = useRef<SoundPlayer | null>(null);
+  const soundSnap = useRef<Snapshot | null>(null);
+  const audioSettings = useRef<AudioSettings>({ mode: "default", volume: 80, url: null });
+  const [soundOn, setSoundOn] = useState(false);
   const [state, setState] = useState<PublicState | null>(null);
   const [offline, setOffline] = useState(false);
   const [blink, setBlink] = useState<Partial<Record<StationId, boolean>>>({});
@@ -27,6 +36,11 @@ export function DisplayClient() {
     setOffline(!res.ok);
     if (!res.ok) return;
     setState(res.data);
+    if (sound) {
+      const calls = detectNewCalls(soundSnap.current, res.data.stations, null);
+      soundSnap.current = takeSnapshot(res.data.stations);
+      if (calls.length && player.current) void player.current.play(audioSettings.current);
+    }
     // Blink kolonnen når et nytt nummer kalles (ikke ved første innlasting).
     for (const s of res.data.stations) {
       const changed = initialized.current && s.current !== null && s.current !== lastCurrent.current[s.id];
@@ -37,8 +51,31 @@ export function DisplayClient() {
       blinkTimers.current[s.id] = setTimeout(() => setBlink((b) => ({ ...b, [s.id]: false })), BLINK_MS);
     }
     initialized.current = true;
-  }, POLL_INTERVAL_MS);
+  }, POLL_INTERVAL_MS, true, { whenHidden: sound });
   useWakeLock(true);
+
+  // Lydinnstillinger fra admin (bare når lyd er slått på for skjermen).
+  usePolling(
+    async () => {
+      const res = await api<{ audio: AudioSettings }>("/api/config", { cache: "default" });
+      if (!res.ok) return;
+      const changed = res.data.audio.url !== audioSettings.current.url;
+      audioSettings.current = res.data.audio;
+      if (changed && res.data.audio.url && player.current) await player.current.preload(res.data.audio.url);
+    },
+    15_000,
+    sound,
+    { whenHidden: true },
+  );
+
+  async function enableSound() {
+    player.current ??= new SoundPlayer();
+    if (await player.current.unlock()) {
+      setSoundOn(true);
+      const url = audioSettings.current.url;
+      if (url) await player.current.preload(url);
+    }
+  }
 
   // Rydd blink-tidtakere når siden lukkes.
   useEffect(() => {
@@ -74,6 +111,16 @@ export function DisplayClient() {
             <Column key={id} id={id} station={state?.stations.find((s) => s.id === id)} blink={Boolean(blink[id])} />
           ))}
         </div>
+        {sound && !soundOn && (
+          <button
+            type="button"
+            onClick={enableSound}
+            className="fixed inset-x-0 bottom-6 mx-auto flex w-fit items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
+          >
+            <Volume2 className="h-5 w-5" aria-hidden />
+            Klikk for å slå på lyd
+          </button>
+        )}
         {offline && (
           <p className="mt-6 text-center text-sm text-amber-300/80">Mistet kontakten med serveren – prøver igjen …</p>
         )}

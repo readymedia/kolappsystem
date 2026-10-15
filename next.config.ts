@@ -9,6 +9,9 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
+  // Lydsignal: lydfiler fra egen app (blob: for lengdesjekk ved opplasting i admin), Web Worker for lydsiden.
+  "media-src 'self' blob:",
+  "worker-src 'self'",
   "font-src 'self'",
   `connect-src 'self'${isDev ? " ws:" : ""}`,
   "object-src 'none'",
@@ -30,6 +33,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  async redirects() {
+    // Lydsiden het «/audiosignal» i bestillingen – begge adresser virker.
+    return [{ source: "/audiosignal", destination: "/audio", permanent: false }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

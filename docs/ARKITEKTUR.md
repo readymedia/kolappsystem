@@ -28,7 +28,7 @@ flowchart LR
 
 ## 2. Datamodell
 
-Definert i `db/migrations/001_init.sql` og `002_robust_join.sql`.
+Definert i `db/migrations/` (001–003).
 
 | Tabell | Viktige felt | Regler |
 | --- | --- | --- |
@@ -37,6 +37,8 @@ Definert i `db/migrations/001_init.sql` og `002_robust_join.sql`.
 | `queue_actions` | `station`, `kind` (next/skip), `finished_ticket`, `called_ticket`, `undone` | Logg som gjør «Angre siste» mulig i flere steg. |
 | `settings` | `pin_hash`, `pin_version`, `session_secret` | Én rad (`id = 1`). |
 | `rate_limits` | `key`, `count`, `window_start` | Forsøksgrenser for PIN og nye lapper. |
+| `site_config` | `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id` | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
+| `media` | `kind` (audio/logo), `mime`, `bytes`, `size`, `sha256` | Opplastede filer. Filtype sjekket på innhold. Serveres som `/api/media/<sha256>`. Filer ingen peker på slettes. |
 | `schema_migrations` | `version` | Hvilke migreringer som er kjørt. |
 
 Status for en lapp: `waiting` → `called` → `done` eller `skipped`. En `skipped` kan settes tilbake til `waiting` av operatør.
@@ -64,6 +66,10 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 | `POST /api/admin/stations/:station/reset\|activate\|deactivate\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
 | `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN (6–12 sifre), alle andre logges ut |
 | `GET /api/health` | Åpen | `{ok, version, commit, db, migration}`, 503 hvis databasen ikke svarer |
+| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}}` – offentlige innstillinger, aldri hemmeligheter |
+| `GET /api/media/<sha256>` | Åpen | Filen, `immutable` mellomlagring og `sandbox`-CSP |
+| `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`) |
+| `POST`/`DELETE /api/admin/audio` | Økt | Last opp (multipart `file`, maks 2 MB, sjekket på innhold) / fjern egen lyd |
 
 Feilsvar har alltid formen `{error: "<kode>", message: "<norsk tekst>"}`. Kodene står i `src/lib/texts.ts`.
 
@@ -80,6 +86,13 @@ Feil i databasen: død tilkobling ved lesing prøves én gang til. Lås- eller t
 5. `deriveTicket()` i `public-state.ts` regner ut status og antall foran fra den delte køstatusen.
 6. Når status blir `called`: grønn skjerm, vibrering (Android) og «Din tur!» i fanetittelen.
 
+## 5b. Lydsignal
+
+- Lydsiden `/audio` og storskjermen med `?sound=1` leser den samme delte `/api/state` som før, og spiller lyd når et nytt nummer kalles (`detectNewCalls()` i `src/lib/announce.ts`).
+- Lydsiden henter i en **Web Worker** (`src/app/audio/poller.worker.ts`), så den lytter også i bakgrunnen. Den bruker ingen ekstra kvote utover én «skjerm».
+- Lyd spilles med Web Audio (`src/lib/sound.ts`): standardlyden lages i koden, egen lyd hentes fra `/api/media/…` og dekodes én gang. Volum fra `/api/config`.
+- Nettlesere krever ett klikk før lyd: «Start lydsignal» / «Klikk for å slå på lyd».
+
 ## 6. Budsjett for Vercel Hobby
 
 Grensene per måned: 1 000 000 CDN-forespørsler, 1 000 000 funksjonskall og 4 timer Active CPU. Over grensen pauses prosjektet i 30 dager.
@@ -93,8 +106,9 @@ Anslag for én konferansedag (8 timer), 300 brukere som i snitt har lappen åpen
 | Første henting av lapp | 300 × ca. 2 | 600 | 600 |
 | Storskjerm | 8 t × 1 200 per time | 10 000 | – (deles via CDN) |
 | Operatører | 3 × 8 t × 1 200 per time | 29 000 | 29 000 |
+| Lydsider (2 stk) | 2 × 8 t × (1 200 status + 240 konfig) per time | 23 000 | – (deles via CDN) |
 | Sideinnlastinger og filer | 300 × ca. 30 | 9 000 | 1 000 |
-| **Sum** | | **ca. 170 000** | **ca. 60 000** |
+| **Sum** | | **ca. 195 000** | **ca. 60 000** |
 
 Det gir god margin, også for flere dager i samme måned. Neon Free (100 CU-timer) brukes med ca. 3 CU-timer per dag.
 

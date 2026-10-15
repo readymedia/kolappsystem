@@ -17,7 +17,7 @@
 
 | Versjon | Innhold | Status |
 | --- | --- | --- |
-| 1.2 | Lydsignal | Godkjent – denne runden |
+| 1.2 | Lydsignal | **Levert i v1.2.0** |
 | 1.3 | Skjermer | Godkjent – denne runden |
 | 1.4 | Utseende og logo | Godkjent – denne runden |
 | 1.5 | Push-varsel | Roadmap – Now (neste runde) |

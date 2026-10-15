@@ -60,3 +60,11 @@ Alt unntatt lasttest kjører i CI.
 **Status:** Vedtatt
 Utvikler (Andreas Aarlott, andreas.aarlott@ntnu.no), versjon og at appen er AI-støttet utviklet vises bare i `/admin`,
 så publikumssidene holdes rene. E2E-testen sjekker at utviklerinfo ikke vises på publikumssidene.
+
+## ADR-014 – Lydsignal med Web Audio og Web Worker (v1.2)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Lyden utløses av den delte køstatusen (ingen ekstra kvote). Lydsiden henter i en Web Worker fordi nettlesere demper
+tidtakere i bakgrunnsfaner (lydsiden skal kunne ligge bak musikkspilleren). Web Audio gir lik volumkontroll for
+standardlyd og egen lyd, og spiller i bakgrunnen etter ett klikk. Standardlyden lages i koden, så det er ingen fil eller
+lisens. Opplastede filer lagres i Postgres (`media`) i stedet for en egen fillagringstjeneste, for å holde driften gratis
+og enkel. De serveres med innholds-hash i adressen og evig mellomlagring.

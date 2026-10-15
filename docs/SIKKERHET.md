@@ -19,6 +19,7 @@ Målet er enkelt: publikum trenger bare QR-koden, og bare funksjonærer med PIN 
 | Direkte databasetilgang | Ingen. Databasen nås bare fra serveren med `DATABASE_URL` i Vercel. |
 | Test-versjon endrer ekte data | Databasen kobles bare til Production, og migrering kjøres bare i produksjonsbygg. |
 | Oppbrukt Vercel-kvote (DoS) | `/api/state` deles via CDN. Brannmurregel mot parametere på `/api/state` og Attack Challenge Mode, se `docs/DRIFT.md`. |
+| Ondsinnet opplasting (lyd) | Kun med admin-økt og riktig Origin. Maks 2 MB. Filtype sjekkes på innholdet (magiske bytes), ikke filnavnet. Filer serveres med `Content-Security-Policy: sandbox`, `nosniff` og egen `Content-Type`, så de aldri kan kjøres som side eller skript. |
 | Personvern | Ingen persondata. IP-adresser lagres aldri; kun en HMAC av nettverket (for flomvern) som slettes ved nullstilling. |
 
 Funn fra piloten (Base44) som er rettet: nøkler og PIN lå åpent i nettleseren, PIN ble sjekket i nettleseren, databasen tok imot skriving fra alle, og QR-kodene ble laget hos en tredjepart med nøkkelen i URL-en.

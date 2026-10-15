@@ -62,7 +62,17 @@ Etter 3 mislykkede oppdateringer på rad vises et gult felt: «Mistet kontakten 
 
 ## `/display`
 
-Svart bakgrunn. «MEET & GREET · KØSTATUS» og en diskret fullskjerm-knapp. Tre kolonner: «Stasjon A», «ÅPEN»/«STENGT», «NÅ BETJENES», gigantisk «A12» i stasjonsfarge (eller svak «–»), «Neste: A13, A14, A15». Blinker ved nytt nummer. Viser «Mistet kontakten med serveren – prøver igjen …» ved nettfeil.
+Svart bakgrunn. «MEET & GREET · KØSTATUS» og en diskret fullskjerm-knapp. Med `?sound=1`: grønn knapp nederst «Klikk for å slå på lyd» til lyden er slått på, deretter lydsignal ved nytt nummer. Tre kolonner: «Stasjon A», «ÅPEN»/«STENGT», «NÅ BETJENES», gigantisk «A12» i stasjonsfarge (eller svak «–»), «Neste: A13, A14, A15». Blinker ved nytt nummer. Viser «Mistet kontakten med serveren – prøver igjen …» ved nettfeil.
+
+## `/audio` (lydside)
+
+Mørk bakgrunn. «LYDSIGNAL», overskrift «Alle stasjoner» eller «Stasjon A, C», runde merker per stasjon i stasjonsfarge.
+- Før start: stor grønn knapp med bjelle «Start lydsignal».
+- Etter start: grønt kort «Lyd aktiv ✓», «La siden stå åpen. Den spiller når et nytt nummer kalles.»
+- Kort «Sist sjekket hh:mm:ss» og «Lyd: Standard/Egen lyd/Av · 80 %», knapp «Test lyd».
+- «SISTE OPPROP»: de siste 8 opprop med klokkeslett, eller «Ingen ennå.»
+- Varsler: «Lyd er slått av i admin.», rød «Nettleseren har satt lyden på pause. Trykk her for å slå den på igjen.», gul «Mistet kontakten – prøver igjen. Sjekk nettet.», «Denne nettleseren kan ikke spille den opplastede lyden. Standardlyden brukes i stedet. Last opp MP3 eller WAV i admin.»
+- Bunntekst med tips om `?station=A`.
 
 ## `/admin`
 
@@ -71,6 +81,7 @@ Svart bakgrunn. «MEET & GREET · KØSTATUS» og en diskret fullskjerm-knapp. Tr
 - «ADMIN», «Stasjoner og QR-koder», forklaring, knappene «Logg ut» og «Skriv ut».
 - Kort per stasjon: navn, «Aktiv»/«Stengt», QR-kode, lenke, «Kopier lenke», «N venter · M lapper delt ut», beskrivelse med redigering, «Nullstill kø» (bekreft: «Bekreft nullstilling»), «Deaktiver»/«Aktiver», «Bytt nøkkel» (bekreft: «Bekreft – gamle QR slutter å virke»), lenker «Operator» og «Storskjerm».
 - «Fjern ventende lapper …» per stasjon: felt «Fra A…» og «til A…», knapp «Fjern», svar «Fjernet N ventende lapper.»
+- Kort «Lydsignal»: valg «Standardlyd» / «Egen lyd» (bare når fil finnes) / «Av», glidebryter «Volum: 80 %», «Spill av», «Last opp lyd …»/«Bytt lyd …», filinfo («WAV · 12 kB») med «Fjern», hjelpetekst om formater, gult varsel for AIFF/OGG, «Åpne lydsiden» og tips om `/audio?station=A` og `/display?sound=1`.
 - Kort «PIN-kode»: «Felles for operator og admin. Ny PIN logger ut alle andre enheter.», felt «Ny PIN», «Lagre», feil «PIN må være 6–12 sifre.», bekreftelse «PIN-koden er lagret. Alle andre er logget ut.»
 - Kort «Om appen» (kun i admin, aldri for publikum): App «KøKlar – kølappsystem for meet-and-greet», Versjon «1.1.0 · <commit>», Utvikler «Andreas Aarlott · andreas.aarlott@ntnu.no» (mailto-lenke), Utvikling «AI-støttet utvikling».
 - Utskrift: én stasjon per side med stort navn, beskrivelse, QR (12 cm) og «Skann for å få kølapp».

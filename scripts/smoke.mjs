@@ -59,6 +59,25 @@ await check("offentlig status: mellomlagres på CDN", async () => {
   if (vercelCache) console.log(`  x-vercel-cache: ${vercelCache}`);
 });
 
+await check("offentlig konfig: lydinnstillinger, ingen hemmeligheter", async () => {
+  const res = await get("/api/config");
+  assert(res.ok, `status ${res.status}`);
+  const text = await res.text();
+  const body = JSON.parse(text);
+  assert(["default", "custom", "off"].includes(body?.audio?.mode), "mangler audio.mode");
+  assert(!/join_key|joinKey|pin_hash|session_secret|ip_hash/.test(text), "fant hemmelig felt");
+});
+
+await check("ugyldig mediefil gir 404", async () => {
+  const res = await get("/api/media/" + "0".repeat(64));
+  assert(res.status === 404, `forventet 404, fikk ${res.status}`);
+});
+
+await check("lydsiden svarer", async () => {
+  const res = await get("/audio");
+  assert(res.ok, `status ${res.status}`);
+});
+
 await check("sikkerhetshoder på sider", async () => {
   const res = await get("/");
   const h = (n) => res.headers.get(n) || "";

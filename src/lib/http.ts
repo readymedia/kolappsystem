@@ -9,6 +9,8 @@ import { ERROR_TEXT, type ErrorCode } from "./texts";
 
 const STATUS: Partial<Record<ErrorCode, number>> = {
   bad_request: 400,
+  file_too_large: 413,
+  unsupported_file: 415,
   invalid_station: 400,
   invalid_link: 403,
   closed: 409,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { usePolling } from "@/components/hooks";
+import { AudioCard } from "./AudioCard";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Card, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
@@ -99,6 +100,8 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
             ))}
           </div>
         )}
+
+        <AudioCard onUnauthorized={() => router.refresh()} />
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 print:hidden">
           <PinCard onUnauthorized={() => router.refresh()} />

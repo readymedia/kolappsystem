@@ -13,7 +13,14 @@ import { useEffect, useRef } from "react";
  *   fordi ikke alle nettlesere sender visibilitychange ved bytte av vindu eller opplåsing av telefon
  * - et «vekk» mens en runde pågår gir en ny runde rett etter, så ingen oppdatering går tapt
  */
-export function usePolling(fn: () => void | Promise<void>, intervalMs: number, enabled = true): void {
+export function usePolling(
+  fn: () => void | Promise<void>,
+  intervalMs: number,
+  enabled = true,
+  /** whenHidden: fortsett også når fanen er skjult (storskjerm med lyd). Standard: pause for å spare kvote. */
+  opts: { whenHidden?: boolean } = {},
+): void {
+  const whenHidden = Boolean(opts.whenHidden);
   const fnRef = useRef(fn);
   useEffect(() => {
     fnRef.current = fn;
@@ -37,7 +44,7 @@ export function usePolling(fn: () => void | Promise<void>, intervalMs: number, e
         pending = true;
         return;
       }
-      if (document.visibilityState !== "visible") {
+      if (!whenHidden && document.visibilityState !== "visible") {
         schedule(intervalMs);
         return;
       }
@@ -76,7 +83,7 @@ export function usePolling(fn: () => void | Promise<void>, intervalMs: number, e
       window.removeEventListener("pageshow", wake);
       window.removeEventListener("online", wake);
     };
-  }, [intervalMs, enabled]);
+  }, [intervalMs, enabled, whenHidden]);
 }
 
 /** Holder skjermen våken (Screen Wake Lock API) der det støttes. Stille feil der det ikke gjør. */

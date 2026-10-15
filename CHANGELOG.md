@@ -2,7 +2,24 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
-## [Ikke utgitt]
+## [1.2.0] – 2026-10-15
+
+Lydsignal (need-to-have fra bestiller). Se `docs/LYD-OPPSETT.md`.
+
+### Lagt til
+- Lydsignal når et nytt nummer kalles: innebygd standardlyd (klokkeslag), egen opplastet lyd (MP3, WAV, M4A, OGG, FLAC, AIFF, maks 2 MB / 15 s) eller av, og volum. Alt styres fra kortet «Lydsignal» i `/admin`.
+- Lydside `/audio` for PC/iPad mot lydanlegg: «Start lydsignal», «Sist sjekket», logg over siste opprop, «Test lyd» og varsler. `?station=A` (eller `A,C`) spiller bare for valgte stasjoner. Lytter også når siden ligger i bakgrunnen (Web Worker). `/audiosignal` sender videre til `/audio`.
+- Storskjermen spiller lydsignal med `/display?sound=1` etter ett klikk.
+- `GET /api/config` (offentlige innstillinger, CDN 5 s) og `GET /api/media/<sha256>` (opplastede filer).
+- Tester: lydregler og filtyper (enhet), innstillinger og filer (integrasjon), lydside, filter, opplasting, volum, «av» og storskjerm med lyd (E2E).
+
+### Database
+- Migrering `003_site_config_media.sql`: tabellene `site_config` og `media`. Bare tillegg.
+
+### Sikkerhet
+- CSP: `media-src 'self' blob:` og `worker-src 'self'`. Opplastede filer sjekkes på innhold og serveres med `sandbox`-CSP.
+
+## [Ikke utgitt – plan]
 
 ### Dokumentasjon
 - `docs/PLAN-UTVIDELSER.md` samkjørt med bestillers prioriteringer 15.10: lydsignal (need-to-have) som v1.2, deretter skjermer, utseende/logo, push-varsel og fleksible stasjoner. Felles grunnmur, sikkerhet, tester og dokumentasjonskrav per versjon.

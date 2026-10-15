@@ -28,6 +28,8 @@ export const ERROR_TEXT = {
   locked: "For mange feil forsøk. Vent 15 minutter og prøv igjen.",
   unauthorized: "Økten har gått ut. Logg inn på nytt.",
   bad_request: "Ugyldig forespørsel.",
+  file_too_large: "Filen er for stor.",
+  unsupported_file: "Filtypen støttes ikke.",
   forbidden_origin: "Forespørselen ble avvist.",
   db_missing: "Databasen er ikke koblet til ennå. Se docs/VERCEL-OPPSETT.md.",
   server_error: "Noe gikk galt. Prøv igjen.",

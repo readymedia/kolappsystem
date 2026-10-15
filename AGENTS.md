@@ -36,8 +36,12 @@ src/lib/
   version.ts          Appversjon (package.json) og commit – vises i /admin og /api/health.
   pin-hash.mjs        scrypt-hash + tilfeldige nøkler. .mjs fordi migrate-skriptet også bruker den.
   client-api.ts       fetch-hjelper for nettleseren.
+  site-config.ts      Innstillinger (site_config) og opplastede filer (media) (server-only).
+  media.ts            Gjenkjenning av filtyper på innhold + grenser for opplasting (ren, testet).
+  announce.ts         Når lydsignal skal spilles: detectNewCalls(), parseStationFilter() (ren, testet).
+  sound.ts            SoundPlayer: Web Audio, standardlyd og egen lyd (kun nettleser).
 src/components/       hooks.ts (usePolling, useWakeLock), ui.tsx, PinGate, LogoutButton.
-src/app/              Sider (App Router) og API-ruter under src/app/api/.
+src/app/              Sider (App Router) og API-ruter under src/app/api/. Lydsiden: src/app/audio/ (med poller.worker.ts).
 tests/unit/           Rene tester (ingen database).
 tests/integration/    Tester mot ekte Postgres (krever TEST_DATABASE_URL). Sletter data!
 tests/e2e/            Playwright i ekte nettleser (krever E2E_DATABASE_URL og bygget app). Sletter data!
@@ -57,6 +61,7 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 9. **Alle køtransaksjoner går via `begin()` i `queue.ts`** (setter `lock_timeout`/`statement_timeout`). Aldri `getSql().begin` direkte for skriving.
 10. **Utviklerinfo («Om appen») vises bare i `/admin`.** Publikumssidene skal ikke vise den (E2E-test sjekker dette).
 11. **IP-adresser lagres aldri**, bare `networkFingerprint()` (HMAC) i `tickets.ip_hash`.
+12. **Opplastede filer** sjekkes på innhold (`media.ts`), lagres i `media` og serveres bare via `/api/media/<sha256>` med `sandbox`-CSP. `/api/config` skal aldri inneholde hemmeligheter.
 
 ## 4. Planlagt arbeid
 
@@ -96,7 +101,7 @@ Next.js 16-merknader: `params`/`searchParams` er Promises (`await params`), `coo
 
 | Ressurs (per måned) | Grense | Hva appen bruker (anslag, én konferansedag, 300 brukere) |
 | --- | --- | --- |
-| CDN-forespørsler (Vercel) | 1 000 000 | ca. 170 000 |
+| CDN-forespørsler (Vercel) | 1 000 000 | ca. 195 000 (inkl. 2 lydsider) |
 | Funksjonskall (Vercel) | 1 000 000 | ca. 60 000 |
 | Active CPU (Vercel) | 4 timer | noen få minutter |
 | Compute (Neon Free) | 100 CU-timer | ca. 3 CU-timer |

@@ -11,6 +11,7 @@
 - [ ] Skriv ut QR-kodene (én side per stasjon). Gjerne laminert og i A4 eller større.
 - [ ] Test én QR-kode med mobil, og nullstill den køen etterpå.
 - [ ] Sjekk at PC-en for storskjermen har nett og kan åpne `/display`.
+- [ ] Lydsignal: velg lyd og volum i admin, sett opp lydsiden etter `docs/LYD-OPPSETT.md`, og test med lydanlegget.
 
 ## Rett før dørene åpner
 
@@ -18,6 +19,7 @@
 - [ ] Alle stasjoner står som «Aktiv».
 - [ ] Storskjerm: åpne `/display` og trykk fullskjerm-ikonet øverst til høyre.
 - [ ] Hver operatør åpner `/operator?station=X` på sin mobil og logger inn.
+- [ ] Lydsiden: åpne `/audio`, trykk «Start lydsignal» og «Test lyd».
 - [ ] Heng opp QR-kodene.
 
 ## Under arrangementet

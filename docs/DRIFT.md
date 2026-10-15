@@ -7,7 +7,7 @@ Hvordan appen holdes stabil i produksjon, og hva du gjør når noe skjer.
 | Verktøy | Bruk | Endrer data? |
 | --- | --- | --- |
 | `GET /api/health` | Svarer `{"ok":true,"version":…,"commit":…,"db":"ok","migration":…}`. 503 hvis databasen ikke svarer. | Nei |
-| `BASE_URL=https://kolappsystem.vercel.app npm run smoke` | 10 sjekker: helse, offentlig status uten hemmeligheter, CDN-mellomlagring, sikkerhetshoder, innloggingskrav, Origin-vern, 404. | Nei |
+| `BASE_URL=https://kolappsystem.vercel.app npm run smoke` | 14 sjekker: helse, offentlig status og konfig uten hemmeligheter, CDN-mellomlagring, sikkerhetshoder, innloggingskrav, Origin-vern, lydside, 404. | Nei |
 
 Kjør røyktesten etter hver deploy og morgenen før arrangementet.
 
@@ -88,6 +88,7 @@ Et nettverk er én IPv4-adresse, eller ett IPv6-/64-nett. Grensene settes i `src
 | «Systemet er travelt akkurat nå» | Tidsgrense i databasen nådd | Forsvinner vanligvis av seg selv. Sjekk Neon-konsollen hvis det varer. |
 | «Det står allerede svært mange i kø fra dette nettverket» | Over 100 ventende fra samme nett | Skjer ved flom fra en delt QR. Fjern falske lapper og bytt nøkkel. |
 | Operatørsiden viser «Mistet kontakten» eller gammelt klokkeslett ved «Oppdatert» | Nettet på enheten | Sjekk Wi-Fi/mobilnett. Siden henter seg inn igjen selv, eller trykk «Oppdater». |
+| Ingen lydsignal | Lydsiden ikke startet, satt på pause eller lagt i dvale | Se feilsøking i `docs/LYD-OPPSETT.md`. |
 | Operatør kastes ut til PIN-skjermen | PIN er byttet, eller økta er utløpt (24 t uten bruk) | Logg inn igjen. Køen er uendret. |
 | `/api/health` gir `db: "error"` | Neon utilgjengelig eller kvote brukt opp | Neon-konsollen → Monitoring. Vercel → Storage. |
 | Prosjektet er pauset | Hobby-kvote brukt opp | Oppgrader til Pro, eller vent 30 dager. Se `AGENTS.md` §7. |

@@ -14,6 +14,7 @@ test.beforeEach(async () => {
   await sql`DELETE FROM rate_limits`;
   await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true`;
   await sql`UPDATE settings SET pin_hash = ${await hashPin(PIN)}, pin_version = pin_version + 1`;
+  await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL WHERE id = 1`;
   for (const r of await sql<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`) keys[r.id] = r.join_key;
 });
 
