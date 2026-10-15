@@ -19,6 +19,7 @@ const STATUS: Partial<Record<ErrorCode, number>> = {
   unauthorized: 401,
   forbidden_origin: 403,
   display_link_expired: 403,
+  push_disabled: 409,
   not_found: 404,
   locked: 429,
   rate_limited: 429,

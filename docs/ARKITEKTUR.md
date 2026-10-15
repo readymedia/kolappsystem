@@ -28,16 +28,17 @@ flowchart LR
 
 ## 2. Datamodell
 
-Definert i `db/migrations/` (001–005).
+Definert i `db/migrations/` (001–006).
 
 | Tabell | Viktige felt | Regler |
 | --- | --- | --- |
 | `stations` | `id` (A/B/C), `description`, `active`, `closed_message`, `join_key`, `next_number`, `generation` | `join_key` er hemmelig. `generation` økes ved nullstilling. `closed_message` er offentlig, men vises bare mens stasjonen er stengt. |
 | `tickets` | `id` (uuid), `station`, `number`, `generation`, `status`, `created_at`, `called_at`, `finished_at`, `request_id`, `ip_hash` | Unik på (`station`, `generation`, `number`) og på (`station`, `generation`, `request_id`). Maks én `called` per stasjon (delvis unik indeks). `ip_hash` er en HMAC av nettverket, aldri selve IP-adressen. |
 | `queue_actions` | `station`, `kind` (next/skip), `finished_ticket`, `called_ticket`, `undone` | Logg som gjør «Angre siste» mulig i flere steg. |
-| `settings` | `pin_hash`, `pin_version`, `session_secret` | Én rad (`id = 1`). |
+| `settings` | `pin_hash`, `pin_version`, `session_secret`, `vapid_public`, `vapid_private` | Én rad (`id = 1`). `vapid_private` er hemmelig. |
 | `rate_limits` | `key`, `count`, `window_start` | Forsøksgrenser for PIN og nye lapper. |
-| `site_config` | `display_title`, `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id`, `event_name`, `logo_media_id`, `primary_color` (`#rrggbb`), `display_background` (dark/light), `font_display`, `font_body` | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
+| `site_config` | `display_title`, `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id`, `event_name`, `logo_media_id`, `primary_color` (`#rrggbb`), `display_background` (dark/light), `font_display`, `font_body`, `push_enabled` (standard av) | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
+| `push_subscriptions` | `ticket_id` → `tickets` (slettes med lappen), `endpoint`, `p256dh`, `auth`, `last_kind` (next/called/skipped) | Ett abonnement per lapp og nettleser. `last_kind` hindrer dobbel utsending. |
 | `media` | `kind` (audio/logo), `mime`, `bytes`, `size`, `sha256` | Opplastede filer. Filtype sjekket på innhold. Serveres som `/api/media/<sha256>`. Filer ingen peker på (verken som lyd eller logo) slettes. |
 | `schema_migrations` | `version` | Hvilke migreringer som er kjørt. |
 
@@ -58,6 +59,8 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 | `GET /api/state` | Åpen, CDN 1 s | Alle stasjoner: `description`, `active`, `closedMessage` (tom når åpen), `generation`, `nextNumber`, `current`, `waiting[]`, `skipped[]` |
 | `POST /api/join` `{station, key, existingTicketId?, requestId?}` | Åpen, nøkkel + forsøksgrenser (300/min per nettverk, 20 feil nøkler/min, maks 100 ventende per nettverk per stasjon) | `{ticketId, reused}` eller feilkode. Samme `requestId` gir samme lapp. |
 | `GET /api/tickets/:id` | Åpen (ukjent UUID) | `{station, number, generation, status, ahead, description}` |
+| `POST`/`DELETE /api/tickets/:id/push` `{endpoint, keys}` / `{endpoint}` | Åpen med lapp-id, Origin-sjekk, 120/min per nettverk | Slår push-varsel på/av for lappen. Bare kjente push-tjenester godtas. 409 `push_disabled` når push er av. |
+| `GET /ticket/:id/manifest.webmanifest` | Åpen | Manifest med `start_url` = lappen (Hjem-skjerm på iPhone) |
 | `POST /api/auth/login` `{pin}` | Åpen, 5 forsøk per 15 min per IP og 100 feil totalt per 15 min | Setter cookie `kolapp_session` |
 | `POST /api/auth/logout` | Åpen (Origin-sjekk) | Sletter cookie |
 | `GET /api/operator/:station` | Økt | `{current, next[5], waitingCount, skipped[], canUndo, lastActionId, active, closedMessage}` |
@@ -66,11 +69,11 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 | `POST /api/admin/stations/:station/reset\|activate\|deactivate\|closed-message\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `deactivate` tar valgfri `{message}` og `closed-message` tar `{message}` (maks 80 tegn). `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
 | `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN (6–12 sifre), alle andre logges ut |
 | `GET /api/health` | Åpen | `{ok, version, commit, db, migration}`, 503 hvis databasen ikke svarer |
-| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}}` – offentlige innstillinger, aldri hemmeligheter |
+| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}, push: {enabled, publicKey}}` – offentlige innstillinger, aldri hemmeligheter |
 | `GET /api/display/qr?station=A,C&t=<token>` | Åpen med signert token, aldri mellomlagret | `{qr: {A: "<svg>", C: "<svg>"}}`. Feil eller utdatert token: 403 `display_link_expired`. |
 | `GET /api/admin/display-token?station=A,C` | Økt | `{token}` for skjermlenke med QR |
 | `GET /api/media/<sha256>` | Åpen, CDN for alltid | Filen, `immutable` mellomlagring (også `CDN-Cache-Control`, så Vercel-CDN-et deler den) og `sandbox`-CSP |
-| `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`, `displayTitle` maks 80 tegn) |
+| `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`, `displayTitle` maks 80 tegn, `pushEnabled`). GET har også `pushSubscribers`. |
 | `PUT`/`DELETE /api/admin/branding` | Økt | Lagre utseende (`eventName` maks 60, `primaryColor` hex, `displayBackground`, `fontDisplay`, `fontBody` fra fontlisten) / tilbakestill til standard (fjerner også logo). Svarer med innstillingene. |
 | `POST`/`DELETE /api/admin/logo` | Økt | Last opp (multipart `file`, PNG/JPEG/WebP/SVG, maks 512 kB, sjekket på innhold, SVG-vern) / fjern logo |
 | `POST`/`DELETE /api/admin/audio` | Økt | Last opp (multipart `file`, maks 2 MB, sjekket på innhold) / fjern egen lyd |
@@ -114,6 +117,15 @@ Feil i databasen: død tilkobling ved lesing prøves én gang til. Lås- eller t
 - Arrangementsnavnet og storskjermens overskrift (`display_title`, v1.3) er to felt. Ved endring av navnet foreslår admin å oppdatere overskriften til «<navn> · Køstatus» hvis den ikke er egendefinert.
 - Fonter ligger i appen (`@fontsource`). Alle `@font-face` lastes som CSS, men nettleseren laster bare ned filene til fontene som brukes.
 
+## 5e. Push-varsel
+
+- Standard Web Push (VAPID) via `web-push`. Ingen ekstern varslingstjeneste: meldingene går til nettleserens egen push-tjeneste (Google, Mozilla, Apple, Microsoft), kryptert (RFC 8291).
+- Service worker `public/sw.js` viser varselet (`renotify`, «din tur» blir stående) og åpner kølappen ved trykk. Ingen side-mellomlagring.
+- Kølappen henter `/api/config` én gang. `push.enabled` = bryteren i admin og at nøkler finnes. `PushPrompt` (`src/app/ticket/[id]/PushPrompt.tsx`) viser knapp, iPhone-veiviser eller ingenting etter `detectPushSupport()` (`src/lib/push-support.ts`).
+- iPhone: push virker bare fra Hjem-skjerm. Hver lapp har eget manifest (`/ticket/<id>/manifest.webmanifest`, `start_url` = lappen), så Hjem-skjerm-appen åpner riktig lapp selv om den har egen lagring.
+- **Utsending:** operatørhandlinger (og «Fjern ventende lapper») kaller `notifyStation(stasjon)` i `after()` – etter at svaret er sendt. Den rydder gamle abonnementer, regner ut hvem som skal ha hva (`planNotifications()`), reserverer hvert varsel med en betinget `UPDATE … last_kind` (aldri dobbelt, heller ikke ved samtidige kjøringer) og sender. 404/410 sletter abonnementet; midlertidig feil prøves én gang til og frigir ellers reservasjonen, så neste handling prøver igjen.
+- Bekreftelsesvarsel sendes rett etter at gjesten slår på, så hun ser at det virker.
+
 ## 6. Budsjett for Vercel Hobby
 
 Grensene per måned: 1 000 000 CDN-forespørsler, 1 000 000 funksjonskall og 4 timer Active CPU. Over grensen pauses prosjektet i 30 dager.
@@ -129,6 +141,7 @@ Anslag for én konferansedag (8 timer), 300 brukere som i snitt har lappen åpen
 | Operatører | 3 × 8 t × 1 200 per time | 29 000 | 29 000 |
 | Lydsider (2 stk) | 2 × 8 t × (1 200 status + 240 konfig) per time | 23 000 | – (deles via CDN) |
 | Sideinnlastinger og filer | 300 × ca. 30 | 9 000 | 1 000 (inkl. fornying av statiske sider, maks ca. 12 per side per time) |
+| Push (når på) | 300 × (1 på + ca. 3 varsler) | – | ca. 300 (+ ca. 900 utgående kall, ingen egne funksjonskall) |
 | **Sum** | | **ca. 197 000** | **ca. 60 000** |
 
 Det gir god margin, også for flere dager i samme måned. Neon Free (100 CU-timer) brukes med ca. 3 CU-timer per dag.

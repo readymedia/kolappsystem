@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { parseStationId } from "@/lib/config";
 import { fail, handle, ok, readJson } from "@/lib/http";
 import {
@@ -8,6 +9,7 @@ import {
   setStationActive,
   setStationDescription,
 } from "@/lib/queue";
+import { notifyStation } from "@/lib/push";
 
 // Admin-handlinger per stasjon: reset | activate | deactivate {message?} | closed-message | rotate-key | description | remove-waiting
 
@@ -53,7 +55,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to - from > 10_000) {
           return fail("bad_request");
         }
-        return ok({ ok: true, removed: await removeWaitingRange(station, from, to) });
+        const removed = await removeWaitingRange(station, from, to);
+        after(() => notifyStation(station)); // noen kan ha blitt nest i køen
+        return ok({ ok: true, removed });
       }
       default:
         return fail("bad_request");

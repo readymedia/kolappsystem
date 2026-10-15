@@ -2,6 +2,25 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.5.0] – 2026-10-15
+
+Push-varsel på kølappen. **Av som standard** – er det av, ser gjestene ingenting om det. Se `docs/PUSH.md`.
+
+### Lagt til
+- Bryteren «Push-varsler» i `/admin`, med antall gjester som har varsel på.
+- «Varsle meg når det er min tur» på kølappen (Android, PC/Mac). Varsler: bekreftelse straks, «Du er nest i køen», «Det er din tur!» (blir stående, vibrerer) og «Du ble hoppet over». Trykk åpner kølappen. Kan slås av på lappen.
+- iPhone/iPad (iOS 16.4+): veiviser for «Legg til på Hjem-skjerm», eget manifest per kølapp så Hjem-skjerm-appen åpner riktig lapp, og ikon for Hjem-skjerm.
+- Service worker `/sw.js`. VAPID-nøkler lages automatisk ved migrering.
+- `POST`/`DELETE /api/tickets/:id/push`, `GET /ticket/:id/manifest.webmanifest`, `push` i `/api/config`.
+- Tester: endpoint-vern, varselregler og plattformgjenkjenning (enhet), utsending med ekte kryptering mot lokal push-mottaker, dobbel utsending, 410, midlertidig feil (integrasjon), og 6 E2E-scenarier inkl. service worker som viser varsel og iPhone-veiviser.
+- `docs/PUSH.md` med manuell testliste for iPhone og Android.
+
+### Sikkerhet
+- Push sendes bare til kjente push-tjenester over https (SSRF-vern). Innholdet er kryptert til gjestens nettleser.
+
+### Database
+- Migrering `006_push.sql`: `site_config.push_enabled`, `settings.vapid_public/vapid_private` og tabellen `push_subscriptions`. Bare tillegg.
+
 ## [1.4.1] – 2026-10-15
 
 Rettelser etter uavhengig gjennomgang av v1.2–v1.4.

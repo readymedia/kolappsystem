@@ -32,6 +32,7 @@ export const ERROR_TEXT = {
   unsupported_file: "Filtypen støttes ikke.",
   unsafe_svg: "SVG-filen inneholder skript, lenker eller annet som ikke er tillatt. Lagre den på nytt som enkel SVG, eller bruk PNG.",
   forbidden_origin: "Forespørselen ble avvist.",
+  push_disabled: "Varsler er ikke slått på for dette arrangementet.",
   display_link_expired: "Skjermlenken er utdatert. Lag en ny under «Skjermer» i admin.",
   db_missing: "Databasen er ikke koblet til ennå. Se docs/VERCEL-OPPSETT.md.",
   server_error: "Noe gikk galt. Prøv igjen.",

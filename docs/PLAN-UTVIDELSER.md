@@ -1,6 +1,6 @@
 # Implementasjonsplan – utvidelser (v1.2–v1.6 og 2.0)
 
-**Status:** **Godkjent 2026-10-15** for v1.2, v1.3 og v1.4. v1.5 (push), v1.6 (stasjoner) og 2.0 ligger på roadmap til neste runde, og krever ny godkjenning før start.
+**Status:** **Godkjent 2026-10-15** for v1.2, v1.3 og v1.4 (levert). v1.5 (push, av som standard og usynlig når av) og v1.6 (stasjoner) godkjent 15.10. 2.0 ligger på roadmap og krever ny godkjenning før start.
 **Sist oppdatert:** 2026-10-15
 **Bestiller:** Andreas Aarlott
 **Kilder:** tilbakemelding 14.10 og 15.10 (Teams-notat «Need-to-have / Nice-to-have / Roadmap»)
@@ -20,8 +20,8 @@
 | 1.2 | Lydsignal | **Levert i v1.2.0** |
 | 1.3 | Skjermer | **Levert i v1.3.0** |
 | 1.4 | Utseende og logo | **Levert i v1.4.0** |
-| 1.5 | Push-varsel | Roadmap – Now (neste runde) |
-| 1.6 | Fritt antall stasjoner | Roadmap – Next |
+| 1.5 | Push-varsel | **Levert i v1.5.0** (godkjent 15.10, av som standard) |
+| 1.6 | Fritt antall stasjoner | Godkjent 15.10 – denne runden |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
 
 ## 1. Rammer – gjelder alle versjoner
@@ -309,7 +309,8 @@ Teksten «Meet & Greet · Køstatus» blir en innstilling i admin («Overskrift 
 | Utsending | I samme API-kall som NESTE/Hopp over/Angre, men etter at svaret er sendt (`after()` i Next.js). Operatøren merker ingen forsinkelse. |
 | Klikk på varsel | Åpner kølappen |
 | iPhone | Kølappen får eget manifest (`/ticket/<id>/manifest.webmanifest`) med `start_url` = kølappen. «Legg til på Hjem-skjerm» åpner da riktig lapp, selv om Hjem-skjerm-appen har egen lagring. |
-| Av/på | Admin-bryter «Push-varsler». Er den av, skjules knappen og ingenting sendes. |
+| Av/på | Admin-bryter «Push-varsler», **av som standard** (bestiller 15.10). Er den av, skjules knappen og veiviseren, og ingenting sendes. |
+| Bekreftelse | *(Levert i tillegg)* «Varsel er på – A12» sendes straks gjesten slår på, så hun ser at det virker. |
 
 ### 7.3 Data og sikkerhet
 

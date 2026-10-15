@@ -20,7 +20,7 @@ run("innstillinger og mediefiler", () => {
   });
 
   beforeEach(async () => {
-    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT WHERE id = 1`;
+    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT, push_enabled = false WHERE id = 1`;
     await sql`DELETE FROM media`;
   });
 
@@ -35,6 +35,7 @@ run("innstillinger og mediefiler", () => {
       audio: { mode: "default", volume: 80, url: null },
       display: { title: "Meet & Greet · Køstatus" },
       brand: DEFAULT_BRANDING,
+      push: { enabled: false, publicKey: null },
     });
   });
 

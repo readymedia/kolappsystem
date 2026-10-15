@@ -1,6 +1,7 @@
 "use client";
 
 import { Logo, useBranding } from "@/components/BrandingContext";
+import { PushPrompt } from "./PushPrompt";
 import { CheckCircle2, Clock, Hourglass, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePolling, useWakeLock } from "@/components/hooks";
@@ -30,6 +31,13 @@ export function TicketClient({ id }: { id: string }) {
   const [description, setDescription] = useState("");
   // Stasjonen er stengt mens gjesten venter: plassen beholdes, men vi sier ifra.
   const [closed, setClosed] = useState<{ message: string } | null>(null);
+  // Push-varsel (v1.5): bare når admin har slått det på. Hentes én gang (CDN-mellomlagret).
+  const [push, setPush] = useState<{ enabled: boolean; publicKey: string | null } | null>(null);
+  useEffect(() => {
+    void api<{ push?: { enabled: boolean; publicKey: string | null } }>("/api/config", { cache: "default" }).then((r) => {
+      if (r.ok && r.data.push) setPush(r.data.push);
+    });
+  }, []);
   const previous = useRef<string>("");
   const [vibrationOn, setVibrationOn] = useState(false);
   const [failures, setFailures] = useState(0);
@@ -164,6 +172,7 @@ export function TicketClient({ id }: { id: string }) {
             <p className="font-medium text-slate-800">{waitText(view.ahead)}</p>
           </div>
         </div>
+        {push?.enabled && push.publicKey && <PushPrompt ticketId={ticket.id} publicKey={push.publicKey} />}
         <VibrationHint on={vibrationOn} onEnable={() => setVibrationOn(true)} />
         {description && (
           <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6">

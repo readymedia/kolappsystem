@@ -61,6 +61,7 @@ npm run dev                       # http://localhost:3000
 | [`docs/UI-SPEC.md`](docs/UI-SPEC.md) | Alle tekster, farger og tilstander per side |
 | [`docs/KJOREPLAN.md`](docs/KJOREPLAN.md) | Sjekkliste før, under og etter arrangementet |
 | [`docs/ADMIN-GUIDE.md`](docs/ADMIN-GUIDE.md) | Admin steg for steg: stasjoner, stenging med melding, skjermer, utseende og logo, lydsignal |
+| [`docs/PUSH.md`](docs/PUSH.md) | Push-varsel: slå av/på, hva gjesten ser, manuell test på iPhone og Android |
 | [`docs/LYD-OPPSETT.md`](docs/LYD-OPPSETT.md) | Oppsett og feilsøking av lydsignal (PC med musikk, iPad, storskjerm) |
 | [`docs/DRIFT.md`](docs/DRIFT.md) | Overvåking, brannmur, grenser og feilsøking i drift |
 | [`docs/PRODKLARHET.md`](docs/PRODKLARHET.md) | Vurdering av prodklarhet og gjenstående risiko |

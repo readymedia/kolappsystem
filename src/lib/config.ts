@@ -45,6 +45,8 @@ export const REQUEST_TIMEOUT_MS = 8000;
 export const RATE_LIMITS = {
   /** Nye kølapper per IP. Raust fordi mange gjester deler én IP på konferanse-Wi-Fi; nøkkelen stopper misbruk. */
   join: { limit: 300, windowSeconds: 60 },
+  /** Slå varsel av/på per IP (v1.5). */
+  push: { limit: 120, windowSeconds: 60 },
   /** Skann med feil nøkkel per IP (gamle eller falske QR-koder). */
   joinInvalid: { limit: 20, windowSeconds: 60 },
   /** PIN-forsøk per IP. */

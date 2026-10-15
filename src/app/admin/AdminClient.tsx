@@ -8,6 +8,7 @@ import { usePolling } from "@/components/hooks";
 import { useBranding } from "@/components/BrandingContext";
 import { AudioCard } from "./AudioCard";
 import { DisplayCard } from "./DisplayCard";
+import { PushCard } from "./PushCard";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Card, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
@@ -114,6 +115,8 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
         <DisplayCard stations={stations} onUnauthorized={onUnauthorized} />
 
         <AudioCard onUnauthorized={onUnauthorized} />
+
+        <PushCard onUnauthorized={onUnauthorized} />
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 print:hidden">
           <PinCard onUnauthorized={onUnauthorized} />

@@ -1,8 +1,10 @@
+import { after } from "next/server";
 import { parseStationId } from "@/lib/config";
 import { fail, handle, ok, readJson } from "@/lib/http";
+import { notifyStation } from "@/lib/push";
 import { advance, getOperatorView, requeueSkipped, undoLast } from "@/lib/queue";
 
-// Operatørhandlinger: next | skip | undo | requeue. Svarer med ny tilstand for stasjonen.
+// Operatørhandlinger: next | skip | undo | requeue. Svarer med ny tilstand for stasjonen, og sender deretter push-varsel.
 
 export async function POST(req: Request, { params }: { params: Promise<{ station: string; action: string }> }) {
   return handle(req, { mutation: true, requireSession: true }, async () => {
@@ -36,6 +38,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
       default:
         return fail("bad_request");
     }
+    // Push-varsel sendes etter at operatøren har fått svar (v1.5). Gjør ingenting når push er av.
+    after(() => notifyStation(station));
     return ok(await getOperatorView(station));
   });
 }

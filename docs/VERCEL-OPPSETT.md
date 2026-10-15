@@ -79,6 +79,7 @@ Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig
 | `SESSION_SECRET` | Settings → Environment Variables | Ikke nødvendig – appen lager en selv og lagrer den i databasen. Sett en (minst 32 tilfeldige tegn) hvis du vil styre den selv. |
 | `INITIAL_PIN` | Settings → Environment Variables | Bare nyttig **før** steg 3 hvis du ikke vil starte med 1234. |
 | `PUBLIC_BASE_URL` | Settings → Environment Variables | Adressen QR-kodene skal peke på, f.eks. `https://ko.readymedia.no`. Uten den brukes prosjektets produksjonsdomene automatisk. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Settings → Environment Variables | Ikke nødvendig – nøkler for push-varsel lages automatisk i databasen. `VAPID_SUBJECT` (f.eks. `mailto:drift@firma.no`) kan settes; ellers brukes produksjonsadressen. |
 
 ## Hvis noe går galt
 

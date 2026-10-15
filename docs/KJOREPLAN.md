@@ -13,6 +13,7 @@
 - [ ] Test én QR-kode med mobil, og nullstill den køen etterpå.
 - [ ] Sjekk at PC-en for storskjermen har nett og kan åpne `/display`.
 - [ ] Skjermer: sett overskrift og lag skjermlenker under «Skjermer» i admin (gjerne «Én skjerm per stasjon»). Lag lenkene **etter** «Bytt nøkkel» hvis QR vises på skjermen. Se `docs/ADMIN-GUIDE.md`.
+- [ ] Push-varsler (valgfritt): slå på i admin og gjør den manuelle testen i `docs/PUSH.md` på én Android og én iPhone. Virker det ikke, slå det av – kølappen virker som før.
 - [ ] Lydsignal: velg lyd og volum i admin, sett opp lydsiden etter `docs/LYD-OPPSETT.md`, og test med lydanlegget.
 
 ## Rett før dørene åpner

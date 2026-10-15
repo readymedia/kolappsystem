@@ -99,6 +99,16 @@ await check("utseende-API krever innlogging", async () => {
   assert(res.status === 401, `forventet 401, fikk ${res.status}`);
 });
 
+await check("push: service worker og offentlig konfig (ingen privatnøkkel)", async () => {
+  const sw = await get("/sw.js");
+  assert(sw.ok, `/sw.js: status ${sw.status}`);
+  assert((sw.headers.get("cache-control") || "").includes("no-store"), "sw.js skal aldri mellomlagres");
+  const text = await (await get("/api/config")).text();
+  const body = JSON.parse(text);
+  assert(typeof body?.push?.enabled === "boolean", "mangler push.enabled");
+  assert(!/vapid_private|privateKey/.test(text), "privatnøkkel i offentlig konfig");
+});
+
 await check("lydsiden svarer", async () => {
   const res = await get("/audio");
   assert(res.ok, `status ${res.status}`);

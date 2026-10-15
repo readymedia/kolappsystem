@@ -27,6 +27,7 @@ export default defineConfig({
     url: `http://localhost:${port}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
-    env: { DATABASE_URL: databaseUrl, NEXT_TELEMETRY_DISABLED: "1" },
+    // PUSH_TEST_ENDPOINT: lokal push-mottaker i tests/e2e/push.spec.ts (godtas aldri i produksjon).
+    env: { DATABASE_URL: databaseUrl, NEXT_TELEMETRY_DISABLED: "1", PUSH_TEST_ENDPOINT: "https://127.0.0.1:3299/" },
   },
 });

@@ -41,6 +41,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: commonHeaders },
+      // Service worker for push (v1.5): alltid ny versjon, aldri mellomlagret.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] },
       { source: "/:path((?!api/media/).*)", headers: [{ key: "Content-Security-Policy", value: csp }] },
       // Opplastede filer (lyd, logo): kan aldri kjøre skript eller hente noe, selv om de åpnes direkte.
       {

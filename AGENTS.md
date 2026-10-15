@@ -46,6 +46,10 @@ src/lib/
   branding.ts         Utseende: fontliste, standard, brandingVars() (ren, trygg i nettleser).
   branding-server.ts  getBranding() med Next.js datacache (tag «branding»), brandingChanged() (server-only).
   color.ts            Hex, kontrast (WCAG), tekstfarge på knapper (ren, testet).
+  push-rules.ts       Push: SSRF-sjekk av endpoint, planNotifications(), tekster (ren, testet).
+  push-support.ts     Hva nettleseren kan av push (iPhone/Hjem-skjerm) (ren, testet).
+  push.ts             Push: abonnement, notifyStation(), sendWelcome(), VAPID (server-only).
+public/sw.js          Service worker for push-varsel (ingen side-mellomlagring).
 src/components/       hooks.ts (usePolling, useWakeLock), ui.tsx, PinGate, LogoutButton, DisplayBoard (storskjermen, også forhåndsvisning i admin),
                       ScaledPreview, BrandingContext (useBranding(), Logo).
 src/app/              Sider (App Router) og API-ruter under src/app/api/. Lydsiden: src/app/audio/ (med poller.worker.ts).
@@ -71,11 +75,12 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 12. **Opplastede filer** sjekkes på innhold (`media.ts`), lagres i `media` og serveres bare via `/api/media/<sha256>` med `sandbox`-CSP (satt i `next.config.ts` – hoder derfra overstyrer rutens egne). Logo vises bare som `<img>`, aldri inline. `/api/config` skal aldri inneholde hemmeligheter.
 13. **Storskjerm-QR** krever signert token (`display-token.ts`) og svarer bare med SVG. Nøkkelen skal aldri stå i skjermlenken eller i tekst fra `/api/display/qr`.
 14. **Utseende endres bare via `/api/admin/branding` og `/api/admin/logo`**, som kaller `brandingChanged()`. Endres `site_config` direkte i databasen, vises det gamle utseendet i opptil 5 minutter. Standardverdiene skal alltid gi dagens utseende.
+15. **Push er av som standard og usynlig når av.** Utsending skjer bare i `after()` (aldri før operatøren får svar) og bare til adresser som passerer `isAllowedEndpoint()`. `vapid_private` er hemmelig som `session_secret`.
 
 ## 4. Planlagt arbeid
 
 Neste utvidelser (v1.2 lydsignal, v1.3 skjermer, v1.4 utseende/logo, v1.5 push-varsel, v1.6 fleksible stasjoner,
-2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.4 er godkjent (15.10) og levert.** 1.5, 1.6 og 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.4 er godkjent (15.10) og levert. 1.5 og 1.6 er godkjent (15.10).** 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
 alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
 
 ## 5. Vanlige oppgaver

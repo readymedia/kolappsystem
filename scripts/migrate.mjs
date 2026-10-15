@@ -11,6 +11,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
+import webpush from "web-push";
 import { hashPin, randomToken } from "../src/lib/pin-hash.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -71,6 +72,14 @@ try {
         INSERT INTO settings (id, pin_hash, session_secret)
         VALUES (1, ${await hashPin(pin)}, ${randomToken(32)})`;
       console.log("[migrate] innstillinger opprettet (PIN fra INITIAL_PIN eller standard 1234 – bytt den på /admin)");
+    }
+
+    // VAPID-nøkler for push-varsel (v1.5). Lages én gang. Kan overstyres med VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY.
+    const [vapid] = await tx`SELECT vapid_public FROM settings WHERE id = 1`;
+    if (vapid && !vapid.vapid_public) {
+      const keys = webpush.generateVAPIDKeys();
+      await tx`UPDATE settings SET vapid_public = ${keys.publicKey}, vapid_private = ${keys.privateKey} WHERE id = 1`;
+      console.log("[migrate] VAPID-nøkler for push-varsel opprettet");
     }
   });
   console.log("[migrate] databasen er oppdatert");

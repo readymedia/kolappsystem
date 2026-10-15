@@ -27,6 +27,7 @@ const metadata: Metadata = {
   description:
     "Digitalt kølappsystem for meet-and-greet med tre stasjoner. Skann QR-koden, få din kølapp og følg køen på mobilen.",
   applicationName: "KøKlar",
+  icons: { apple: "/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "KøKlar", statusBarStyle: "black" },
   robots: { index: false, follow: false },
   formatDetection: { telephone: false },

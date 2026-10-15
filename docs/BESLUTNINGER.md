@@ -85,3 +85,11 @@ Utseendet (navn, logo, hovedfarge, fonter, storskjermbakgrunn) lagres i `site_co
 og besøkende ikke gir databasekall. Lagring i admin fornyer straks. Standardverdiene i CSS er dagens verdier, så uten
 innstillinger er utseendet uendret. Fonter er en kuratert liste som ligger i appen (personvern, CSP, ingen Google Fonts).
 Logo lagres i `media` og vises bare som `<img>`. Arrangementsnavn og storskjermoverskrift er adskilt (se PLAN §6.1).
+
+## ADR-017 – Push med standard Web Push, av som standard (v1.5)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Standard Web Push (VAPID) via nettleserens egen push-tjeneste, uten ekstern varslingstjeneste (gratis, ingen nye avtaler).
+Bestiller valgte at push er **av som standard** og usynlig for publikum når av, fordi iPhone krever Hjem-skjerm og må testes
+godt før bruk. Utsending skjer i `after()`, så operatøren aldri venter. Varsler beregnes ved avstemming mot tilstanden
+(`planNotifications`) i stedet for å sende i selve køtransaksjonen, så Angre, samtidige trykk og omstart aldri gir feil
+eller doble varsler. Hver lapp har eget manifest, så iPhone-appen på Hjem-skjermen åpner riktig lapp.

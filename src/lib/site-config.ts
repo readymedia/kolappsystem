@@ -20,6 +20,7 @@ export interface SiteConfig {
   displayBackground: "dark" | "light";
   fontDisplay: FontId;
   fontBody: FontId;
+  pushEnabled: boolean;
 }
 
 /** Det publikum (lydside, storskjerm) trenger. Mellomlagres på CDN. */
@@ -27,6 +28,8 @@ export interface PublicConfig {
   audio: { mode: AudioMode; volume: number; url: string | null };
   display: { title: string };
   brand: Branding;
+  /** Push-varsel (v1.5). publicKey er VAPID-nøkkelen (offentlig). enabled=false: ingenting vises for publikum. */
+  push: { enabled: boolean; publicKey: string | null };
 }
 
 export const DEFAULT_DISPLAY_TITLE = "Meet & Greet · Køstatus";
@@ -41,6 +44,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   displayBackground: DEFAULT_BRANDING.displayBackground,
   fontDisplay: DEFAULT_BRANDING.fontDisplay,
   fontBody: DEFAULT_BRANDING.fontBody,
+  pushEnabled: false,
 };
 
 interface ConfigRow {
@@ -58,6 +62,7 @@ interface ConfigRow {
   display_background: "dark" | "light";
   font_display: string;
   font_body: string;
+  push_enabled: boolean;
 }
 
 export async function getSiteConfig(): Promise<SiteConfig> {
@@ -65,7 +70,7 @@ export async function getSiteConfig(): Promise<SiteConfig> {
     SELECT c.display_title, c.audio_mode, c.audio_volume,
       m.sha256 AS audio_sha256, m.mime AS audio_mime, m.size AS audio_size,
       c.event_name, l.sha256 AS logo_sha256, l.mime AS logo_mime, l.size AS logo_size,
-      c.primary_color, c.display_background, c.font_display, c.font_body
+      c.primary_color, c.display_background, c.font_display, c.font_body, c.push_enabled
     FROM site_config c
       LEFT JOIN media m ON m.id = c.audio_media_id
       LEFT JOIN media l ON l.id = c.logo_media_id
@@ -83,6 +88,7 @@ export async function getSiteConfig(): Promise<SiteConfig> {
     // Ukjent font (f.eks. fjernet fra listen senere) gir standard i stedet for feil.
     fontDisplay: isFontId(row.font_display) ? row.font_display : DEFAULT_BRANDING.fontDisplay,
     fontBody: isFontId(row.font_body) ? row.font_body : DEFAULT_BRANDING.fontBody,
+    pushEnabled: row.push_enabled,
   };
 }
 
@@ -97,13 +103,15 @@ export function toBranding(c: SiteConfig): Branding {
   };
 }
 
-export function toPublicConfig(c: SiteConfig): PublicConfig {
+export function toPublicConfig(c: SiteConfig, vapidPublicKey: string | null = null): PublicConfig {
   // «Egen lyd» uten fil faller tilbake til standardlyden.
   const mode: AudioMode = c.audioMode === "custom" && !c.audioFile ? "default" : c.audioMode;
   return {
     audio: { mode, volume: c.audioVolume, url: mode === "custom" && c.audioFile ? `/api/media/${c.audioFile.sha256}` : null },
     display: { title: c.displayTitle },
     brand: toBranding(c),
+    // Uten nøkkel kan ingen abonnere – da er push av for publikum uansett bryteren.
+    push: { enabled: c.pushEnabled && Boolean(vapidPublicKey), publicKey: c.pushEnabled ? vapidPublicKey : null },
   };
 }
 
@@ -111,6 +119,10 @@ export async function updateAudioSettings(input: { mode?: AudioMode; volume?: nu
   const sql = getSql();
   if (input.mode !== undefined) await sql`UPDATE site_config SET audio_mode = ${input.mode}, updated_at = now() WHERE id = 1`;
   if (input.volume !== undefined) await sql`UPDATE site_config SET audio_volume = ${input.volume}, updated_at = now() WHERE id = 1`;
+}
+
+export async function setPushEnabled(enabled: boolean): Promise<void> {
+  await getSql()`UPDATE site_config SET push_enabled = ${enabled}, updated_at = now() WHERE id = 1`;
 }
 
 export async function updateDisplayTitle(title: string): Promise<void> {

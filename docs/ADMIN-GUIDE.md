@@ -83,6 +83,12 @@ Kryss av **Lydsignal**. Etter at lenken er åpnet må noen klikke «Klikk for å
 
 Kortet **Lydsignal**: velg standardlyd, egen lyd (last opp MP3/WAV, maks 2 MB og 15 sekunder) eller av, og still volumet. Lyden spilles på lydsiden `/audio` og på storskjermer med lydsignal. Fullt oppsett: `docs/LYD-OPPSETT.md`.
 
+## Push-varsler
+
+Kortet **Push-varsler** har én bryter (standard **Av**). Er den på, kan gjestene trykke «Varsle meg» på kølappen og få varsel når de er nest og når det er deres tur – også med låst skjerm. På iPhone må gjesten først legge kølappen til på Hjem-skjermen; kølappen viser en veiviser.
+
+Slå det på bare etter at dere har testet på en Android og en iPhone (sjekkliste i `docs/PUSH.md`). Er det av, ser gjestene ingenting om varsler.
+
 ## PIN-kode
 
 Felles for operatører og admin. Ny PIN må ha 6–12 sifre, og alle andre enheter logges ut. Glemt PIN: se `docs/SIKKERHET.md`.
