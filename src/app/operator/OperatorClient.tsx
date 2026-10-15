@@ -129,6 +129,11 @@ export function OperatorClient({ station, stations }: { station: StationId; stat
           </span>
         </div>
 
+        {Boolean(view?.leftCount) && (
+          <p className="mt-2 text-right text-xs text-slate-500" data-testid="left-count">
+            {view!.leftCount === 1 ? "1 har gitt fra seg plassen" : `${view!.leftCount} har gitt fra seg plassen`}
+          </p>
+        )}
         <div className="mt-2 flex items-center justify-end gap-2 text-xs text-slate-400">
           <span aria-live="polite">
             {updatedAt
@@ -158,6 +163,13 @@ export function OperatorClient({ station, stations }: { station: StationId; stat
           <p className="mt-3 font-display text-6xl text-slate-900" aria-live="polite">
             {view?.current ? `${station}${view.current.number}` : "–"}
           </p>
+          {view?.calledLeft && (
+            <p role="status" className="mt-3 rounded-2xl bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900" data-testid="called-left">
+              {station}
+              {view.calledLeft.number} ga fra seg plassen.{" "}
+              {view.waitingCount > 0 ? "Trykk NESTE for å kalle neste." : "Ingen venter."}
+            </p>
+          )}
           <p className={`mt-3 text-sm ${view?.active === false ? "font-medium text-red-600" : "text-slate-500"}`}>
             {view?.active === false
               ? `Stasjonen er satt til stengt${view.closedMessage ? ` – «${view.closedMessage}»` : ""}`

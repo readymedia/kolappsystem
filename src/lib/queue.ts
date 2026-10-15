@@ -2,6 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { MAX_WAITING_PER_NETWORK, OPERATOR_NEXT_COUNT, type StationId } from "./config";
 import { MAX_ACTIVE_STATIONS, nextFreeColor, nextFreeStationId, StationNotFoundError } from "./stations";
+import { MEASURE_CALLS, measuredMinutes, type WaitMode } from "./wait";
 import { getSql, type Tx } from "./db";
 import { randomToken } from "./pin-hash.mjs";
 import type { PublicState, PublicStation, PublicTicket, TicketStatus } from "./public-state";
@@ -123,8 +124,8 @@ export async function joinQueue(input: {
 export async function getTicket(id: string): Promise<PublicTicket | null> {
   if (!isUuid(id)) return null;
   const sql = getSql();
-  const [row] = await sql<(TicketRow & { description: string; station_generation: number; name: string; color: string })[]>`
-    SELECT t.id, t.station, t.number, t.generation, t.status, s.description, s.name, s.color,
+  const [row] = await sql<(TicketRow & { description: string; station_generation: number; name: string; color: string; left_at: Date | null })[]>`
+    SELECT t.id, t.station, t.number, t.generation, t.status, s.description, s.name, s.color, t.left_at,
            s.generation AS station_generation
     FROM tickets t JOIN stations s ON s.id = t.station
     WHERE t.id = ${id}`;
@@ -147,13 +148,14 @@ export async function getTicket(id: string): Promise<PublicTicket | null> {
     description: row.description,
     stationName: row.name,
     color: row.color,
+    leftAt: row.left_at ? row.left_at.toISOString() : null,
   };
 }
 
 /** Offentlig køstatus for alle stasjoner. Inneholder aldri nøkler. */
 export async function getPublicState(): Promise<PublicState> {
   // Begge spørringene i samme øyeblikksbilde, så en samtidig nullstilling aldri gir blandet svar.
-  const { stations, tickets } = await getSql().begin("isolation level repeatable read read only", async (sql) => {
+  const { stations, tickets, wait } = await getSql().begin("isolation level repeatable read read only", async (sql) => {
     const stations = await sql<(Omit<StationRow, "join_key"> & { closed_message: string; name: string; color: string })[]>`
     SELECT id, name, color, description, active, closed_message, next_number, generation
     FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
@@ -162,7 +164,20 @@ export async function getPublicState(): Promise<PublicState> {
     FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
     WHERE t.status IN ('waiting', 'called', 'skipped')
     ORDER BY t.number`;
-    return { stations, tickets };
+    // Ventetid (v1.7): fast fra admin, eller målt tempo fra de siste oppropene per stasjon.
+    const [cfg] = await sql<{ wait_mode: WaitMode; wait_minutes: string }[]>`
+      SELECT wait_mode, wait_minutes FROM site_config WHERE id = 1`;
+    const calls =
+      cfg?.wait_mode === "measured"
+        ? await sql<{ station: StationId; called_at: Date }[]>`
+          SELECT station, called_at FROM (
+            SELECT t.station, t.called_at,
+              row_number() OVER (PARTITION BY t.station ORDER BY t.called_at DESC) AS rn
+            FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
+            WHERE t.called_at IS NOT NULL AND s.archived_at IS NULL
+          ) x WHERE rn <= ${MEASURE_CALLS}`
+        : [];
+    return { stations, tickets, wait: { mode: cfg?.wait_mode ?? "fixed", minutes: Number(cfg?.wait_minutes ?? 2), calls } };
   });
 
   const result: PublicStation[] = stations.map((s) => {
@@ -177,6 +192,10 @@ export async function getPublicState(): Promise<PublicState> {
       generation: s.generation,
       nextNumber: s.next_number,
       current: mine.find((t) => t.status === "called")?.number ?? null,
+      minutesPerPerson:
+        wait.mode === "measured"
+          ? measuredMinutes(wait.calls.filter((c) => c.station === s.id).map((c) => c.called_at), wait.minutes)
+          : wait.minutes,
       waiting: mine.filter((t) => t.status === "waiting").map((t) => t.number),
       skipped: mine.filter((t) => t.status === "skipped").map((t) => t.number),
     };
@@ -198,6 +217,10 @@ export interface OperatorView {
   canUndo: boolean;
   /** Id for siste handling som kan angres. Sendes med «Angre» som vern mot dobbelt trykk. */
   lastActionId: string | null;
+  /** Antall som har gitt fra seg plassen siden siste nullstilling (v1.7). */
+  leftCount: number;
+  /** Den sist kalte ga fra seg plassen og ingen er kalt nå – operatøren bør trykke NESTE (v1.7). */
+  calledLeft: { id: string; number: number } | null;
 }
 
 export async function getOperatorView(station: StationId): Promise<OperatorView> {
@@ -221,6 +244,15 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
     ORDER BY finished_at DESC NULLS LAST LIMIT 10`;
   const [undo] = await sql<{ id: string }[]>`
     SELECT id FROM queue_actions WHERE station = ${station} AND NOT undone ORDER BY id DESC LIMIT 1`;
+  const [left] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM tickets WHERE station = ${station} AND generation = ${st.generation} AND status = 'left'`;
+  // Sist kalte lapp: er den gitt fra seg (og ingen er kalt nå), vis beskjed til operatøren.
+  const [lastCalled] = current
+    ? []
+    : await sql<{ id: string; number: number; status: TicketStatus }[]>`
+      SELECT id, number, status FROM tickets
+      WHERE station = ${station} AND generation = ${st.generation} AND called_at IS NOT NULL
+      ORDER BY called_at DESC LIMIT 1`;
   return {
     station,
     active: st.active,
@@ -230,6 +262,8 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
     next: [...next],
     waitingCount: count?.n ?? 0,
     skipped: [...skipped],
+    leftCount: left?.n ?? 0,
+    calledLeft: lastCalled?.status === "left" ? { id: lastCalled.id, number: lastCalled.number } : null,
     canUndo: Boolean(undo),
     lastActionId: undo ? String(undo.id) : null,
   };
@@ -250,7 +284,13 @@ export async function advance(
     if (expectedCurrentId !== undefined) {
       const [now] = await tx<{ id: string }[]>`
         SELECT id FROM tickets WHERE station = ${station} AND generation = ${st.generation} AND status = 'called'`;
-      if ((now?.id ?? null) !== expectedCurrentId) return;
+      if ((now?.id ?? null) !== expectedCurrentId) {
+        // Har den kalte gitt fra seg plassen (v1.7), viser operatøren fortsatt lappen. Da skal NESTE kalle neste.
+        const [gone] = expectedCurrentId && !now
+          ? await tx`SELECT 1 FROM tickets WHERE id = ${expectedCurrentId} AND status = 'left'`
+          : [];
+        if (!gone) return;
+      }
     }
     const [current] = await tx<{ id: string }[]>`
       UPDATE tickets SET status = ${finishAs}::ticket_status, finished_at = now()
@@ -328,15 +368,19 @@ export interface AdminStation {
   closedMessage: string;
   joinKey: string;
   waitingCount: number;
+  /** Har gitt fra seg plassen siden siste nullstilling (v1.7). */
+  leftCount: number;
   issued: number;
 }
 
 export async function getAdminStations(): Promise<AdminStation[]> {
   const sql = getSql();
-  const rows = await sql<(StationRow & { waiting: number; closed_message: string; name: string; color: string })[]>`
+  const rows = await sql<(StationRow & { waiting: number; left_count: number; closed_message: string; name: string; color: string })[]>`
     SELECT s.id, s.name, s.color, s.description, s.active, s.closed_message, s.join_key, s.next_number, s.generation,
       (SELECT count(*)::int FROM tickets t
-        WHERE t.station = s.id AND t.generation = s.generation AND t.status = 'waiting') AS waiting
+        WHERE t.station = s.id AND t.generation = s.generation AND t.status = 'waiting') AS waiting,
+      (SELECT count(*)::int FROM tickets t
+        WHERE t.station = s.id AND t.generation = s.generation AND t.status = 'left') AS left_count
     FROM stations s WHERE s.archived_at IS NULL ORDER BY s.sort_order, s.id`;
   return rows.map((r) => ({
     id: r.id,
@@ -347,6 +391,7 @@ export async function getAdminStations(): Promise<AdminStation[]> {
     closedMessage: r.closed_message,
     joinKey: r.join_key,
     waitingCount: r.waiting,
+    leftCount: r.left_count,
     issued: r.next_number - 1,
   }));
 }
@@ -405,6 +450,67 @@ export async function rotateStationKey(station: StationId): Promise<void> {
 
 export async function setStationDescription(station: StationId, description: string): Promise<void> {
   await getSql()`UPDATE stations SET description = ${description}, updated_at = now() WHERE id = ${station}`;
+}
+
+// ---------------------------------------------------------------- Gi fra seg plassen (v1.7)
+
+/** Hvor lenge gjesten kan angre etter å ha gitt fra seg plassen. */
+export const LEAVE_UNDO_SECONDS = 60;
+
+export type LeaveResult =
+  | { ok: true; station: StationId; number: number; wasCalled: boolean }
+  | { ok: false; error: "not_found" | "leave_disabled" };
+
+/**
+ * Gjesten gir fra seg plassen (venter, er kalt eller er hoppet over). I stasjonens lås, så det aldri krysser NESTE.
+ * Idempotent: allerede gitt fra seg → samme svar. Abonnement på push slettes.
+ */
+export async function leaveQueue(ticketId: string): Promise<LeaveResult> {
+  if (!isUuid(ticketId)) return { ok: false, error: "not_found" };
+  const sql = getSql();
+  const [pre] = await sql<{ station: string; allow: boolean }[]>`
+    SELECT t.station, c.allow_leave AS allow FROM tickets t, site_config c WHERE t.id = ${ticketId} AND c.id = 1`;
+  if (!pre) return { ok: false, error: "not_found" };
+  if (!pre.allow) return { ok: false, error: "leave_disabled" };
+  return begin(async (tx) => {
+    const st = await lockStation(tx, pre.station);
+    const [t] = await tx<{ number: number; status: TicketStatus }[]>`
+      SELECT number, status FROM tickets WHERE id = ${ticketId} AND generation = ${st.generation} FOR UPDATE`;
+    if (!t) return { ok: false, error: "not_found" } as const;
+    if (t.status === "left") return { ok: true, station: st.id, number: t.number, wasCalled: false } as const;
+    if (t.status === "done") return { ok: false, error: "not_found" } as const;
+    await tx`UPDATE tickets SET status = 'left', left_at = now() WHERE id = ${ticketId}`;
+    await tx`DELETE FROM push_subscriptions WHERE ticket_id = ${ticketId}`;
+    return { ok: true, station: st.id, number: t.number, wasCalled: t.status === "called" } as const;
+  });
+}
+
+export type RejoinResult = { ok: true; station: StationId } | { ok: false; error: "not_found" | "too_late" };
+
+/**
+ * Angre (innen LEAVE_UNDO_SECONDS): plassen tilbake, men bare hvis nummeret ikke er passert
+ * (ingen med høyere nummer er kalt eller ferdig). Lappen settes som ventende.
+ */
+export async function rejoinQueue(ticketId: string): Promise<RejoinResult> {
+  if (!isUuid(ticketId)) return { ok: false, error: "not_found" };
+  const [pre] = await getSql()<{ station: string }[]>`SELECT station FROM tickets WHERE id = ${ticketId}`;
+  if (!pre) return { ok: false, error: "not_found" };
+  return begin(async (tx) => {
+    const st = await lockStation(tx, pre.station);
+    const [t] = await tx<{ number: number; status: TicketStatus; recent: boolean }[]>`
+      SELECT number, status, left_at > now() - make_interval(secs => ${LEAVE_UNDO_SECONDS}) AS recent
+      FROM tickets WHERE id = ${ticketId} AND generation = ${st.generation} FOR UPDATE`;
+    if (!t) return { ok: false, error: "not_found" } as const;
+    if (t.status !== "left") return t.status === "done" ? ({ ok: false, error: "too_late" } as const) : ({ ok: true, station: st.id } as const);
+    if (!t.recent) return { ok: false, error: "too_late" } as const;
+    const [passed] = await tx`
+      SELECT 1 FROM tickets
+      WHERE station = ${st.id} AND generation = ${st.generation} AND number > ${t.number}
+        AND called_at IS NOT NULL LIMIT 1`;
+    if (passed) return { ok: false, error: "too_late" } as const;
+    await tx`UPDATE tickets SET status = 'waiting', left_at = NULL, called_at = NULL WHERE id = ${ticketId}`;
+    return { ok: true, station: st.id } as const;
+  });
 }
 
 // ---------------------------------------------------------------- Stasjoner (v1.6)

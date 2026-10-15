@@ -9,10 +9,22 @@ export function aheadText(ahead: number): string {
   return `${ahead} personer foran deg`;
 }
 
-/** Omtrentlig ventetid. Beholdt fra piloten: fast 2 minutter per person foran. */
-export function waitText(ahead: number): string {
-  if (ahead <= 0) return "Under 2 minutter";
-  return `Ca. ${ahead * MINUTES_PER_PERSON} minutter`;
+/** Minutter som tekst: «2 minutter», «1 minutt», «1 t 15 min». */
+function minutesText(min: number): string {
+  const m = Math.max(1, Math.round(min));
+  if (m < 60) return m === 1 ? "1 minutt" : `${m} minutter`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest ? `${h} t ${rest} min` : `${h} t`;
+}
+
+/**
+ * Omtrentlig ventetid. Standard (som piloten): 2 minutter per person foran.
+ * Fra v1.7 kan admin velge annet antall minutter eller faktisk tempo (minutesPerPerson fra /api/state).
+ */
+export function waitText(ahead: number, minutesPerPerson: number = MINUTES_PER_PERSON): string {
+  if (ahead <= 0) return `Under ${minutesText(Math.max(1, Math.ceil(minutesPerPerson)))}`;
+  return `Ca. ${minutesText(ahead * minutesPerPerson)}`;
 }
 
 /** Feilkoder fra API-et og den vennlige teksten publikum ser. */
@@ -35,6 +47,8 @@ export const ERROR_TEXT = {
   station_limit: "Maks 12 aktive stasjoner. Arkiver en stasjon først.",
   station_not_empty: "Stasjonen har gjester i kø eller til betjening. Tøm køen (eller nullstill) før du arkiverer.",
   no_free_station: "Alle bokstavene A–Z er brukt. Gjenopprett en arkivert stasjon i stedet.",
+  leave_disabled: "Det er ikke mulig å gi fra seg plassen her. Snakk med en funksjonær.",
+  too_late: "Plassen kan ikke tas tilbake lenger. Skann QR-koden igjen for å få en ny kølapp.",
   push_disabled: "Varsler er ikke slått på for dette arrangementet.",
   display_link_expired: "Skjermlenken er utdatert. Lag en ny under «Skjermer» i admin.",
   db_missing: "Databasen er ikke koblet til ennå. Se docs/VERCEL-OPPSETT.md.",

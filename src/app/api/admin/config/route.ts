@@ -1,6 +1,6 @@
 import { fail, handle, ok, readJson } from "@/lib/http";
 import { countPushSubscriptions } from "@/lib/push";
-import { getSiteConfig, setPushEnabled, updateAudioSettings, updateDisplayTitle, type AudioMode } from "@/lib/site-config";
+import { getSiteConfig, setPushEnabled, updateAudioSettings, updateDisplayTitle, updateQueueSettings, type AudioMode } from "@/lib/site-config";
 
 async function adminConfig() {
   return { ...(await getSiteConfig()), pushSubscribers: await countPushSubscriptions() };
@@ -27,6 +27,20 @@ export async function PUT(req: Request) {
     if (title !== undefined && (typeof title !== "string" || title.length > 80)) return fail("bad_request");
     await updateAudioSettings({ mode: mode as AudioMode | undefined, volume: volume as number | undefined });
     if (typeof title === "string") await updateDisplayTitle(title.trim());
+    // Kø og ventetid (v1.7).
+    if (body.allowLeave !== undefined && typeof body.allowLeave !== "boolean") return fail("bad_request");
+    if (body.waitMode !== undefined && body.waitMode !== "fixed" && body.waitMode !== "measured") return fail("bad_request");
+    const minutes = body.waitMinutes;
+    if (minutes !== undefined && !(typeof minutes === "number" && minutes >= 0.5 && minutes <= 60 && Number.isInteger(minutes * 2))) {
+      return fail("bad_request");
+    }
+    if (body.allowLeave !== undefined || body.waitMode !== undefined || minutes !== undefined) {
+      await updateQueueSettings({
+        allowLeave: body.allowLeave as boolean | undefined,
+        waitMode: body.waitMode as "fixed" | "measured" | undefined,
+        waitMinutes: minutes as number | undefined,
+      });
+    }
     if (body.pushEnabled !== undefined) {
       if (typeof body.pushEnabled !== "boolean") return fail("bad_request");
       await setPushEnabled(body.pushEnabled);

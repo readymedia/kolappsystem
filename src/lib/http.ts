@@ -21,6 +21,8 @@ const STATUS: Partial<Record<ErrorCode, number>> = {
   forbidden_origin: 403,
   display_link_expired: 403,
   push_disabled: 409,
+  leave_disabled: 409,
+  too_late: 409,
   station_limit: 409,
   station_not_empty: 409,
   no_free_station: 409,

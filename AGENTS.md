@@ -24,7 +24,7 @@ scripts/reset-pin.mjs Nødløsning ved glemt PIN (se docs/SIKKERHET.md).
 scripts/smoke.mjs     Røyktest mot vilkårlig URL, også produksjon. Endrer ingen data.
 scripts/load.mjs      Lasttest (300 telefoner + 3 operatører) – KUN mot localhost.
 src/lib/
-  config.ts           Konstanter: stasjoner, intervaller, grenser, farger per stasjon. Ingen hemmeligheter.
+  config.ts           Konstanter: intervaller og grenser. Ingen hemmeligheter. (Stasjoner: stations.ts.)
   texts.ts            Publikumstekster og feilkoder (ERROR_TEXT). Endre tekster HER.
   public-state.ts     Typer for offentlige API-svar + deriveTicket() (ren logikk, testet).
   db.ts               Postgres-tilkobling (server-only).
@@ -46,6 +46,7 @@ src/lib/
   branding.ts         Utseende: fontliste, standard, brandingVars() (ren, trygg i nettleser).
   branding-server.ts  getBranding() med Next.js datacache (tag «branding»), brandingChanged() (server-only).
   color.ts            Hex, kontrast (WCAG), tekstfarge på knapper (ren, testet).
+  wait.ts             Ventetid (v1.7): measuredMinutes() – målt tempo (ren, testet).
   stations.ts         Stasjoner (v1.6): kode, navn, palett og fargetoner, stationVars()/ST, displayColumns() (ren, testet).
   push-rules.ts       Push: SSRF-sjekk av endpoint, planNotifications(), tekster (ren, testet).
   push-support.ts     Hva nettleseren kan av push (iPhone/Hjem-skjerm) (ren, testet).
@@ -78,11 +79,12 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 14. **Utseende endres bare via `/api/admin/branding` og `/api/admin/logo`**, som kaller `brandingChanged()`. Endres `site_config` direkte i databasen, vises det gamle utseendet i opptil 5 minutter. Standardverdiene skal alltid gi dagens utseende.
 15. **Push er av som standard og usynlig når av.** Utsending skjer bare i `after()` (aldri før operatøren får svar) og bare til adresser som passerer `isAllowedEndpoint()`. `vapid_private` er hemmelig som `session_secret`.
 16. **Stasjonskoden (A–Z) endres og gjenbrukes aldri** – den står i QR-koder og på lapper. Stasjoner slettes aldri, bare arkiveres (krever tom kø). Arkiverte stasjoner tar ikke imot skann og vises ingen steder.
+17. **En lapp som er gitt fra seg (`left`) vekkes aldri av operatøren** (NESTE/Angre/Sett tilbake). Bare gjesten selv kan angre (60 s, ikke passert). Nye statusfiltre må ta stilling til `left`.
 
 ## 4. Planlagt arbeid
 
 Neste utvidelser (v1.2 lydsignal, v1.3 skjermer, v1.4 utseende/logo, v1.5 push-varsel, v1.6 fleksible stasjoner,
-2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.6 er godkjent (15.10) og levert.** 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.7 er godkjent (15.10) og levert.** 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
 alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
 
 ## 5. Vanlige oppgaver
@@ -90,9 +92,9 @@ alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesi
 | Oppgave | Hvor |
 | --- | --- |
 | Endre en tekst publikum ser | `src/lib/texts.ts` eller siden i `src/app/…` + oppdater `docs/UI-SPEC.md` |
-| Endre farger per stasjon | `STATION_THEME` i `src/lib/config.ts` |
+| Endre farger per stasjon | I admin per stasjon; paletten i `PALETTE` i `src/lib/stations.ts` |
 | Ny font i «Utseende» | Installer `@fontsource(-variable)/…`, importer i `src/app/layout.tsx`, legg til i `FONTS` i `src/lib/branding.ts` (+ test) |
-| Endre ventetid-formel | `waitText()` i `src/lib/texts.ts` (+ test i `tests/unit/logic.test.ts`) |
+| Endre ventetid-formel | `waitText()` i `src/lib/texts.ts` og `measuredMinutes()` i `src/lib/wait.ts` (+ tester i `tests/unit/leave.test.ts`). Minutter per person settes i admin («Kø og ventetid»). |
 | Ny kolonne/tabell | Ny fil `db/migrations/00N_navn.sql`, oppdater typer i `queue.ts` |
 | Ny API-rute | `src/app/api/…/route.ts`, bruk `handle()` fra `http.ts` |
 | Ny operatørhandling | Funksjon i `queue.ts` (transaksjon + `lockStation`), case i `api/operator/[station]/[action]/route.ts`, knapp i `OperatorClient.tsx`, integrasjonstest |

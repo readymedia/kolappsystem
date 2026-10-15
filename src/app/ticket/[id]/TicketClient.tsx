@@ -1,6 +1,7 @@
 "use client";
 
 import { Logo, useBranding } from "@/components/BrandingContext";
+import { LeaveLink, LeftView } from "./LeaveControls";
 import { PushPrompt } from "./PushPrompt";
 import { CheckCircle2, Clock, Hourglass, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,6 +12,9 @@ import { POLL_INTERVAL_MS } from "@/lib/config";
 import { ST, stationLabel, stationPlace, stationVars } from "@/lib/stations";
 import { deriveTicket, type DerivedTicket, type PublicState, type PublicTicket } from "@/lib/public-state";
 import { aheadText, ERROR_TEXT, waitText } from "@/lib/texts";
+
+/** Samme som LEAVE_UNDO_SECONDS på serveren (queue.ts). Serveren avgjør uansett. */
+const LEAVE_UNDO_MS = 60_000;
 
 // Kølappen på publikums mobil.
 // 1) Henter lappen én gang (/api/tickets/:id) for å få stasjon, nummer og sann status (første polling-runde).
@@ -34,30 +38,49 @@ export function TicketClient({ id }: { id: string }) {
   const [meta, setMeta] = useState<{ name: string; color: string } | null>(null);
   // Stasjonen er stengt mens gjesten venter: plassen beholdes, men vi sier ifra.
   const [closed, setClosed] = useState<{ message: string } | null>(null);
-  // Push-varsel (v1.5): bare når admin har slått det på. Hentes én gang (CDN-mellomlagret).
+  // Push-varsel (v1.5) og «Gi fra meg plassen» (v1.7) styres fra admin. Hentes én gang (CDN-mellomlagret).
   const [push, setPush] = useState<{ enabled: boolean; publicKey: string | null } | null>(null);
+  const [allowLeave, setAllowLeave] = useState(false);
   useEffect(() => {
-    void api<{ push?: { enabled: boolean; publicKey: string | null } }>("/api/config", { cache: "default" }).then((r) => {
-      if (r.ok && r.data.push) setPush(r.data.push);
+    void api<{ push?: { enabled: boolean; publicKey: string | null }; queue?: { allowLeave: boolean } }>("/api/config", {
+      cache: "default",
+    }).then((r) => {
+      if (!r.ok) return;
+      if (r.data.push) setPush(r.data.push);
+      setAllowLeave(r.data.queue?.allowLeave ?? false);
     });
   }, []);
+  // Minutter per person for ventetiden (v1.7): fra køstatusen (fast eller målt tempo).
+  const [minutes, setMinutes] = useState<number | undefined>(undefined);
+  // Gitt fra seg plassen: angre er mulig til dette tidspunktet (ms).
+  const [undoUntil, setUndoUntil] = useState<number | null>(null);
   const previous = useRef<string>("");
   const [vibrationOn, setVibrationOn] = useState(false);
   const [failures, setFailures] = useState(0);
   const lastGeneratedAt = useRef("");
 
   const refresh = useCallback(async () => {
-    if (!ticket) {
+    let t = ticket;
+    if (!t) {
       // Første runde (og ny runde ved nettfeil): hent selve lappen.
       const res = await api<PublicTicket>(`/api/tickets/${encodeURIComponent(id)}`);
-      if (res.ok) {
-        setTicket(res.data);
-        setDescription(res.data.description);
-        setMeta({ name: res.data.stationName ?? "", color: res.data.color ?? "slate" });
-        setView(fromTicket(res.data));
-      } else if (res.error === "not_found") setView({ kind: "not_found" });
-      return;
+      if (!res.ok) {
+        if (res.error === "not_found") setView({ kind: "not_found" });
+        return;
+      }
+      t = res.data;
+      setTicket(t);
+      setDescription(t.description);
+      setMeta({ name: t.stationName ?? "", color: t.color ?? "slate" });
+      setView(fromTicket(t));
+      if (t.status === "left") {
+        const until = t.leftAt ? Date.parse(t.leftAt) + LEAVE_UNDO_MS : 0;
+        setUndoUntil(until > Date.now() ? until : null);
+        return;
+      }
+      // Fortsett med køstatusen i samme runde, så ventetid og farge stemmer med en gang.
     }
+    if (t.status === "left") return;
     const res = await api<PublicState>("/api/state", { cache: "default" });
     if (!res.ok) {
       setFailures((f) => f + 1); // Behold forrige visning, men vis varsel etter noen feil på rad.
@@ -67,17 +90,36 @@ export function TicketClient({ id }: { id: string }) {
     // Ignorer svar som er eldre enn det vi allerede har vist (kan komme i feil rekkefølge fra CDN).
     if (res.data.generatedAt < lastGeneratedAt.current) return;
     lastGeneratedAt.current = res.data.generatedAt;
-    const station = res.data.stations.find((s) => s.id === ticket.station);
+    const station = res.data.stations.find((s) => s.id === t.station);
     if (station) {
       setDescription(station.description);
       setMeta({ name: station.name ?? "", color: station.color ?? "slate" });
       setClosed(station.active ? null : { message: station.closedMessage });
+      setMinutes(station.minutesPerPerson);
     }
-    setView(deriveTicket(ticket, station));
+    setView(deriveTicket(t, station));
   }, [ticket, id]);
 
+  /** Gjesten ga fra seg plassen: vis «gitt fra seg» lokalt (polling stopper). */
+  const onLeft = useCallback(() => {
+    setTicket((t) => (t ? { ...t, status: "left", leftAt: new Date().toISOString() } : t));
+    setUndoUntil(Date.now() + LEAVE_UNDO_MS);
+    setView({ kind: "left" });
+  }, []);
+  /** Angret: hent lappen på nytt fra serveren. */
+  const onRejoined = useCallback(() => {
+    setUndoUntil(null);
+    lastGeneratedAt.current = "";
+    setTicket(null);
+    setView({ kind: "loading" });
+  }, []);
+
   // «Ferdig» følges sjeldnere (en operatør kan angre), «ikke funnet» er endelig.
-  usePolling(refresh, view.kind === "done" ? DONE_POLL_INTERVAL_MS : POLL_INTERVAL_MS, view.kind !== "not_found");
+  usePolling(
+    refresh,
+    view.kind === "done" ? DONE_POLL_INTERVAL_MS : POLL_INTERVAL_MS,
+    view.kind !== "not_found" && view.kind !== "left",
+  );
   useWakeLock(view.kind === "waiting" || view.kind === "called");
 
   // Vibrer og vis i fanetittelen når det blir din tur.
@@ -110,6 +152,10 @@ export function TicketClient({ id }: { id: string }) {
   const st = { id: ticket.station, name: meta?.name ?? "" };
   const vars = stationVars(meta?.color ?? "slate") as React.CSSProperties;
 
+  if (view.kind === "left") {
+    return <LeftView ticketId={ticket.id} label={label} undoUntil={undoUntil} onRejoined={onRejoined} />;
+  }
+
   if (view.kind === "called") {
     return (
       <main
@@ -120,6 +166,18 @@ export function TicketClient({ id }: { id: string }) {
         <p className="mt-8 font-display text-4xl">Det er din tur!</p>
         <p className="mt-4 text-xl font-medium">Gå til {stationPlace(st)}</p>
         {description && <p className="mt-8 max-w-sm rounded-3xl bg-white/15 px-6 py-4 text-lg">{description}</p>}
+        {allowLeave && (
+          <div className="w-full max-w-sm">
+            <LeaveLink
+              ticketId={ticket.id}
+              tone="dark"
+              label="Jeg kommer ikke – gi fra meg plassen"
+              question={`Vil du gi fra deg plassen ${label}?`}
+              detail="Funksjonæren får beskjed og kaller neste."
+              onLeft={onLeft}
+            />
+          </div>
+        )}
       </main>
     );
   }
@@ -133,6 +191,16 @@ export function TicketClient({ id }: { id: string }) {
           Vi ropte opp nummeret ditt, men så deg ikke. Snakk med en funksjonær, så setter vi deg inn igjen i køen.
         </p>
         <p className="mt-10 font-display text-7xl">{label}</p>
+        {allowLeave && (
+          <div className="w-full max-w-sm">
+            <LeaveLink
+              ticketId={ticket.id}
+              label="Jeg kommer ikke tilbake – gi fra meg plassen"
+              question={`Vil du gi fra deg plassen ${label}?`}
+              onLeft={onLeft}
+            />
+          </div>
+        )}
       </main>
     );
   }
@@ -175,7 +243,7 @@ export function TicketClient({ id }: { id: string }) {
           </div>
           <div className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-slate-400" aria-hidden />
-            <p className="font-medium text-slate-800">{waitText(view.ahead)}</p>
+            <p className="font-medium text-slate-800">{waitText(view.ahead, minutes)}</p>
           </div>
         </div>
         {push?.enabled && push.publicKey && <PushPrompt ticketId={ticket.id} publicKey={push.publicKey} />}
@@ -194,6 +262,15 @@ export function TicketClient({ id }: { id: string }) {
         <p className="mt-auto pt-10 text-center text-xs text-slate-500">
           Siden oppdaterer seg selv. Ha den åpen – vi gir beskjed her når det er din tur.
         </p>
+        {allowLeave && (
+          <LeaveLink
+            ticketId={ticket.id}
+            label="Gi fra meg plassen"
+            question={`Vil du gi fra deg plassen ${label}?`}
+            detail={`${aheadText(view.ahead)} – ${waitText(view.ahead, minutes).toLowerCase()} ventetid.`}
+            onLeft={onLeft}
+          />
+        )}
       </div>
     </main>
   );

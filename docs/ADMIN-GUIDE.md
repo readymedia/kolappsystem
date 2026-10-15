@@ -94,6 +94,14 @@ Kryss av **Lydsignal**. Etter at lenken er åpnet må noen klikke «Klikk for å
 
 Kortet **Lydsignal**: velg standardlyd, egen lyd (last opp MP3/WAV, maks 2 MB og 15 sekunder) eller av, og still volumet. Lyden spilles på lydsiden `/audio` og på storskjermer med lydsignal. Fullt oppsett: `docs/LYD-OPPSETT.md`.
 
+## Kø og ventetid (v1.7)
+
+Kortet **Kø og ventetid**:
+- **Gjester kan gi fra seg plassen** (standard **På**). Kølappen viser da «Gi fra meg plassen». Gjesten må bekrefte og kan angre i 60 sekunder. Den som er kalt kan også si fra – operatøren ser «A12 ga fra seg plassen. Trykk NESTE for å kalle neste.» Antallet vises hos operatøren og på stasjonskortene («· 4 ga fra seg plassen»), så dere ser hvor mange som faktisk venter.
+- **Ventetid på kølappen:** antall foran × minutter per person.
+  - **Fast** (standard 2 minutter, som før): skriv inn et annet tall (hele eller halve minutter) og trykk **Lagre**.
+  - **Faktisk tempo ved hver stasjon:** regnes ut fra tiden mellom de siste oppropene ved hver stasjon. Til det er minst 4 opprop (og etter en pause over 30 minutter) brukes det faste tallet. Linjen «Nå: …» viser tempoet akkurat nå.
+
 ## Push-varsler
 
 Kortet **Push-varsler** har én bryter (standard **Av**). Er den på, kan gjestene trykke «Varsle meg» på kølappen og få varsel når de er nest og når det er deres tur – også med låst skjerm. På iPhone må gjesten først legge kølappen til på Hjem-skjermen; kølappen viser en veiviser.

@@ -9,6 +9,7 @@ import { useBranding } from "@/components/BrandingContext";
 import { AudioCard } from "./AudioCard";
 import { DisplayCard } from "./DisplayCard";
 import { PushCard } from "./PushCard";
+import { QueueCard } from "./QueueCard";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Card, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
@@ -26,6 +27,7 @@ export interface AdminStation {
   active: boolean;
   closedMessage: string;
   waitingCount: number;
+  leftCount: number;
   issued: number;
   joinUrl: string;
   qrSvg: string;
@@ -183,6 +185,8 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
 
         <AudioCard onUnauthorized={onUnauthorized} />
 
+        <QueueCard onUnauthorized={onUnauthorized} />
+
         <PushCard onUnauthorized={onUnauthorized} />
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 print:hidden">
@@ -274,6 +278,7 @@ function StationCard({
 
         <p className="mt-4 text-center text-sm text-slate-500">
           {s.waitingCount} venter · {s.issued} lapper delt ut
+          {s.leftCount > 0 && ` · ${s.leftCount} ga fra seg plassen`}
         </p>
 
         <div className="mt-4">

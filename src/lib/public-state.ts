@@ -3,7 +3,8 @@
 
 import type { StationId } from "./config";
 
-export type TicketStatus = "waiting" | "called" | "done" | "skipped";
+/** «left» (v1.7): gjesten har gitt fra seg plassen. */
+export type TicketStatus = "waiting" | "called" | "done" | "skipped" | "left";
 
 /** Svar fra GET /api/state – delt og kort mellomlagret på Vercel CDN. */
 export interface PublicStation {
@@ -22,6 +23,8 @@ export interface PublicStation {
   nextNumber: number;
   /** Nummeret som betjenes nå, eller null. */
   current: number | null;
+  /** Minutter per person for ventetid-teksten (v1.7): fast fra admin, eller målt tempo. */
+  minutesPerPerson: number;
   /** Ventende nummer, stigende. */
   waiting: number[];
   /** Nummer som er hoppet over (og ikke satt tilbake i kø). */
@@ -46,6 +49,8 @@ export interface PublicTicket {
   /** Stasjonens navn og farge (v1.6), så lappen får riktig farge med en gang. */
   stationName: string;
   color: string;
+  /** Når gjesten ga fra seg plassen (v1.7), ellers null. Brukes til «Angre» i 60 s. */
+  leftAt: string | null;
 }
 
 export type DerivedTicket =
@@ -53,7 +58,8 @@ export type DerivedTicket =
   | { kind: "waiting"; ahead: number }
   | { kind: "called" }
   | { kind: "skipped" }
-  | { kind: "done" };
+  | { kind: "done" }
+  | { kind: "left" };
 
 /**
  * Utleder lappens status fra den delte køstatusen, slik at hver telefon slipper et eget databasekall.

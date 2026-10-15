@@ -40,7 +40,7 @@ await check("offentlig status: tre stasjoner, riktig form", async () => {
   const body = await res.json();
   assert(Array.isArray(body.stations) && body.stations.length === 3, "forventet 3 stasjoner");
   for (const s of body.stations) {
-    for (const k of ["id", "description", "active", "closedMessage", "generation", "nextNumber", "current", "waiting", "skipped"]) {
+    for (const k of ["id", "name", "color", "minutesPerPerson", "description", "active", "closedMessage", "generation", "nextNumber", "current", "waiting", "skipped"]) {
       assert(k in s, `mangler felt ${k} på stasjon ${s.id}`);
     }
   }
@@ -107,6 +107,13 @@ await check("push: service worker og offentlig konfig (ingen privatnøkkel)", as
   const body = JSON.parse(text);
   assert(typeof body?.push?.enabled === "boolean", "mangler push.enabled");
   assert(!/vapid_private|privateKey/.test(text), "privatnøkkel i offentlig konfig");
+});
+
+await check("gi fra seg plassen: ukjent lapp gir 404, valget finnes i konfig", async () => {
+  const res = await fetch(base + "/api/tickets/00000000-0000-4000-8000-000000000000/leave", { method: "POST", headers: { origin: base } });
+  assert(res.status === 404, `forventet 404, fikk ${res.status}`);
+  const body = await (await get("/api/config")).json();
+  assert(typeof body?.queue?.allowLeave === "boolean", "mangler queue.allowLeave");
 });
 
 await check("lydsiden svarer", async () => {

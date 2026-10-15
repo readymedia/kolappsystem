@@ -50,6 +50,7 @@ describe("utledning av lappstatus fra delt køstatus", () => {
     description: "",
     active: true,
     closedMessage: "",
+    minutesPerPerson: 2,
     generation: 1,
     nextNumber: 10,
     current: 4,

@@ -22,6 +22,7 @@
 | 1.4 | Utseende og logo | **Levert i v1.4.0** |
 | 1.5 | Push-varsel | **Levert i v1.5.0** (godkjent 15.10, av som standard) |
 | 1.6 | Fritt antall stasjoner | **Levert i v1.6.0** |
+| 1.7 | Gi fra seg plassen + ventetid | **Levert i v1.7.0** (bestilt og godkjent 15.10) |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
 
 ## 1. Rammer – gjelder alle versjoner
@@ -354,6 +355,20 @@ Uendret fra forrige plan. Lyd, push og storskjerm fra 1.2–1.5 er laget generis
   - Integrasjon: grensen på 12, samtidig opprettelse, arkivering med kø avvises.
   - E2E: 7 stasjoner med lyd og storskjerm. Eksisterende A/B/C-tester passerer uendret.
   - Lasttest med 7 stasjoner.
+
+## 8b. v1.7 – Gi fra seg plassen og ventetid (levert)
+
+Bestilt 15.10: «Får jeg vite at det er 45 minutter ventetid, vil jeg kanskje melde meg av – og det hjelper funksjonærene å vite hvor mange de må legge opp til.»
+
+| Spørsmål | Valg (godkjent) |
+| --- | --- |
+| Standard | **På**, med admin-bryter «Gjester kan gi fra seg plassen» |
+| Hvem | Venter, er kalt (operatøren får «A12 ga fra seg plassen – trykk NESTE») eller er hoppet over |
+| Feiltrykk | Diskret lenke + bekreftelse med antall foran og ventetid, og «Angre» i 60 s hvis nummeret ikke er passert |
+| Funksjonærer | «N har gitt fra seg plassen» hos operatør og på stasjonskortene; ventetallet er alltid ekte |
+| Ventetid | Admin velger fast antall minutter per person (standard 2 = som før) eller faktisk tempo (midtverdi av tiden mellom de siste oppropene, pauser over 30 min ignoreres, fast verdi til det er nok data) |
+| Data | Ny lappstatus `left` + `left_at`; `site_config.allow_leave`, `wait_mode`, `wait_minutes` (migrering `008_leave_and_wait.sql`) |
+| Sikkerhet | Lapp-id er adgangsbeviset, Origin-sjekk, forsøksgrense. Endringen skjer i stasjonens lås; operatørens «Angre siste» vekker aldri en lapp som er gitt fra seg |
 
 ## 9. 2.0 – Flere instanser og brukere (Roadmap – Later)
 

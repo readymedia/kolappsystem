@@ -101,3 +101,11 @@ gjenbrukes aldri, fordi den står i QR-koder og på lapper. Stasjoner arkiveres 
 lenker aldri peker på «en annen» stasjon. Farger er en kuratert palett (A/B/C beholder dagens farger) pluss egen farge med
 kontrastsjekk, levert som CSS-variabler. Maks 12 aktive holder storskjermen lesbar. Admin-grensesnittet holdes ryddig ved
 at stasjonsinnstillinger ligger bak én knapp per kort.
+
+## ADR-019 – Gi fra seg plassen som egen status, ventetid fast eller målt (v1.7)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Å gi fra seg plassen er en egen lappstatus (`left`), ikke sletting, så tellinger og historikk stemmer og operatørens
+«Angre» aldri kan vekke lappen. Endringen skjer i stasjonens lås som alle andre køendringer. Bestiller valgte at funksjonen
+er på som standard (avvik fra «nytt er av») fordi den hjelper både gjester og funksjonærer; admin kan slå den av. En
+diskret lenke, bekreftelse og 60 sekunders angring hindrer feiltrykk. Ventetiden kan være fast (standard 2 min, som før)
+eller målt: midtverdien av intervallene mellom de siste oppropene, som tåler enkeltavvik og ignorerer pauser.

@@ -172,7 +172,7 @@ export async function notifyStation(station: string): Promise<number> {
     await sql`
       DELETE FROM push_subscriptions ps USING tickets t, stations s
       WHERE ps.ticket_id = t.id AND s.id = t.station AND t.station = ${station}
-        AND (t.generation <> s.generation OR t.status = 'done' OR (t.status = 'skipped' AND ps.last_kind = 'skipped'))`;
+        AND (t.generation <> s.generation OR t.status IN ('done', 'left') OR (t.status = 'skipped' AND ps.last_kind = 'skipped'))`;
     const rows = await sql<Row[]>`
       SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth, ps.last_kind, t.id AS ticket_id, t.number, t.station, t.status,
         s.name AS station_name,

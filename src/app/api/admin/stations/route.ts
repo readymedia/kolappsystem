@@ -24,6 +24,7 @@ export async function GET(req: Request) {
           active: s.active,
           closedMessage: s.closedMessage,
           waitingCount: s.waitingCount,
+          leftCount: s.leftCount,
           issued: s.issued,
           joinUrl,
           qrSvg,

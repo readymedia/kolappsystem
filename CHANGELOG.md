@@ -2,6 +2,25 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.7.0] – 2026-10-15
+
+Gi fra seg plassen i køen, og bedre ventetid. Se `docs/ADMIN-GUIDE.md` → «Kø og ventetid».
+
+### Lagt til
+- «Gi fra meg plassen» på kølappen (standard på): bekreftelse med antall foran og ventetid, og «Angre – ta plassen tilbake» i 60 sekunder hvis nummeret ikke er passert. Også for den som er kalt («Jeg kommer ikke») og den som er hoppet over.
+- Operatør: «N har gitt fra seg plassen», og «A12 ga fra seg plassen. Trykk NESTE for å kalle neste.» når den kalte går. Stasjonskortene i admin viser antallet.
+- Kortet «Kø og ventetid» i `/admin`: bryter for «Gjester kan gi fra seg plassen», og ventetid som fast antall minutter per person (standard 2, som før) eller faktisk tempo ved hver stasjon.
+- Ventetid over en time vises som «Ca. 1 t 15 min».
+- `POST`/`DELETE /api/tickets/:id/leave`, `minutesPerPerson` i `/api/state`, `queue.allowLeave` i `/api/config`.
+- Tester: ventetidstekster og målt tempo (enhet); gi fra seg/angre, samtidig med NESTE, operatørens Angre, av-bryter og målt tempo (integrasjon); 4 nye E2E-scenarier; ny røyktest.
+
+### Rettet
+- NESTE gjorde ingenting hvis den kalte hadde gått i mellomtiden (vernet mot dobbelt trykk sammenlignet med en lapp som ikke lenger var kalt).
+- Admin: valg i «Kø og ventetid» vises straks (og rettes hvis lagringen feiler), og feltene har entydige navn for skjermlesere.
+
+### Database
+- Migrering `008_leave_and_wait.sql`: lappstatus `left`, `tickets.left_at`, `site_config.allow_leave` (på), `wait_mode` (fixed), `wait_minutes` (2). Bare tillegg.
+
 ## [1.6.0] – 2026-10-15
 
 Fritt antall stasjoner (1–12). A, B og C ser ut og virker som før. Se `docs/ADMIN-GUIDE.md`.

@@ -20,7 +20,7 @@ run("innstillinger og mediefiler", () => {
   });
 
   beforeEach(async () => {
-    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT, push_enabled = false WHERE id = 1`;
+    await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT, push_enabled = false, allow_leave = DEFAULT, wait_mode = DEFAULT, wait_minutes = DEFAULT WHERE id = 1`;
     await sql`DELETE FROM media`;
   });
 
@@ -31,11 +31,14 @@ run("innstillinger og mediefiler", () => {
   it("standard er dagens oppførsel: standardlyd, 80 %", async () => {
     expect(await cfg.getSiteConfig()).toEqual(cfg.DEFAULT_CONFIG);
     expect(cfg.DEFAULT_CONFIG).toMatchObject({ displayTitle: "Meet & Greet · Køstatus", audioMode: "default", audioVolume: 80, audioFile: null });
+    // v1.7: gi fra seg plassen er på, ventetid som før (fast 2 min).
+    expect(cfg.DEFAULT_CONFIG).toMatchObject({ allowLeave: true, waitMode: "fixed", waitMinutes: 2 });
     expect(cfg.toPublicConfig(await cfg.getSiteConfig())).toEqual({
       audio: { mode: "default", volume: 80, url: null },
       display: { title: "Meet & Greet · Køstatus" },
       brand: DEFAULT_BRANDING,
       push: { enabled: false, publicKey: null },
+      queue: { allowLeave: true },
     });
   });
 

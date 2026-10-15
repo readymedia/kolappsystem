@@ -28,21 +28,21 @@ flowchart LR
 
 ## 2. Datamodell
 
-Definert i `db/migrations/` (001–007).
+Definert i `db/migrations/` (001–008).
 
 | Tabell | Viktige felt | Regler |
 | --- | --- | --- |
 | `stations` | `id` (én bokstav A–Z), `name` (maks 40), `color` (palett-navn eller `#rrggbb`), `sort_order`, `archived_at`, `description`, `active`, `closed_message`, `join_key`, `next_number`, `generation` | `join_key` er hemmelig. `generation` økes ved nullstilling. `closed_message` er offentlig, men vises bare mens stasjonen er stengt. Maks 12 aktive (`archived_at IS NULL`). Slettes aldri. |
-| `tickets` | `id` (uuid), `station`, `number`, `generation`, `status`, `created_at`, `called_at`, `finished_at`, `request_id`, `ip_hash` | Unik på (`station`, `generation`, `number`) og på (`station`, `generation`, `request_id`). Maks én `called` per stasjon (delvis unik indeks). `ip_hash` er en HMAC av nettverket, aldri selve IP-adressen. |
+| `tickets` | `id` (uuid), `station`, `number`, `generation`, `status` (waiting/called/done/skipped/left), `created_at`, `called_at`, `finished_at`, `left_at`, `request_id`, `ip_hash` | Unik på (`station`, `generation`, `number`) og på (`station`, `generation`, `request_id`). Maks én `called` per stasjon (delvis unik indeks). `ip_hash` er en HMAC av nettverket, aldri selve IP-adressen. |
 | `queue_actions` | `station`, `kind` (next/skip), `finished_ticket`, `called_ticket`, `undone` | Logg som gjør «Angre siste» mulig i flere steg. |
 | `settings` | `pin_hash`, `pin_version`, `session_secret`, `vapid_public`, `vapid_private` | Én rad (`id = 1`). `vapid_private` er hemmelig. |
 | `rate_limits` | `key`, `count`, `window_start` | Forsøksgrenser for PIN og nye lapper. |
-| `site_config` | `display_title`, `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id`, `event_name`, `logo_media_id`, `primary_color` (`#rrggbb`), `display_background` (dark/light), `font_display`, `font_body`, `push_enabled` (standard av) | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
+| `site_config` | `display_title`, `audio_mode` (default/custom/off), `audio_volume`, `audio_media_id`, `event_name`, `logo_media_id`, `primary_color` (`#rrggbb`), `display_background` (dark/light), `font_display`, `font_body`, `push_enabled` (standard av), `allow_leave` (standard på), `wait_mode` (fixed/measured), `wait_minutes` (standard 2) | Én rad. Innstillinger fra admin. Nye innstillinger legges til som kolonner med standard = dagens oppførsel. |
 | `push_subscriptions` | `ticket_id` → `tickets` (slettes med lappen), `endpoint`, `p256dh`, `auth`, `last_kind` (next/called/skipped) | Ett abonnement per lapp og nettleser. `last_kind` hindrer dobbel utsending. |
 | `media` | `kind` (audio/logo), `mime`, `bytes`, `size`, `sha256` | Opplastede filer. Filtype sjekket på innhold. Serveres som `/api/media/<sha256>`. Filer ingen peker på (verken som lyd eller logo) slettes. |
 | `schema_migrations` | `version` | Hvilke migreringer som er kjørt. |
 
-Status for en lapp: `waiting` → `called` → `done` eller `skipped`. En `skipped` kan settes tilbake til `waiting` av operatør.
+Status for en lapp: `waiting` → `called` → `done` eller `skipped`. En `skipped` kan settes tilbake til `waiting` av operatør. Fra v1.7 kan gjesten selv gå til `left` fra `waiting`, `called` eller `skipped` (tilbake til `waiting` innen 60 s hvis nummeret ikke er passert).
 
 ## 3. Hvorfor nummer aldri dobles
 
@@ -56,25 +56,26 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 
 | Metode og sti | Tilgang | Svar |
 | --- | --- | --- |
-| `GET /api/state` | Åpen, CDN 1 s | Aktive stasjoner i admin-rekkefølge: `id`, `name`, `color`, `description`, `active`, `closedMessage` (tom når åpen), `generation`, `nextNumber`, `current`, `waiting[]`, `skipped[]` |
+| `GET /api/state` | Åpen, CDN 1 s | Aktive stasjoner i admin-rekkefølge: `id`, `name`, `color`, `minutesPerPerson`, `description`, `active`, `closedMessage` (tom når åpen), `generation`, `nextNumber`, `current`, `waiting[]`, `skipped[]` |
 | `POST /api/join` `{station, key, existingTicketId?, requestId?}` | Åpen, nøkkel + forsøksgrenser (300/min per nettverk, 20 feil nøkler/min, maks 100 ventende per nettverk per stasjon) | `{ticketId, reused}` eller feilkode. Samme `requestId` gir samme lapp. |
-| `GET /api/tickets/:id` | Åpen (ukjent UUID) | `{station, number, generation, status, ahead, description, stationName, color}` |
+| `GET /api/tickets/:id` | Åpen (ukjent UUID) | `{station, number, generation, status, ahead, description, stationName, color, leftAt}` |
 | `POST`/`DELETE /api/tickets/:id/push` `{endpoint, keys}` / `{endpoint}` | Åpen med lapp-id, Origin-sjekk, 120/min per nettverk | Slår push-varsel på/av for lappen. Bare kjente push-tjenester godtas. 409 `push_disabled` når push er av. |
+| `POST`/`DELETE /api/tickets/:id/leave` | Åpen med lapp-id, Origin-sjekk, 120/min per nettverk | Gi fra seg plassen / angre (60 s, ikke passert). 409 `leave_disabled` / `too_late`. Sender push til nye «nest i køen» etterpå. |
 | `GET /ticket/:id/manifest.webmanifest` | Åpen | Manifest med `start_url` = lappen (Hjem-skjerm på iPhone) |
 | `POST /api/auth/login` `{pin}` | Åpen, 5 forsøk per 15 min per IP og 100 feil totalt per 15 min | Setter cookie `kolapp_session` |
 | `POST /api/auth/logout` | Åpen (Origin-sjekk) | Sletter cookie |
-| `GET /api/operator/:station` | Økt | `{current, next[5], waitingCount, skipped[], canUndo, lastActionId, active, closedMessage}` |
+| `GET /api/operator/:station` | Økt | `{current, next[5], waitingCount, skipped[], canUndo, lastActionId, active, closedMessage, leftCount, calledLeft}` |
 | `POST /api/operator/:station/next\|skip\|undo\|requeue` | Økt | Ny operatørvisning. `next`/`skip` tar `expectedCurrentId`: avviker den fra lappen som faktisk betjenes, gjøres ingenting (vern mot dobbelt trykk). `undo` tar `expectedActionId` på samme måte. `requeue` tar `ticketId`. |
 | `GET /api/admin/stations` | Økt | Aktive stasjoner med `name`, `color`, `joinUrl` og `qrSvg`, `archived[]` og `pinIsDefault` |
 | `POST /api/admin/stations` `{name?, color?}` | Økt | Ny stasjon (neste ledige bokstav). 409 `station_limit` / `no_free_station`. |
 | `POST /api/admin/stations/:station/meta\|move-up\|move-down\|archive\|restore\|reset\|activate\|deactivate\|closed-message\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `meta` tar `{name?, color?}`. `archive` gir 409 `station_not_empty` hvis noen venter eller er kalt. `restore` gir tom kø og ny nøkkel. `deactivate` tar valgfri `{message}` og `closed-message` tar `{message}` (maks 80 tegn). `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
 | `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN (6–12 sifre), alle andre logges ut |
 | `GET /api/health` | Åpen | `{ok, version, commit, db, migration}`, 503 hvis databasen ikke svarer |
-| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}, push: {enabled, publicKey}}` – offentlige innstillinger, aldri hemmeligheter |
+| `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, queue: {allowLeave}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}, push: {enabled, publicKey}}` – offentlige innstillinger, aldri hemmeligheter |
 | `GET /api/display/qr?station=A,C&t=<token>` | Åpen med signert token, aldri mellomlagret | `{qr: {A: "<svg>", C: "<svg>"}}`. Feil eller utdatert token: 403 `display_link_expired`. |
 | `GET /api/admin/display-token?station=A,C` | Økt | `{token}` for skjermlenke med QR |
 | `GET /api/media/<sha256>` | Åpen, CDN for alltid | Filen, `immutable` mellomlagring (også `CDN-Cache-Control`, så Vercel-CDN-et deler den) og `sandbox`-CSP |
-| `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`, `displayTitle` maks 80 tegn, `pushEnabled`). GET har også `pushSubscribers`. |
+| `GET`/`PUT /api/admin/config` | Økt | Les/endre innstillinger (`audioMode`, `audioVolume`, `displayTitle` maks 80 tegn, `pushEnabled`, `allowLeave`, `waitMode`, `waitMinutes` 0,5–60 i halve minutter). GET har også `pushSubscribers`. |
 | `PUT`/`DELETE /api/admin/branding` | Økt | Lagre utseende (`eventName` maks 60, `primaryColor` hex, `displayBackground`, `fontDisplay`, `fontBody` fra fontlisten) / tilbakestill til standard (fjerner også logo). Svarer med innstillingene. |
 | `POST`/`DELETE /api/admin/logo` | Økt | Last opp (multipart `file`, PNG/JPEG/WebP/SVG, maks 512 kB, sjekket på innhold, SVG-vern) / fjern logo |
 | `POST`/`DELETE /api/admin/audio` | Økt | Last opp (multipart `file`, maks 2 MB, sjekket på innhold) / fjern egen lyd |
@@ -135,6 +136,14 @@ Feil i databasen: død tilkobling ved lesing prøves én gang til. Lås- eller t
 - Farger: `src/lib/stations.ts`. Paletten (12) har faste Tailwind-toner; A/B/C er sky/violet/emerald som før. Egen hex får lys bakgrunn og kantlinje ved blanding, og tekstfarger justert til minst 4,5:1 mot hvitt (kølapp) og svart (storskjerm). Fargene settes som CSS-variabler (`stationVars`) og brukes med klassene i `ST`.
 - Storskjermen: `displayColumns()` – 1, 2–3 (som før), 4, 5–8 (fire kolonner) og 9–12 (seks kolonner), med mindre nummer ved mange.
 - Ukjent stasjon i API-et gir `StationNotFoundError` → `invalid_station` (400) i stedet for serverfeil.
+
+## 5g. Gi fra seg plassen og ventetid
+
+- `leaveQueue()` / `rejoinQueue()` i `queue.ts` kjører i stasjonens lås (`lockStation`), som NESTE. Push-abonnementet slettes ved «gi fra seg».
+- Har den kalte gitt fra seg plassen, ser operatøren fortsatt lappen til neste oppdatering. `advance()` godtar derfor en `expectedCurrentId` som peker på en lapp med status `left`, så NESTE kaller neste i stedet for å gjøre ingenting (vern mot dobbelt trykk beholdes ellers).
+- `undoLast()` gjenoppretter bare lapper med status `called`/`done`/`skipped`/`waiting`, så en lapp som er gitt fra seg aldri vekkes.
+- Kølappen slutter å følge køstatusen når den er gitt fra seg (`left` utledes ikke fra `/api/state`).
+- Ventetid: `/api/state` har `minutesPerPerson` per stasjon. Fast = `wait_minutes`. Målt = `measuredMinutes()` (`src/lib/wait.ts`): midtverdien av intervallene mellom de 7 siste oppropene (`called_at`), pauser over 30 min ignoreres, minst 3 intervaller, avrundet til halve minutter (0,5–30). Én ekstra spørring i samme øyeblikksbilde, bare når målt tempo er valgt; `/api/state` er uansett CDN-mellomlagret.
 
 ## 6. Budsjett for Vercel Hobby
 
