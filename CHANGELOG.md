@@ -2,6 +2,11 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [Ikke utgitt]
+
+### Dokumentasjon
+- `docs/PLAN-UTVIDELSER.md` samkjørt med bestillers prioriteringer 15.10: lydsignal (need-to-have) som v1.2, deretter skjermer, utseende/logo, push-varsel og fleksible stasjoner. Felles grunnmur, sikkerhet, tester og dokumentasjonskrav per versjon.
+
 ## [1.1.2] – 2026-10-15
 
 ### Rettet

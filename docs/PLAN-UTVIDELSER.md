@@ -1,223 +1,383 @@
-# Implementasjonsplan – utvidelser (v1.2–v1.4)
+# Implementasjonsplan – utvidelser (v1.2–v1.6 og 2.0)
 
-**Status:** Godkjent retning, ikke implementert. Skrevet 2026-10-14 på bakgrunn av tilbakemeldinger fra brukerne.
+**Status:** Til godkjenning. Ingen kode skrives før planen er godkjent.
+**Sist oppdatert:** 2026-10-15
+**Bestiller:** Andreas Aarlott
+**Kilder:** tilbakemelding 14.10 og 15.10 (Teams-notat «Need-to-have / Nice-to-have / Roadmap»)
 
-**Mål:** Gjøre appen gjenbrukbar for alle arrangementer (egen logo, farger og stasjoner), med fleksible storskjermer. Alt som virker i dag skal virke likt etter hver versjon.
+**Mål:** Gjøre appen gjenbrukbar for alle arrangementer, med lyd ved opprop, fleksible skjermer, egen logo og eget utseende, push-varsler og fritt antall stasjoner. Alt som virker i dag skal virke likt etter hver versjon.
 
-## 1. Rammer
+## 0. Allerede levert
 
-1. **Utvidelser, ikke endringer.** Standardoppførsel er identisk med v1.1. Eksisterende QR-koder, lenker (`/display`, `/operator?station=A`) og lapper fortsetter å virke. Unntaket er stengt stasjon på storskjermen, som brukerne ba om å få tydeligere.
-2. **Generisk.** Ingen arrangementsnavn i koden. Navn, logo og farger settes i `/admin` og lagres i databasen.
-3. **Samme drift.** Ingen nye tjenester: alt ligger fortsatt i Vercel Hobby og Neon Free. Ingen eksterne skript eller fonter, så CSP er uendret.
+| Ønske | Versjon | Status |
+| --- | --- | --- |
+| Antall i kø oppdateres ikke på operatørsiden uten ny innlasting | 1.1.2 | Rettet og i produksjon (bekreftet av Andreas 15.10) |
+
+## 1. Rammer – gjelder alle versjoner
+
+1. **Utvidelser, ikke endringer.** Standardoppførsel er identisk med i dag. Eksisterende QR-koder, lenker (`/display`, `/operator?station=A`) og lapper fortsetter å virke. Unntak: stengt stasjon vises tydeligere (ønsket av bestiller).
+2. **Generisk.** Ingen arrangementsnavn eller logoer i koden. Alt slikt settes i `/admin` og lagres i databasen.
+3. **Samme drift.** Alt kjører fortsatt på Vercel Hobby og Neon Free, uten nye betalte tjenester. Lyd, logo og push bruker bare det vi har.
 4. **Migreringer er bare tillegg.** Eldre kode skal kunne kjøre mot nytt skjema, slik at tilbakerulling er trygg.
-5. **Én versjon om gangen.** Hver versjon har egne tester, egen dokumentasjon og egen deploy. Ingen deploy under et arrangement.
+5. **Én versjon om gangen.** Hver versjon er ferdig testet, dokumentert og deployet før neste starter. Ingen deploy under et arrangement.
+6. **Dokumentasjon er en del av leveransen.** Hver versjon oppdaterer dokumentene i §10, i samme commit som koden.
 
-## 2. Oversikt
+## 2. Prioritet og rekkefølge
 
-| Versjon | Innhold | Omfang | Risiko | Migrering |
-| --- | --- | --- | --- | --- |
-| **1.2.0 Skjermer** | Én stasjon per vindu, skjermvalg via lenke, lenkebygger i admin, QR på storskjerm (med risikovarsel), tydelig stengt stasjon med valgfri melding | Liten–middels | Lav | `003_closed_message.sql` |
-| **1.3.0 Fleksible stasjoner** | 1–12 aktive stasjoner, navn og farge per stasjon, opprett/rediger/sorter/arkiver | Stor | Middels | `004_flexible_stations.sql` |
-| **1.4.0 Utseende** | Arrangementsnavn, opplastet logo, hovedfarge, bakgrunn og font fra kuratert liste. Gjelder storskjerm, kølapp, skann, forside og utskrift. | Middels | Lav–middels | `005_branding.sql` |
-| 2.0 (senere) | Flere arrangementer parallelt, flere brukere og roller | Stor | – | Egen plan |
+| Bestillers prioritet | Ønske | Versjon | Hvorfor her |
+| --- | --- | --- | --- |
+| **Need-to-have** | Lydsignal når neste kalles (standardlyd, egen opplastet lyd, volum, `/audio`-side) | **1.2** | Viktigst for bestiller. Bygger felles grunnmur (innstillinger og mediefiler) som 1.3–1.5 gjenbruker. |
+| Nice-to-have | Én stasjon per vindu, tilpasse storskjerm (QR, tittel, størrelse), tydelig stengt stasjon, endre eller fjerne «Meet & Greet» | **1.3** | Rask nytte for treskjermsstativet, lav risiko |
+| Nice-to-have | Farger, fonter, logo per arrangement | **1.4** | Bruker grunnmuren fra 1.2 (logo som mediefil) |
+| Roadmap – Now | Push-varsel til mobilen uten egen app | **1.5** | Må forklares for iPhone-brukere (§7.1), og er derfor størst å kvalitetssikre |
+| Roadmap – Next | Fritt antall stasjoner | **1.6** | Største ombygging. Kommer sist, så alt annet er stabilt først. |
+| Roadmap – Later | Flere instanser, brukere og parallelle køsystemer | **2.0** | Egen planrunde. Datamodellen forberedes underveis. |
 
-Rekkefølgen er valgt slik: 1.2 gir rask nytte for treskjermsstativet. 1.3 bytter fargesystemet, og 1.4 bygger på det.
+Rekkefølgen kan justeres: hver versjon står på egne ben, unntatt at 1.3–1.5 bruker grunnmuren fra 1.2.
 
-## 3. v1.2.0 – Skjermer
+## 3. Felles grunnmur (bygges i 1.2)
 
-### 3.1 Skjermvalg via lenke
+### 3.1 Innstillinger: `site_config`
+
+En tabell med én rad (`id = 1`). Nye innstillinger legges til som kolonner med standardverdier, i senere migreringer.
+
+| Kolonne (første versjon) | Standard | Bruk |
+| --- | --- | --- |
+| `audio_mode` | `'default'` | `'default'` (innebygd lyd), `'custom'` (opplastet) eller `'off'` |
+| `audio_volume` | `80` | 0–100 % |
+| `audio_media_id` | `null` | Peker til opplastet lyd i `media` |
+| `updated_at` | `now()` | Versjon for mellomlagring |
+
+### 3.2 Mediefiler: `media`
+
+Felles lager for opplastede filer: lyd i 1.2, logo i 1.4.
+
+| Kolonne | Innhold |
+| --- | --- |
+| `id` | uuid |
+| `kind` | `'audio'` eller `'logo'` |
+| `mime` | sjekket filtype |
+| `bytes` | `bytea` (selve filen) |
+| `size` | byte |
+| `sha256` | innholds-hash, brukes som versjon i adressen |
+| `created_at` | tid |
+
+- **Lagring:** I samme Postgres. Grenser: lyd ≤ 2 MB, logo ≤ 512 kB. Neon Free har 1 GB.
+- **Servering:** `GET /api/media/<sha256>` med `Cache-Control: public, max-age=31536000, immutable` og `Content-Security-Policy: sandbox`. Filen hentes fra CDN etter første gang, så hver enhet koster bare ett kall.
+- **Filtype:** Sjekkes på innholdet (magiske bytes), aldri på filnavnet.
+- **Rydding:** Gamle filer slettes når de erstattes.
+
+### 3.3 Offentlig konfig: `GET /api/config`
+
+- **Innhold:** De delene av innstillingene som er trygge å vise publikum: lydmodus, volum, lydens adresse, og fra 1.4 utseende og logo.
+- **Mellomlagring:** På CDN i 5 sekunder (`s-maxage=5`), samme mønster som `/api/state`. Endringer i admin vises innen 5–10 sekunder.
+- **Hemmeligheter:** Aldri med. En test sjekker at nøkler og PIN ikke finnes i svaret.
+
+### 3.4 Oppdatering som tåler bakgrunn
+
+- **I dag:** `usePolling` pauser når fanen er skjult. Det er riktig for kølapper, fordi det sparer kvote.
+- **Behov:** Lydsiden må fortsette å lytte selv om den ligger i bakgrunnen, for eksempel på PC-en som spiller Spotify.
+- **Løsning:**
+  - Ny innstilling `usePolling(fn, ms, { whenHidden: true })`.
+  - På `/audio` kjøres hentingen i en **Web Worker**. Chrome demper tidtakere i bakgrunnsfaner (Efficiency Mode og intensiv demping), men faner som spiller lyd er unntatt, og workere rammes mindre.
+- **Driftsråd:** Lydsiden bør stå i eget vindu. Legg nettstedet under «Alltid hold disse nettstedene aktive» i Chrome (Innstillinger → Ytelse), slik at fanen ikke blir lagt i dvale. Dette blir en sjekkliste i `docs/LYD-OPPSETT.md`.
+
+### 3.5 Sikkerhetshoder
+
+| Direktiv | Endring | Hvorfor |
+| --- | --- | --- |
+| `media-src` | `'self'` | Lyd fra egen app |
+| `worker-src` | `'self'` | Web Worker for `/audio` og service worker for push (1.5) |
+| `manifest-src` | `'self'` | Eget manifest per kølapp for push på iPhone (1.5) |
+
+Alle andre direktiver er uendret. Ingen eksterne kilder.
+
+## 4. v1.2 – Lydsignal (need-to-have)
+
+### 4.1 Hva bestiller får
+
+- **Lyd når et nytt nummer kalles** («NESTE», «Hopp over» som kaller neste, og «Angre» som kaller tilbake).
+- **Standardlyd** innebygd i appen: et rolig todelt klokkeslag laget med Web Audio, så det ikke er noen fil eller lisens å tenke på.
+- **Egen lyd** i admin: last opp, prøv med «Spill av», bytt eller fjern.
+- **Volum** med glidebryter (0–100 %) i admin. Gjelder alle enheter som spiller lyd, innen 10 sekunder.
+- **Lyden kan spilles på to steder:**
+  - **`/audio`** – egen lydside for PC, iPad eller lignende koblet til lydanlegget. `/audio?station=A` (eller `A,C`) spiller bare for valgte stasjoner. `/audiosignal` sender videre til `/audio`.
+  - **`/display?sound=1`** – storskjermen spiller lyd selv.
+
+### 4.2 Lydsiden `/audio`
+
+Nettlesere tillater ikke lyd før noen har trykket på siden. Derfor:
+
+1. Siden åpner med en stor knapp: **«Start lydsignal»**.
+2. Etter trykk vises:
+   - «Lyd aktiv ✓»
+   - hvilke stasjoner som følges
+   - «Sist sjekket hh:mm:ss» (bevis på at den lytter)
+   - logg over siste opprop (f.eks. «A12 14:31»)
+   - knappen «Test lyd»
+3. Mister siden kontakten eller blir lyden blokkert, vises et tydelig rødt varsel med «Trykk for å slå på lyd igjen».
+4. Skjermen holdes våken (Wake Lock), slik at en iPad ikke går i dvale.
+
+### 4.3 Regler for når lyden spilles
+
+| Situasjon | Lyd? |
+| --- | --- |
+| Nytt nummer kalles på en stasjon som følges | Ja |
+| Flere stasjoner kaller samtidig (samme oppdatering) | Én lyd, ikke flere oppå hverandre |
+| Siden lastes eller kobles til på nytt | Nei (ingen lyd for gamle opprop) |
+| Stasjonen nullstilles eller stenges | Nei |
+| `audio_mode = 'off'` | Nei, og siden viser «Lyd er slått av i admin» |
+
+Lyden utløses av den samme delte køstatusen som storskjermen bruker (`/api/state`), så det koster ingen ekstra kvote. Forsinkelsen er 0–4 sekunder, det samme som storskjermen.
+
+### 4.4 Opplasting av egen lyd
+
+| Krav | Valg |
+| --- | --- |
+| Formater | MP3, WAV, M4A/AAC, OGG/Opus, FLAC, AIFF |
+| Anbefalt | **MP3 eller WAV**, fordi de spilles i alle nettlesere |
+| Advarsel i admin | AIFF spilles bare i Safari. OGG spilles ikke i eldre Safari. «Spill av»-knappen viser om din nettleser støtter filen. |
+| Størrelse | Maks 2 MB |
+| Lengde | Maks 15 sekunder (sjekkes i nettleseren før opplasting) |
+| Kontroll på serveren | Magiske bytes per format (ID3/MPEG-ramme, `RIFF…WAVE`, `ftyp`, `OggS`, `fLaC`, `FORM…AIFF`) |
+| Tilgang | Kun med admin-økt og riktig Origin |
+
+### 4.5 Data og API
+
+| Del | Innhold |
+| --- | --- |
+| Migrering `003_site_config_media.sql` | Tabellene `site_config` og `media` (§3) |
+| `POST /api/admin/audio` | Last opp lyd (multipart, maks 2 MB) |
+| `DELETE /api/admin/audio` | Fjern egen lyd (går tilbake til standard) |
+| `PUT /api/admin/config` | Lydmodus og volum |
+| `GET /api/config` | Offentlig konfig (§3.3) |
+| `GET /api/media/<sha256>` | Lydfilen |
+
+### 4.6 Tester
+
+| Type | Innhold |
+| --- | --- |
+| Enhet | Sjekk av magiske bytes for alle formater (gyldige, feil og forfalskede), regelen for når lyd spilles (§4.3), valg av stasjoner |
+| Integrasjon | Lagre og erstatte lyd, gammel fil slettes, for stor fil avvises, konfig uten hemmeligheter |
+| E2E | Last opp lyd og se at den spilles av på `/audio`. Testen fanger avspilling i nettleseren, så den ikke trenger høyttaler. Lyden spilles ved NESTE, ikke ved innlasting. `?station=A` ignorerer B. Volum følger admin. Lydsiden fortsetter i en skjult fane. |
+| Manuell | PC med Spotify via lydanlegg, iPad, Safari og Chrome, 30 minutter i bakgrunnen |
+
+## 5. v1.3 – Skjermer (nice-to-have)
+
+Innholdet fra forrige plan, utvidet med Andreas sine ønsker 15.10.
+
+### 5.1 Skjermvalg via lenke
 
 `/display` leser valg fra adressen. Uten valg ser alt ut som i dag.
 
 | Parameter | Verdier | Standard | Virkning |
 | --- | --- | --- | --- |
-| `station` | `A` eller `A,B` | alle | Hvilke stasjoner som vises. Én stasjon gir fullskjermvisning med ekstra stort nummer (skalerer med skjermbredden). |
+| `station` | `A` eller `A,B` | alle | Hvilke stasjoner som vises. Én stasjon gir fullskjerm med ekstra stort nummer. |
+| `size` | `s`, `m`, `l`, `xl` | `m` (= i dag) | Størrelse på «Nå betjenes»-nummeret |
 | `title` | `0`/`1` | `1` | Stasjonsnavn («Stasjon A») |
-| `desc` | `0`/`1` | `0` | Beskrivelse («Møt hovedgjesten …») |
+| `desc` | `0`/`1` | `0` | Beskrivelse |
 | `next` | `0`–`5` | `3` | Antall i «Neste»-listen (0 skjuler den) |
-| `header` | `0`/`1` | `1` | Topplinjen («MEET & GREET · KØSTATUS», senere navn/logo) |
-| `clock` | `0`/`1` | `0` | Klokke i hjørnet |
+| `header` | `0`/`1` | `1` | Topplinjen |
+| `clock` | `0`/`1` | `0` | Klokke |
 | `theme` | `dark`/`light` | `dark` | Bakgrunn |
-| `qr` + `t` | `1` + token | av | QR-kode for å ta kølapp (se 3.3) |
+| `sound` | `0`/`1` | `0` | Spill lydsignal (fra 1.2) |
+| `qr` + `t` | `1` + signert token | av | QR-kode for å ta kølapp (§5.4) |
 
-Ugyldige verdier ignoreres stille og gir standard, aldri feilside. Parameterne tolkes i én ren funksjon, `parseDisplayOptions()` i `src/lib/display-options.ts`, som enhetstestes.
+- Ugyldige verdier gir standard, aldri feilside.
+- Valgene tolkes i én ren, testet funksjon: `parseDisplayOptions()`.
 
-**Teknisk:**
-- Storskjermen deles i komponenten `DisplayBoard`, som tar status og valg som input.
-- Den brukes både av `/display` og av forhåndsvisningen i admin.
-- Datakilden er fortsatt den delte, CDN-mellomlagrede `/api/state`, så flere vinduer koster nesten ingenting.
+### 5.2 Overskrift på storskjermen
 
-### 3.2 Lenkebygger i admin («Skjermer»)
+Teksten «Meet & Greet · Køstatus» blir en innstilling i admin («Overskrift på storskjerm»):
+- Står feltet tomt, skjules topplinjen.
+- Standardverdien er dagens tekst.
+- Lagres i `site_config.display_title` (migrering `004_display.sql`). I 1.4 blir det arrangementsnavnet.
 
-En ny seksjon i `/admin`:
-- Avkrysning for stasjoner og alle valgene over.
-- Live forhåndsvisning, nedskalert `DisplayBoard` med ekte data.
+### 5.3 Lenkebygger i admin («Skjermer»)
+
+- Avkrysning og valg for alt i §5.1.
+- Live forhåndsvisning med ekte data. Den rendres som komponent, ikke iframe, så `frame-ancestors 'none'` beholdes.
 - Knappene «Kopier lenke» og «Åpne i nytt vindu».
-- Hurtigvalget **«Én skjerm per stasjon»** lager én lenke per stasjon (for treskjermsstativet).
+- Hurtigvalget **«Én skjerm per stasjon»** lager én lenke per stasjon for treskjermsstativet.
 
-Forhåndsvisningen rendres som komponent, ikke iframe. `frame-ancestors 'none'` beholdes.
+### 5.4 QR-kode på storskjermen (valgfritt, med risikovarsel)
 
-### 3.3 QR-kode på storskjermen (valgfritt, med risikovarsel)
-
-**Problemet:** `/display` er åpen uten innlogging, men QR-koden inneholder stasjonens hemmelige nøkkel. Nøkkelen kan derfor ikke legges i `/api/state`.
-
-**Løsningen – signert skjermlenke:**
-- Når admin krysser av «Vis QR», legger lenkebyggeren til `&t=<token>`.
-- `token` = HMAC(serverhemmelighet, `qr:` + stasjon + `:` + gjeldende nøkkel), forkortet.
-- Ny rute `GET /api/display/qr?station=A&t=…` regner tokenet ut på nytt, sammenligner i konstant tid og returnerer QR-SVG. Den returnerer aldri selve nøkkelen som tekst.
-- «Bytt nøkkel» gjør tokenet ugyldig automatisk. Skjermen viser da en diskret melding om at lenken må oppdateres i admin.
-- Skjermen henter QR én gang og deretter hvert 60. sekund (`no-store`). Belastningen er neglisjerbar.
-- Uten gyldig token vises aldri QR, uansett `qr=1`.
+- **Signert skjermlenke:** Når «Vis QR» krysses av, legger lenkebyggeren til `&t=<token>`. `token` = HMAC(serverhemmelighet, `qr:<stasjon>:<gjeldende nøkkel>`).
+- **Henting:** Ny rute `GET /api/display/qr?station=A&t=…` sjekker tokenet i konstant tid og svarer med QR-SVG. Selve nøkkelen sendes aldri som tekst. QR hentes på nytt hvert 60. sekund.
+- **Bytt nøkkel** gjør tokenet ugyldig. Skjermen viser da en diskret melding om at lenken må oppdateres i admin.
 
 **Risikovarsel i admin** (vises når «Vis QR» krysses av):
 
 > ⚠️ QR-koden på storskjermen kan fotograferes og deles. Alle som har bildet kan ta kølapp uten å være på stedet, og også skjermlenken gir tilgang til QR-koden. Vern som er aktivt: maks 100 ventende per nettverk, «Bytt nøkkel» (gjør både QR og skjermlenke ugyldig) og «Fjern ventende lapper». Vurdert som akseptabelt nå. Slå av hvis misbruk oppstår.
 
-Samme tekst står i `docs/SIKKERHET.md` (ny rad i trusselbildet).
+### 5.5 Tydelig stengt stasjon
 
-### 3.4 Tydelig stengt stasjon
-
-**Storskjermen** (gjelder også standardvisningen, fordi brukerne ba om det):
+**Storskjermen:**
 - Kolonnen dempes med gråtone og diskret skråstripet bakgrunn.
 - Nummeret erstattes av et stort **«STENGT»**-merke.
-- Den valgfrie meldingen vises under, for eksempel «Tilbake kl. 14.00».
+- Valgfri melding vises under, for eksempel «Tilbake kl. 14.00».
 - «Neste»-listen skjules.
 
-**Admin:** Når du trykker «Deaktiver», åpnes et felt «Melding til publikum (valgfri, maks 80 tegn)». Meldingen kan også endres mens stasjonen er stengt.
+**Admin:** «Deaktiver» åpner feltet «Melding til publikum (valgfri, maks 80 tegn)».
 
-**Publikum:**
-- `/join` på en stengt stasjon viser meldingen under dagens tekst.
-- Har gjesten allerede en lapp, vises den fortsatt med et varsel om at stasjonen er stengt («Du beholder plassen din»).
+**Publikum:** Meldingen vises ved skann og på kølappen. En gjest med lapp får beskjed om at stasjonen er stengt, men at plassen beholdes.
 
-**Data:** `003_closed_message.sql` legger til `stations.closed_message text NOT NULL DEFAULT ''`. Feltet tas med i `/api/state` som `closedMessage`. Det er offentlig og ufarlig.
+**Data:** `stations.closed_message` (i `004_display.sql`). Feltet er offentlig og tas med i `/api/state`.
 
-### 3.5 Tester for v1.2
+### 5.6 Tester
 
 | Type | Innhold |
 | --- | --- |
-| Enhet | `parseDisplayOptions` (gyldige, ugyldige og manglende verdier), QR-token: riktig, feil og etter nøkkelbytte |
-| Integrasjon | `closed_message` lagres, nullstilles ikke ved aktivering, tas med i offentlig status |
-| E2E | `/display?station=B` viser bare B, stengt stasjon viser «STENGT» og meldingen, QR vises bare med gyldig token og forsvinner etter «Bytt nøkkel», lenkebyggeren kopierer riktig lenke, standard-`/display` er uendret bortsett fra stengt-visningen |
+| Enhet | `parseDisplayOptions`, QR-token (riktig, feil, etter nøkkelbytte) |
+| E2E | Én stasjon per vindu, `size=xl`, stengt med melding, QR bare med gyldig token, lenkebyggeren kopierer riktig, tom overskrift skjuler topplinjen, standard-`/display` er uendret bortsett fra stengt-visningen |
 | Røyktest | `/api/display/qr` uten token gir 403 |
 
-## 4. v1.3.0 – Fleksible stasjoner
+## 6. v1.4 – Utseende og logo per arrangement (nice-to-have)
 
-### 4.1 Valg
+### 6.1 Hva kan tilpasses
 
-| Spørsmål | Valg | Begrunnelse |
+| Innstilling | Standard (= i dag) | Brukes på |
 | --- | --- | --- |
-| Antall | 1–12 aktive | Storskjerm og operatørmeny holder seg oversiktlige. Grensen ligger i `config.ts` (`MAX_ACTIVE_STATIONS`). |
-| Kode | Én bokstav A–Z, tildeles automatisk (første ledige) | Koden står i QR-koder og lapper (`A12`) og kan **aldri** endres. |
-| Navn | Fritt (maks 40 tegn), valgfritt | Tomt navn gir «Stasjon A» som i dag |
-| Farge | Palett med 12 kontrastsjekkede farger, eller egen hex | Lyse og mørke varianter regnes ut på serveren |
-| Fjerne stasjon | **Arkivere**, aldri slette | Bare mulig med tom kø. Gamle lenker gir en vennlig melding. Kan gjenopprettes. |
-| Rekkefølge | Opp/ned-knapper i admin | Enkelt og tilgjengelig, uten dra-og-slipp |
-
-### 4.2 Data (`004_flexible_stations.sql`)
-
-- Fjern `CHECK (id IN ('A','B','C'))`, erstatt med `CHECK (id ~ '^[A-Z]$')`.
-- Legg til `name text NOT NULL DEFAULT ''`, `color text NOT NULL DEFAULT '#0ea5e9'`, `sort_order integer NOT NULL DEFAULT 0`, `archived_at timestamptz` og `created_at timestamptz NOT NULL DEFAULT now()`.
-- Fyll inn A/B/C med dagens farger: A `#0ea5e9` (sky-500), B `#8b5cf6` (violet-500), C `#10b981` (emerald-500). Sett `sort_order` 1/2/3.
-
-Eldre kode (v1.2) virker fortsatt mot dette skjemaet, fordi kolonnene har standardverdier og A/B/C finnes.
-
-### 4.3 Kodeendringer
-
-| Område | Endring |
-| --- | --- |
-| `config.ts` | `STATION_IDS` og `STATION_THEME` fases ut. `parseStationId()` sjekker bare format. Om stasjonen finnes avgjøres av databasen. |
-| `queue.ts` | `lockStation()` gir `station_not_found` (404 med vennlig tekst) i stedet for unntak. Nye funksjoner: `createStation`, `updateStation`, `moveStation`, `archiveStation` (krever tom kø), `restoreStation`. Opprettelse låser med `pg_advisory_xact_lock`, slik at to samtidige opprettelser ikke får samme bokstav. |
-| `lib/color.ts` (ny, ren) | Fra én hex regnes `solid`, `soft`, `border`, `text`, `display` og tekstfarge på knapp (hvit eller mørk etter WCAG-kontrast ≥ 4,5) ut. Enhetstestes. |
-| `/api/state` | Gir aktive (ikke-arkiverte) stasjoner i `sort_order`, med `name` og utregnede farger. Formen er bakoverkompatibel: felter legges bare til. |
-| Fargebruk i UI | Tailwind-klasser per stasjon erstattes av CSS-variabler på elementet (`style={{ "--st": … }}`) og klasser som `bg-[var(--st)]`. |
-| Storskjerm | Rutenettet tilpasser seg antallet: 1 → 1 kolonne, 2–4 → én rad, 5–8 → to rader, 9–12 → tre rader. Tallstørrelsen skalerer. |
-| Operatør | Stasjonsvelgeren viser alle aktive. Er det flere enn 6, brukes en rullbar rad. |
-| Admin | Seksjonen «Stasjoner» får «Ny stasjon», redigering av navn/beskrivelse/farge, opp/ned og «Arkiver». En liste viser arkiverte stasjoner med «Gjenopprett». |
-| Forside, kølapp, skann | Bruker navn og farge fra databasen |
-
-### 4.4 Tester for v1.3
-
-| Type | Innhold |
-| --- | --- |
-| Enhet | `lib/color.ts`: kontrast og varianter for alle palettfarger og ekstremfarger (hvit, svart, gul) |
-| Integrasjon | Opprett til grensen 12 (den 13. avvises), samtidig opprettelse gir unike koder, arkivering avvises med ventende eller kalt lapp, arkivert stasjon gir `station_not_found` ved skann, gjenoppretting, ingen nøkler i offentlig status med 12 stasjoner |
-| E2E | Opprett stasjon D og ta lapp D1, storskjerm med 7 stasjoner, operatør bytter mellom 7, arkiver og gjenopprett. Eksisterende scenarier med A/B/C skal passere uendret. |
-| Last | `npm run load` utvidet til 7 stasjoner: 0 feil og 0 duplikater |
-
-## 5. v1.4.0 – Utseende (generisk branding)
-
-### 5.1 Hva som kan tilpasses
-
-| Innstilling | Standard (= dagens utseende) | Brukes på |
-| --- | --- | --- |
-| Arrangementsnavn | tomt («Meet & Greet» vises som i dag) | Storskjermens topplinje, forside, kølapp, skann, utskrift |
+| Arrangementsnavn | «Meet & Greet» | Storskjerm (erstatter overskriften fra 1.3), forside, kølapp, skann, utskrift |
 | Logo | ingen | Storskjerm, forside, kølapp, skann, utskrift av QR |
-| Hovedfarge | `#0f172a` (slate-900) | Knapper og aksenter som ikke er stasjonsfarge |
-| Storskjermbakgrunn | mørk (`#000`) | Standard for `/display` (kan overstyres med `theme=` i lenken) |
-| Font for overskrifter og tall | Space Grotesk | Overalt |
-| Font for brødtekst | Inter | Overalt |
+| Hovedfarge | `#0f172a` | Knapper og aksenter |
+| Storskjermbakgrunn | mørk | Standard for `/display` (kan overstyres med `theme=`) |
+| Font, overskrifter og tall | Space Grotesk | Overalt |
+| Font, brødtekst | Inter | Overalt |
 
-**Fontlisten** er kuratert og ligger i appen (`@fontsource`): Space Grotesk, Inter, Manrope, DM Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible og systemfont. Nettleseren laster bare fontene som faktisk brukes. Det blir ingen fri Google Fonts-lenke, av hensyn til personvern og CSP.
+- **Fontliste:** Space Grotesk, Inter, Manrope, DM Sans, Source Sans 3, Work Sans, Atkinson Hyperlegible og systemfont. Alle ligger i appen. Det blir ingen Google Fonts-lenke, av hensyn til personvern og CSP.
+- **Logo «basert på hvilket arrangement det er»:** Last opp ny logo før hvert arrangement, eller trykk «Fjern logo». Med 2.0 får hvert arrangement sin egen.
 
-### 5.2 Logo
+### 6.2 Logo
 
 | Krav | Valg |
 | --- | --- |
 | Format | PNG, JPEG, WebP eller SVG |
 | Størrelse | Maks 512 kB |
-| Kontroll | Filtypen sjekkes på innholdet (magiske bytes), ikke filnavnet. SVG avvises hvis den inneholder `<script`, `on…=`-attributter, `foreignObject` eller eksterne lenker. |
-| Lagring | I Postgres (`bytea`), i samme database. Ingen ny tjeneste. |
-| Servering | `GET /api/branding/logo?v=<versjon>` med `Cache-Control: public, max-age=31536000, immutable` og `Content-Security-Policy: sandbox`. Vises bare som `<img>`, så SVG-skript kan aldri kjøre. Ny opplasting gir ny versjon. |
-| Fjerning | Knappen «Fjern logo» gjør at standardutseendet vises igjen |
+| SVG-vern | Avvises hvis den inneholder `<script`, `on…=`, `foreignObject` eller eksterne lenker. Vises bare som `<img>`, med `sandbox`-CSP. |
+| Lagring | `media` (§3.2) |
 
-### 5.3 Data og levering
+### 6.3 Data, levering og admin
 
-- `005_branding.sql` oppretter tabellen `branding` med én rad (`id = 1`): `event_name`, `logo` (`bytea`), `logo_mime`, `logo_version`, `primary_color`, `display_background`, `font_display`, `font_body` og `updated_at`. Standardverdiene gir dagens utseende.
-- Rotlayouten leser utseendet på serveren via Next.js sin datacache med taggen `branding`, og setter CSS-variabler og fontklasser på `<html>`.
-- Lagring i admin kaller `revalidateTag('branding')`, slik at endringen vises med en gang uten ekstra databasekall per besøkende.
-- Mangler databasen (for eksempel CI-bygg), brukes standardverdiene.
-- **Kontrast:** Admin regner ut kontrast mellom hovedfarge og tekst (`lib/color.ts`). Ved for lav kontrast vises et varsel, og tekstfargen velges automatisk.
+- **Data:** Migrering `005_branding.sql` legger kolonner for utseende til i `site_config`.
+- **Levering:** Rotlayouten leser utseendet via Next.js datacache (tag `branding`) og setter CSS-variabler og fonter. Lagring i admin kaller `revalidateTag('branding')`, så det koster ingen databasekall per besøkende.
+- **Kontrast:** Admin varsler hvis kontrasten er for lav (WCAG 4,5:1), og tekstfargen velges automatisk.
+- **Egen side `/admin/utseende`:** Skjema, live forhåndsvisning (storskjerm og kølapp), «Lagre» og «Tilbakestill til standard».
 
-### 5.4 Admin
-
-- Egen side `/admin/utseende`, slik at hovedsiden holdes ryddig. Den har lenke fra admin og bruker samme PIN.
-- Siden har skjema, live forhåndsvisning (`DisplayBoard` og en kølapp-miniatyr), «Lagre» og «Tilbakestill til standard».
-
-### 5.5 Tester for v1.4
+### 6.4 Tester
 
 | Type | Innhold |
 | --- | --- |
-| Enhet | SVG-sjekk (avviser skript, `onload`, `foreignObject` og eksterne `href`), sjekk av magiske bytes, kontrastvarsel |
-| Integrasjon | Lagre og lese utseende, logo-versjon øker, for stor fil avvises, «Tilbakestill» |
-| E2E | Last opp logo og se den på storskjerm og kølapp, endre navn og font, «Om appen» er fortsatt bare i admin, standardutseendet uten innstillinger er pikselnært dagens (skjermbildesammenligning) |
-| Sikkerhet | Opplasting uten økt gir 401, feil Origin gir 403, logo-endepunktet har `sandbox`-CSP |
+| Enhet | SVG-vern, magiske bytes, kontrastvarsel |
+| Integrasjon | Lagre og lese utseende, logo erstattes, for stor fil avvises, «Tilbakestill» |
+| E2E | Logo vises på storskjerm og kølapp. Navn og font endres. «Om appen» er fortsatt bare i admin. Uten innstillinger er utseendet pikselnært dagens (skjermbildesammenligning). |
+| Sikkerhet | Opplasting uten økt gir 401, feil Origin gir 403, `sandbox`-CSP på media |
 
-## 6. Senere (2.0): flere arrangementer og brukere
+## 7. v1.5 – Push-varsel (Roadmap – Now)
 
-Ikke i denne runden. Datamodellen over er laget slik at det blir et tillegg:
+### 7.1 Hva er mulig uten egen app
+
+| Plattform | Push uten egen app? | Hva gjesten må gjøre |
+| --- | --- | --- |
+| Android (Chrome, Edge, Firefox, Samsung) | **Ja** | Trykke «Varsle meg» og godta |
+| PC/Mac (Chrome, Edge, Firefox, Safari) | **Ja** | Trykke «Varsle meg» og godta |
+| **iPhone/iPad (iOS/iPadOS 16.4+)** | **Bare fra Hjem-skjerm** | Del → «Legg til på Hjem-skjerm» → åpne derfra → «Varsle meg» → godta |
+| iPhone eldre enn 16.4 | Nei | Ha siden åpen som i dag |
+
+**Konsekvens:** Push er et **tillegg**, ikke en erstatning. Den åpne kølappen (grønn skjerm, vibrering og lyd fra 1.2) er fortsatt hovedløsningen. Push gjør at Android- og PC-brukere kan lukke nettleseren eller låse telefonen. iPhone-brukere får en kort veiviser.
+
+### 7.2 Løsning
+
+| Del | Valg |
+| --- | --- |
+| Teknologi | Standard Web Push (VAPID) med service worker `/sw.js`. Ingen ekstern varslingstjeneste: meldingene går via nettleserens egen push-tjeneste (Google, Mozilla, Apple, Microsoft), gratis. |
+| Nøkler | VAPID-nøkler lages automatisk ved første migrering og lagres i databasen (som øktnøkkelen). Kan overstyres med miljøvariabler. |
+| Bibliotek | `web-push` (npm), utbredt og stabilt |
+| Varsler | **«Du er nest i køen»** (når det er 0 foran) og **«Det er din tur! Gå til stasjon A»** (når nummeret kalles). Valgfritt «Du ble hoppet over – snakk med en funksjonær». |
+| Utsending | I samme API-kall som NESTE/Hopp over/Angre, men etter at svaret er sendt (`after()` i Next.js). Operatøren merker ingen forsinkelse. |
+| Klikk på varsel | Åpner kølappen |
+| iPhone | Kølappen får eget manifest (`/ticket/<id>/manifest.webmanifest`) med `start_url` = kølappen. «Legg til på Hjem-skjerm» åpner da riktig lapp, selv om Hjem-skjerm-appen har egen lagring. |
+| Av/på | Admin-bryter «Push-varsler». Er den av, skjules knappen og ingenting sendes. |
+
+### 7.3 Data og sikkerhet
+
+- **Migrering `006_push.sql`:** Tabellen `push_subscriptions` (`ticket_id` → `tickets` med `ON DELETE CASCADE`, `endpoint`, `p256dh`, `auth`, `created_at`). Abonnementer forsvinner automatisk når lappen slettes eller køen nullstilles, og ryddes når lappen er ferdig.
+- **SSRF-vern:** `endpoint` godtas bare for kjente push-tjenester: `fcm.googleapis.com`, `updates.push.services.mozilla.com`, `web.push.apple.com`, `*.notify.windows.com`. Serveren kan dermed ikke brukes til å kalle vilkårlige adresser.
+- **Tilgang:** `POST /api/tickets/<id>/push` krever gyldig lapp-id (som kølappen selv). Forsøksgrensen gjelder.
+- **Personvern:** Ingen persondata. Abonnementet knyttes bare til lappen, og slettes med den.
+- **Kvote:** Ett utgående kall per varsel. Med 300 gjester og 2 varsler hver blir det ca. 600 kall per dag, godt innenfor Hobby.
+
+### 7.4 Tester
+
+| Type | Innhold |
+| --- | --- |
+| Enhet | SSRF-sjekk av endpoint, hvem som skal varsles ved NESTE, Hopp over, Angre og «nest i køen» |
+| Integrasjon | Abonnement lagres og slettes med lappen, ugyldig endpoint avvises |
+| E2E | Abonner i Chromium, trykk NESTE og se at service workeren mottar push og viser varsel. Operatørens svartid er uendret. |
+| Manuell | Android, PC og iPhone via Hjem-skjerm med låst skjerm |
+
+## 8. v1.6 – Fritt antall stasjoner (Roadmap – Next)
+
+Uendret fra forrige plan. Lyd, push og storskjerm fra 1.2–1.5 er laget generisk og virker med mange stasjoner.
+
+| Spørsmål | Valg |
+| --- | --- |
+| Antall | 1–12 aktive (`MAX_ACTIVE_STATIONS`) |
+| Kode | Én bokstav A–Z, tildeles automatisk og kan **aldri** endres (står i QR og lapper) |
+| Navn | Fritt (maks 40 tegn). Tomt navn gir «Stasjon A». |
+| Farge | Palett med 12 kontrastsjekkede farger, eller egen hex. Lyse og mørke varianter regnes ut automatisk. |
+| Fjerne stasjon | Arkivere (bare med tom kø), aldri slette. Kan gjenopprettes. |
+| Rekkefølge | Opp/ned-knapper |
+
+- **Data:** Migrering `007_flexible_stations.sql`: `CHECK (id ~ '^[A-Z]$')`, `name`, `color`, `sort_order`, `archived_at` og `created_at`. A, B og C får dagens farger.
+- **Kode:**
+  - `STATION_IDS` og `STATION_THEME` fases ut, og farger regnes ut av `lib/color.ts`.
+  - Storskjermen fordeler seg automatisk (1 / 2–4 / 5–8 / 9–12).
+  - Operatørens stasjonsvelger blir rullbar ved mer enn 6 stasjoner.
+  - Opprettelse låses med `pg_advisory_xact_lock`.
+- **Tester:**
+  - Enhet: fargeutregning og kontrast.
+  - Integrasjon: grensen på 12, samtidig opprettelse, arkivering med kø avvises.
+  - E2E: 7 stasjoner med lyd og storskjerm. Eksisterende A/B/C-tester passerer uendret.
+  - Lasttest med 7 stasjoner.
+
+## 9. 2.0 – Flere instanser og brukere (Roadmap – Later)
+
+Ikke i denne runden. Datamodellen over er laget for at dette blir et tillegg:
 - Ny tabell `events` (`slug`, navn).
-- `event_id` på `stations`, `branding` og `settings`.
+- `event_id` på `stations`, `site_config`, `media` og `settings`.
 - Adresser som `/e/<slug>/display`.
-- Ekte brukerkontoer, for eksempel innlogging med e-postlenke, og roller (admin/operatør per arrangement).
+- Ekte brukerkontoer (e-postlenke) med roller per arrangement.
 
-Før dette starter, bør driften flyttes til Vercel Pro, fordi Hobby-vilkårene ikke tillater kommersiell bruk og grensene blir trangere.
+**Før 2.0:** Driften bør flyttes til Vercel Pro (vilkår for kommersiell bruk og høyere grenser). Det krever egen plan og godkjenning.
 
-## 7. Dokumentasjon som oppdateres per versjon
+## 10. Dokumentasjon som oppdateres per versjon
 
-| Fil | 1.2 | 1.3 | 1.4 |
-| --- | --- | --- | --- |
-| `docs/UI-SPEC.md` | Skjermvalg, stengt-visning, QR-varsel | Stasjonsadministrasjon | Utseende-siden |
-| `docs/ARKITEKTUR.md` | `/api/display/qr`, `closedMessage` | Datamodell, fargeutregning | `branding`, cache-tag |
-| `docs/SIKKERHET.md` | QR på storskjerm og skjermtoken | Arkivering i stedet for sletting | Logo-opplasting, SVG-vern |
-| `docs/ADMIN-GUIDE.md` (ny) | Skjermoppsett for treskjermsstativ | Opprette og arkivere stasjoner | Logo, farger og fonter |
-| `docs/KJOREPLAN.md` | Skjermlenker før arrangementet | Stasjonsoppsett | Utseende-sjekk |
-| `CHANGELOG.md`, `AGENTS.md` | Alltid | Alltid | Alltid |
+| Fil | 1.2 Lyd | 1.3 Skjermer | 1.4 Utseende | 1.5 Push | 1.6 Stasjoner |
+| --- | --- | --- | --- | --- | --- |
+| `docs/LYD-OPPSETT.md` (ny) | Oppsett av PC/iPad mot lydanlegg, Chrome-innstillinger, test | `sound=1` på storskjerm | – | – | – |
+| `docs/ADMIN-GUIDE.md` (ny) | Lyd og volum | Skjermlenker og treskjermsstativ | Logo, farger og fonter | Push av/på | Opprette og arkivere stasjoner |
+| `docs/UI-SPEC.md` | `/audio` og lydkort i admin | Skjermvalg, stengt, QR-varsel | Utseende-siden | «Varsle meg» og iPhone-veiviser | Stasjonsadministrasjon |
+| `docs/ARKITEKTUR.md` | `site_config`, `media`, `/api/config`, worker | `/api/display/qr` | Branding-cache | Push-flyt og `after()` | Datamodell og farger |
+| `docs/SIKKERHET.md` | Opplasting og magiske bytes | QR på storskjerm | SVG-vern | SSRF-vern, VAPID | Arkivering |
+| `docs/KJOREPLAN.md` | Test lyd før dørene åpner | Skjermlenker | Utseende-sjekk | Push-test | Stasjonsoppsett |
+| `docs/OPERATOR-GUIDE.md` | – | – | – | Hva gjester ser | Mange stasjoner |
+| `docs/DRIFT.md` | Lydsiden faller ut | – | – | Push-feil | – |
+| `CHANGELOG.md`, `AGENTS.md`, `README.md` | Alltid | Alltid | Alltid | Alltid | Alltid |
 
-## 8. Definisjon av ferdig (hver versjon)
+## 11. Definisjon av ferdig (hver versjon)
 
-- [ ] Alle eksisterende tester er grønne uten endring i forventet oppførsel (unntak: stengt-visning i 1.2)
-- [ ] Nye tester fra tabellene over er grønne i CI
+- [ ] Alle eksisterende tester er grønne uten endret forventet oppførsel (unntak: stengt-visning i 1.3)
+- [ ] Nye tester fra versjonens tabell er grønne i CI
 - [ ] Lasttest uten feil eller duplikater
-- [ ] Migreringen er testet: ny kode mot gammel database, og gammel kode mot ny database
+- [ ] Migreringen er testet begge veier: ny kode mot gammel database, og gammel kode mot ny database
 - [ ] Røyktest mot produksjon etter deploy
-- [ ] Dokumentasjon og CHANGELOG oppdatert, versjon økt
+- [ ] All dokumentasjon i §10 er oppdatert i samme commit, og versjonen er økt
+- [ ] Bestiller har testet i produksjon og godkjent før neste versjon starter
+
+## 12. Til godkjenning
+
+1. **Rekkefølgen** 1.2 Lyd → 1.3 Skjermer → 1.4 Utseende → 1.5 Push → 1.6 Stasjoner → 2.0.
+2. **Lyd:** innebygd standardlyd (klokkeslag), opplasting maks 2 MB / 15 s, anbefalt MP3/WAV, AIFF med varsel om at den bare spilles i Safari.
+3. **Push:** et tillegg, med veiviser for iPhone (Hjem-skjerm), og varsler både for «nest i køen» og «din tur».
+4. **Neste arrangement:** dato, så vi kan sette kodefrys (minst én uke før).

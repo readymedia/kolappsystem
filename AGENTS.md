@@ -60,8 +60,8 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 
 ## 4. Planlagt arbeid
 
-Neste utvidelser (v1.2 skjermer, v1.3 fleksible stasjoner, v1.4 utseende/logo) er beskrevet i detalj i
-`docs/PLAN-UTVIDELSER.md`. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+Neste utvidelser (v1.2 lydsignal, v1.3 skjermer, v1.4 utseende/logo, v1.5 push-varsel, v1.6 fleksible stasjoner,
+2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. Ingen kode før planen er godkjent av bestiller. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
 alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
 
 ## 5. Vanlige oppgaver

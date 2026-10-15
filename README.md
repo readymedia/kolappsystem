@@ -60,7 +60,7 @@ npm run dev                       # http://localhost:3000
 | [`docs/KJOREPLAN.md`](docs/KJOREPLAN.md) | Sjekkliste før, under og etter arrangementet |
 | [`docs/DRIFT.md`](docs/DRIFT.md) | Overvåking, brannmur, grenser og feilsøking i drift |
 | [`docs/PRODKLARHET.md`](docs/PRODKLARHET.md) | Vurdering av prodklarhet og gjenstående risiko |
-| [`docs/PLAN-UTVIDELSER.md`](docs/PLAN-UTVIDELSER.md) | Godkjent plan for v1.2–1.4: skjermer, fleksible stasjoner, utseende/logo |
+| [`docs/PLAN-UTVIDELSER.md`](docs/PLAN-UTVIDELSER.md) | Implementasjonsplan v1.2–2.0: lyd, skjermer, utseende/logo, push, fleksible stasjoner (til godkjenning) |
 | [`docs/OPERATOR-GUIDE.md`](docs/OPERATOR-GUIDE.md) | Én side for funksjonærene |
 | [`docs/BESLUTNINGER.md`](docs/BESLUTNINGER.md) | Arkitekturbeslutninger (ADR) med begrunnelse |
 | [`CHANGELOG.md`](CHANGELOG.md) | Versjonshistorikk |
