@@ -15,13 +15,16 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  // «github» gir feil som annotasjoner på commit-en (lesbare via API selv når loggene ikke er tilgjengelige).
+  reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://localhost:${port}`,
     trace: "retain-on-failure",
     launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // channel «chromium»: full Chromium i ny headless-modus (ikke «headless shell»), så service worker og varsler
+  // (push, v1.5) virker som i en ekte nettleser – også i CI.
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], channel: process.env.PW_CHROMIUM_PATH ? undefined : "chromium" } }],
   webServer: {
     command: `npx next start -p ${port}`,
     url: `http://localhost:${port}/api/health`,
