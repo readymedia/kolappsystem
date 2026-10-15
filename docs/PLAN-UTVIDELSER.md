@@ -1,6 +1,6 @@
 # Implementasjonsplan – utvidelser (v1.2–v1.6 og 2.0)
 
-**Status:** Til godkjenning. Ingen kode skrives før planen er godkjent.
+**Status:** **Godkjent 2026-10-15** for v1.2, v1.3 og v1.4. v1.5 (push), v1.6 (stasjoner) og 2.0 ligger på roadmap til neste runde, og krever ny godkjenning før start.
 **Sist oppdatert:** 2026-10-15
 **Bestiller:** Andreas Aarlott
 **Kilder:** tilbakemelding 14.10 og 15.10 (Teams-notat «Need-to-have / Nice-to-have / Roadmap»)
@@ -12,6 +12,17 @@
 | Ønske | Versjon | Status |
 | --- | --- | --- |
 | Antall i kø oppdateres ikke på operatørsiden uten ny innlasting | 1.1.2 | Rettet og i produksjon (bekreftet av Andreas 15.10) |
+
+### Godkjent omfang
+
+| Versjon | Innhold | Status |
+| --- | --- | --- |
+| 1.2 | Lydsignal | Godkjent – denne runden |
+| 1.3 | Skjermer | Godkjent – denne runden |
+| 1.4 | Utseende og logo | Godkjent – denne runden |
+| 1.5 | Push-varsel | Roadmap – Now (neste runde) |
+| 1.6 | Fritt antall stasjoner | Roadmap – Next |
+| 2.0 | Flere instanser og brukere | Roadmap – Later |
 
 ## 1. Rammer – gjelder alle versjoner
 
@@ -375,9 +386,10 @@ Ikke i denne runden. Datamodellen over er laget for at dette blir et tillegg:
 - [ ] All dokumentasjon i §10 er oppdatert i samme commit, og versjonen er økt
 - [ ] Bestiller har testet i produksjon og godkjent før neste versjon starter
 
-## 12. Til godkjenning
+## 12. Beslutninger
 
-1. **Rekkefølgen** 1.2 Lyd → 1.3 Skjermer → 1.4 Utseende → 1.5 Push → 1.6 Stasjoner → 2.0.
-2. **Lyd:** innebygd standardlyd (klokkeslag), opplasting maks 2 MB / 15 s, anbefalt MP3/WAV, AIFF med varsel om at den bare spilles i Safari.
-3. **Push:** et tillegg, med veiviser for iPhone (Hjem-skjerm), og varsler både for «nest i køen» og «din tur».
-4. **Neste arrangement:** dato, så vi kan sette kodefrys (minst én uke før).
+| Dato | Beslutning |
+| --- | --- |
+| 2026-10-15 | Bestiller godkjente 1.2 Lyd, 1.3 Skjermer og 1.4 Utseende, med valgene i §4–6 (standardlyd, maks 2 MB / 15 s, AIFF med Safari-varsel, QR på storskjerm med risikovarsel). |
+| 2026-10-15 | 1.5 Push, 1.6 Stasjoner og 2.0 settes på roadmap og planlegges på nytt i neste runde. |
+| Åpen | Dato for neste arrangement, så vi kan sette kodefrys (minst én uke før). |
