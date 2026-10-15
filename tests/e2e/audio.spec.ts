@@ -71,7 +71,7 @@ test("admin laster opp egen lyd, den spilles; feil filtype avvises; volum og «a
     .toBe(35);
 
   // Av
-  await admin.getByText("Av", { exact: true }).click();
+  await admin.getByRole("radiogroup").getByText("Av", { exact: true }).click();
   await expect.poll(async () => (await (await request.get("/api/config")).json()).audio.mode).toBe("off");
   const fresh = await (await browser.newContext()).newPage();
   await fresh.goto("/audio");

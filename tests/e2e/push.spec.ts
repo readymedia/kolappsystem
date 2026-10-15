@@ -118,7 +118,7 @@ test("slå på i admin → «Varsle meg» → bekreftelse, «nest i køen» og �
   expect(called.url).toMatch(/^\/ticket\//);
 });
 
-test("service workeren viser varselet og åpner kølappen", async ({ browser }) => {
+test("service workeren viser varselet med riktig innhold", async ({ browser }) => {
   await enablePush(browser);
   const { ctx, page } = await phoneWithPush(browser, "sw");
   await page.goto(`/join?station=A&key=${keys.A}`);
@@ -136,19 +136,26 @@ test("service workeren viser varselet og åpner kølappen", async ({ browser }) 
   await cdp.send("ServiceWorker.enable");
   const origin = new URL(page.url()).origin;
   const ticketPath = new URL(page.url()).pathname;
+  // Fang opp showNotification i service workeren. (Headless Chromium i CI viser ikke selve varselet,
+  // så vi sjekker at vår kode ber om riktig varsel – visningen er nettleserens ansvar.)
+  const worker = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent("serviceworker"));
+  await worker.evaluate(() => {
+    const g = self as unknown as { __shown: unknown[]; registration: ServiceWorkerRegistration };
+    g.__shown = [];
+    const original = g.registration.showNotification.bind(g.registration);
+    g.registration.showNotification = (title: string, options?: NotificationOptions) => {
+      g.__shown.push({ title, body: options?.body, url: (options?.data as { url: string }).url, tag: options?.tag, requireInteraction: options?.requireInteraction });
+      return original(title, options).catch(() => undefined);
+    };
+  });
   await cdp.send("ServiceWorker.deliverPushMessage", {
     origin,
     registrationId: await regId,
     data: JSON.stringify({ title: "Det er din tur! A1", body: "Gå til stasjon A nå.", url: ticketPath, tag: "t", kind: "called" }),
   });
   await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        const reg = await navigator.serviceWorker.ready;
-        return (await reg.getNotifications()).map((n) => `${n.title} | ${n.body} | ${(n.data as { url: string }).url}`);
-      }),
-    )
-    .toEqual([`Det er din tur! A1 | Gå til stasjon A nå. | ${ticketPath}`]);
+    .poll(() => worker.evaluate(() => (self as unknown as { __shown: unknown[] }).__shown))
+    .toEqual([{ title: "Det er din tur! A1", body: "Gå til stasjon A nå.", url: ticketPath, tag: "t", requireInteraction: true }]);
 });
 
 test("iPhone i Safari: veiviser for Hjem-skjerm og eget manifest som åpner riktig lapp", async ({ browser }) => {
