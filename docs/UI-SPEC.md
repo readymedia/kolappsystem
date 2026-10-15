@@ -27,14 +27,14 @@ Alle sider følger innstillingene fra `/admin/utseende`. Uten innstillinger: dag
 
 ## `/` Forside
 
-Logo (om satt), overtekst med arrangementsnavnet (standard «MEET & GREET»), tittel «Kølappsystem», ingress «Tre stasjoner, én digital kø. Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.» Tre kort per stasjon («STASJON A», beskrivelse, «ÅPEN»/«STENGT»). Knapper: «Storskjerm», «Operator», «Admin».
+Logo (om satt), overtekst med arrangementsnavnet (standard «MEET & GREET»), tittel «Kølappsystem», ingress «Tre stasjoner, én digital kø. Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.» (antallet følger stasjonene: «Én stasjon …», «Sju stasjoner …»). Ett kort per stasjon i stasjonens farge («STASJON A» eller navnet, beskrivelse, «ÅPEN»/«STENGT»). Knapper: «Storskjerm», «Operator», «Admin».
 
 ## `/join`
 
 | Tilstand | Tittel | Tekst |
 | --- | --- | --- |
-| Henter | Henter kølappen din … | Du får et nummer og kan følge køen videre. |
-| Ukjent stasjon | Ugyldig lenke | Denne lenken peker ikke på en gyldig stasjon. |
+| Henter | Henter kølappen din … | Du får et nummer og kan følge køen videre. (Nøytral bakgrunn fra v1.6, siden fargen ikke er kjent før lappen er hentet.) |
+| Ukjent eller arkivert stasjon | Ugyldig lenke | Denne lenken peker ikke på en gyldig stasjon. |
 | Feil nøkkel | Ugyldig lenke | Lenken er ikke gyldig. Spør en funksjonær om hjelp. |
 | Stengt | Stasjon X er stengt | Eventuell melding fra admin («Tilbake kl. 14.00») på egen linje, deretter: Det deles ikke ut kølapper her akkurat nå. Ta kontakt med en funksjonær, så hjelper vi deg videre. |
 | For mange | Ugyldig lenke | Det kom mange forespørsler på kort tid. Vent litt og prøv igjen. |
@@ -46,8 +46,8 @@ Logo (om satt), overtekst med arrangementsnavnet (standard «MEET & GREET»), ti
 
 | Status | Visning |
 | --- | --- |
-| Venter | Bakgrunn i stasjonsfarge. «KØLAPP · STASJON A», kort «Din plass i køen» + «A12» (6,5rem) + merke «Venter». Kort med antall foran og ventetid. Knapp «Trykk her for å få vibrering når det er din tur» (bare Android). Kort «DU SKAL MØTE». Bunntekst «Siden oppdaterer seg selv. Ha den åpen – vi gir beskjed her når det er din tur.» |
-| Kalt | Grønn (`emerald-500`), pulserende «A12», «Det er din tur!», «Gå til stasjon A», beskrivelse. Vibrerer 300-150-300-150-500 ms. Fanetittel «Din tur! A12». |
+| Venter | Bakgrunn i stasjonsfarge. «KØLAPP · STASJON A» (eller stasjonens navn), kort «Din plass i køen» + «A12» (6,5rem) + merke «Venter». Kort med antall foran og ventetid. Knapp «Trykk her for å få vibrering når det er din tur» (bare Android). Kort «DU SKAL MØTE». Bunntekst «Siden oppdaterer seg selv. Ha den åpen – vi gir beskjed her når det er din tur.» |
+| Kalt | Grønn (`emerald-500`), pulserende «A12», «Det er din tur!», «Gå til stasjon A» (med navn: «Gå til Hovedscenen (stasjon D)»), beskrivelse. Vibrerer 300-150-300-150-500 ms. Fanetittel «Din tur! A12». |
 | Hoppet over | Gul (`amber-400`), timeglass, «Du ble hoppet over», «Vi ropte opp nummeret ditt, men så deg ikke. Snakk med en funksjonær, så setter vi deg inn igjen i køen.», nummer. |
 | Ferdig | Mørk (`slate-900`), grønn hake, «Ferdig – takk for besøket!», «Kølappen er avsluttet. Velkommen tilbake senere.» |
 | Ikke funnet | «Fant ikke kølappen», «Lenken kan være utdatert. Skann QR-koden på nytt for å få en ny lapp.» |
@@ -68,9 +68,9 @@ Etter 3 mislykkede oppdateringer på rad vises et gult felt: «Mistet kontakten 
 ## `/operator?station=X`
 
 - PIN-skjerm: lås-ikon, «Operator», «Skriv inn PIN-koden for å fortsette», felt «PIN», knapp «Lås opp», feil «Feil PIN-kode. Prøv igjen.» / «For mange feil forsøk. Vent 15 minutter og prøv igjen.»
-- Topp: stasjonsvelger A/B/C og «Logg ut».
+- Topp: stasjonsvelger med alle aktive stasjoner (bokstav i stasjonsfarge, navn som verktøytips; rullbar ved mange, valgt stasjon rulles fram) og «Logg ut». Ukjent eller arkivert stasjon i adressen: første aktive. Ingen stasjoner: «Ingen stasjoner» / «Opprett en stasjon i admin først.»
 - Under «N venter»: «Oppdatert hh:mm:ss» og knapp «Oppdater». Etter to mislykkede oppdateringer: gult felt «Mistet kontakten – prøver igjen. Tallene kan være utdaterte.»
-- «OPERATOR», «Stasjon A», merke «N venter».
+- «OPERATOR», «Stasjon A» (eller navnet), merke «N venter».
 - Kort «BETJENES NÅ» med nummer eller «–», undertekst «Åpen for kø» eller «Stasjonen er satt til stengt» (rød), med eventuell melding: «Stasjonen er satt til stengt – «Tilbake kl. 14.00»».
 - Kort «NESTE I KØEN» med 5 neste («Neste», «2. i kø» …) eller «Ingen venter akkurat nå.»
 - Kort «HOPPET OVER» (bare når det finnes) med «Sett tilbake i kø» per lapp.
@@ -79,6 +79,8 @@ Etter 3 mislykkede oppdateringer på rad vises et gult felt: «Mistet kontakten 
 ## `/display`
 
 **Standard (uten valg i adressen):** Svart bakgrunn. Overskriften fra admin (standard «MEET & GREET · KØSTATUS»; tom = ingen overskrift) og en diskret fullskjerm-knapp. Tre kolonner: «Stasjon A», «ÅPEN»/«STENGT», «NÅ BETJENES», gigantisk «A12» i stasjonsfarge (eller svak «–»), «Neste: A13, A14, A15». Blinker ved nytt nummer. Viser «Mistet kontakten med serveren – prøver igjen …» ved nettfeil.
+
+**Mange stasjoner (v1.6):** 1 stasjon fyller skjermen, 2–3 som før, 4 stasjoner på én rad, 5–8 i fire kolonner, 9–12 i seks kolonner, med mindre nummer så alt får plass på én skjerm. Kolonnene står i admin-rekkefølge, med stasjonens navn (eller «Stasjon A») og farge. En lenke med bare ukjente/arkiverte stasjoner viser alle.
 
 **Stengt stasjon:** Kolonnen får gråtone og skråstriper. Nummer og «Neste» byttes med et stort innrammet «STENGT» og eventuell melding fra admin under («Tilbake kl. 14.00»).
 
@@ -114,9 +116,12 @@ Mørk bakgrunn. «LYDSIGNAL», overskrift «Alle stasjoner» eller «Stasjon A, 
 - Samme PIN-skjerm med tittel «Admin».
 - Gult varsel øverst så lenge standard-PIN brukes: «Du bruker fortsatt standard-PIN 1234. Bytt den nederst på siden før arrangementet (minst 6 sifre).»
 - «ADMIN», «Stasjoner og QR-koder», forklaring, knappene «Logg ut», «Utseende» (til `/admin/utseende`) og «Skriv ut».
-- Kort per stasjon: navn, «Aktiv»/«Stengt», QR-kode, lenke, «Kopier lenke», «N venter · M lapper delt ut», beskrivelse med redigering, «Nullstill kø» (bekreft: «Bekreft nullstilling»), «Deaktiver» (åpner felt «Melding til publikum (valgfri, maks 80 tegn)» med plassholder «F.eks. «Tilbake kl. 14.00»», hjelpetekst «Vises på storskjermen, ved skann og på kølappene. De som står i kø beholder plassen.», knappene «Steng stasjonen» og «Avbryt») / «Aktiver». Mens stengt: felt «Melding mens stengt» med «Lagre melding» («Lagret»). «Bytt nøkkel» (bekreft: «Bekreft – gamle QR slutter å virke»), lenker «Operator» og «Storskjerm».
+- Kort per stasjon (i stasjonens farge og rekkefølge): fargeprikk, navn (eller «Stasjon A»; med navn vises koden som lite merke), «Aktiv»/«Stengt», QR-kode, lenke, «Kopier lenke», «N venter · M lapper delt ut», beskrivelse med redigering, «Nullstill kø» (bekreft: «Bekreft nullstilling»), «Deaktiver» (åpner felt «Melding til publikum (valgfri, maks 80 tegn)» med plassholder «F.eks. «Tilbake kl. 14.00»», hjelpetekst «Vises på storskjermen, ved skann og på kølappene. De som står i kø beholder plassen.», knappene «Steng stasjonen» og «Avbryt») / «Aktiver». Mens stengt: felt «Melding mens stengt» med «Lagre melding» («Lagret»). «Bytt nøkkel» (bekreft: «Bekreft – gamle QR slutter å virke»), lenker «Operator» og «Storskjerm».
+- «Navn, farge og rekkefølge …» per stasjon: felt «Navn» (maks 40, plassholder «Stasjon A», hjelpetekst «Tomt = «Stasjon A». Koden A står på lappene (A1, A2 …) og endres aldri.»), «Farge» med 12 runde fargeknapper (Blå, Lilla, Grønn, Gul, Rød, Turkis, Indigo, Oransje, Rosa, Lime, Cyan, Grå) og «Egen farge», «Lagre» («Lagret»), «Lukk», «Rekkefølge» med pilknapper «Flytt til venstre»/«Flytt til høyre», og «Arkiver stasjon …» (bekreft: «Bekreft – arkiver stasjon A»; «Skjules overalt, og QR-koden slutter å virke. Kan hentes tilbake under «Arkiverte stasjoner».»). Med kø: «Arkivering krever tom kø (N venter). Nullstill køen først.»
+- Siste rute i rutenettet: stiplet «Ny stasjon» med «N av 12 i bruk» (ved 12: deaktivert, «Maks 12 stasjoner. Arkiver en for å lage ny.»).
+- «Arkiverte stasjoner (N)» (utvidbar, bare når det finnes): fargeprikk, navn, «Gjenopprett». «Gjenopprettet stasjon får tom kø og ny QR-kode (skriv ut på nytt).»
 - «Fjern ventende lapper …» per stasjon: felt «Fra A…» og «til A…», knapp «Fjern», svar «Fjernet N ventende lapper.»
-- Kort «Skjermer»: «Lag lenker til storskjermer …». Felt «Overskrift på storskjerm» (plassholder «Tom = ingen overskrift») med «Lagre overskrift» → «Lagret. Storskjermene oppdateres innen 20 sekunder.» og «Bruk arrangementsnavnet» (når navnet er satt og overskriften er en annen). Valg: «Stasjoner» A/B/C, «Størrelse på nummeret» (Liten/Normal/Stor/Ekstra stor), «Antall i «Neste»» (Skjul, 1–5), «Vis» (Stasjonsnavn, Beskrivelse, Overskrift, Klokke, Lydsignal, QR-kode for kølapp), «Bakgrunn» Mørk/Lys, «Tilbakestill valg». Forhåndsvisning 16:9 med ekte køtall («Forhåndsvisning med ekte køtall (QR-koden er et eksempel).»). Med QR: gult risikovarsel «QR-koden på storskjermen kan fotograferes og deles. Alle som har bildet kan ta kølapp uten å være på stedet, og også skjermlenken gir tilgang til QR-koden. Vern som er aktivt: maks 100 ventende per nettverk, «Bytt nøkkel» (gjør både QR og skjermlenke ugyldig) og «Fjern ventende lapper». Vurdert som akseptabelt nå. Slå av hvis misbruk oppstår.» «SKJERMLENKE» med lenken («Lager signert lenke …» mens token hentes; ved feil «Kunne ikke lage signert lenke.» og «Prøv igjen»; åpne-knappene er deaktivert så lenge), «Kopier lenke» («Kopiert»), «Åpne i nytt vindu». Utvidbar «Én skjerm per stasjon» med én lenke per stasjon, «Kopier» og åpne-ikon.
+- Kort «Skjermer»: «Lag lenker til storskjermer …». Felt «Overskrift på storskjerm» (plassholder «Tom = ingen overskrift») med «Lagre overskrift» → «Lagret. Storskjermene oppdateres innen 20 sekunder.» og «Bruk arrangementsnavnet» (når navnet er satt og overskriften er en annen). Valg: «Stasjoner» (én avkrysning per aktiv stasjon), «Størrelse på nummeret» (Liten/Normal/Stor/Ekstra stor), «Antall i «Neste»» (Skjul, 1–5), «Vis» (Stasjonsnavn, Beskrivelse, Overskrift, Klokke, Lydsignal, QR-kode for kølapp), «Bakgrunn» Mørk/Lys, «Tilbakestill valg». Forhåndsvisning 16:9 med ekte køtall («Forhåndsvisning med ekte køtall (QR-koden er et eksempel).»). Med QR: gult risikovarsel «QR-koden på storskjermen kan fotograferes og deles. Alle som har bildet kan ta kølapp uten å være på stedet, og også skjermlenken gir tilgang til QR-koden. Vern som er aktivt: maks 100 ventende per nettverk, «Bytt nøkkel» (gjør både QR og skjermlenke ugyldig) og «Fjern ventende lapper». Vurdert som akseptabelt nå. Slå av hvis misbruk oppstår.» «SKJERMLENKE» med lenken («Lager signert lenke …» mens token hentes; ved feil «Kunne ikke lage signert lenke.» og «Prøv igjen»; åpne-knappene er deaktivert så lenge), «Kopier lenke» («Kopiert»), «Åpne i nytt vindu». Utvidbar «Én skjerm per stasjon» med én lenke per stasjon, «Kopier» og åpne-ikon.
 - Kort «Lydsignal»: valg «Standardlyd» / «Egen lyd» (bare når fil finnes) / «Av», glidebryter «Volum: 80 %», «Spill av», «Last opp lyd …»/«Bytt lyd …», filinfo («WAV · 12 kB») med «Fjern», hjelpetekst om formater, gult varsel for AIFF/OGG, «Åpne lydsiden» og tips om `/audio?station=A` og `/display?sound=1`.
 - Kort «Push-varsler»: bryter «Av»/«På» (standard av), forklaring om Android/PC, iPhone (Hjem-skjerm, iOS 16.4+) og at den åpne kølappen virker som før. Når på: «N gjester i kø har varsel på nå.» Svar: «Push-varsler er slått på. Nye kølapper viser «Varsle meg» innen 5 sekunder.» / «Push-varsler er slått av. Knappen er borte og ingenting sendes.»
 - Kort «PIN-kode»: «Felles for operator og admin. Ny PIN logger ut alle andre enheter.», felt «Ny PIN», «Lagre», feil «PIN må være 6–12 sifre.», bekreftelse «PIN-koden er lagret. Alle andre er logget ut.»

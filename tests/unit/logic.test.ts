@@ -18,10 +18,11 @@ describe("tekster", () => {
 });
 
 describe("stasjon fra URL", () => {
-  it("godtar a/A/B/C og avviser resten", () => {
+  it("godtar én bokstav A–Z (fra v1.6; om stasjonen finnes avgjøres av databasen)", () => {
     expect(parseStationId("a")).toBe("A");
     expect(parseStationId(" C ")).toBe("C");
-    expect(parseStationId("D")).toBeNull();
+    expect(parseStationId("D")).toBe("D");
+    expect(parseStationId("AB")).toBeNull();
     expect(parseStationId(undefined)).toBeNull();
   });
 });
@@ -44,6 +45,8 @@ describe("PIN-hash og nøkler", () => {
 describe("utledning av lappstatus fra delt køstatus", () => {
   const st = (p: Partial<PublicStation> = {}): PublicStation => ({
     id: "A",
+    name: "",
+    color: "sky",
     description: "",
     active: true,
     closedMessage: "",

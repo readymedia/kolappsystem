@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Copy, Palette, Eraser, Info, KeyRound, Monitor, Pencil, Power, Printer, RotateCcw, UserCog } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, Copy, Palette, Plus, Eraser, Info, KeyRound, Monitor, Pencil, Power, Printer, RotateCcw, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -12,12 +12,16 @@ import { PushCard } from "./PushCard";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Card, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { NEW_PIN_PATTERN, STATION_THEME, type StationId } from "@/lib/config";
+import { NEW_PIN_PATTERN, type StationId } from "@/lib/config";
+import { MAX_ACTIVE_STATIONS, ST, stationLabel, stationVars } from "@/lib/stations";
+import { StationSettings } from "./StationSettings";
 
 // Admin: utskriftsvennlige QR-koder, nullstill kø, aktiver/deaktiver, bytt nøkkel, rediger beskrivelse og bytt PIN.
 
 export interface AdminStation {
   id: StationId;
+  name: string;
+  color: string;
   description: string;
   active: boolean;
   closedMessage: string;
@@ -30,6 +34,8 @@ export interface AdminStation {
 export function AdminClient({ version, commit }: { version: string; commit: string }) {
   const router = useRouter();
   const [stations, setStations] = useState<AdminStation[] | null>(null);
+  const [archived, setArchived] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [creating, setCreating] = useState(false);
   const [pinIsDefault, setPinIsDefault] = useState(false);
   const [error, setError] = useState("");
   // Stabil referanse: kortene henter innstillinger i en effekt som ellers ville kjørt på nytt ved hver
@@ -37,9 +43,12 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
   const onUnauthorized = useCallback(() => router.refresh(), [router]);
 
   const load = useCallback(async () => {
-    const res = await api<{ stations: AdminStation[]; pinIsDefault: boolean }>("/api/admin/stations");
+    const res = await api<{ stations: AdminStation[]; archived: { id: string; name: string; color: string }[]; pinIsDefault: boolean }>(
+      "/api/admin/stations",
+    );
     if (res.ok) {
       setStations(res.data.stations);
+      setArchived(res.data.archived ?? []);
       setPinIsDefault(res.data.pinIsDefault);
       setError("");
     } else if (res.status === 401) router.refresh();
@@ -61,6 +70,19 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
     }
     await load();
     return res.data;
+  }
+
+  async function createStation() {
+    setCreating(true);
+    const res = await api<{ ok: true; id: string }>("/api/admin/stations", { method: "POST", json: {} });
+    setCreating(false);
+    if (!res.ok) {
+      if (res.status === 401) router.refresh();
+      else setError(res.message);
+      return;
+    }
+    setError("");
+    await load();
   }
 
   return (
@@ -105,11 +127,56 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
             <Spinner />
           </div>
         ) : (
-          <div className="mt-10 grid gap-6 md:grid-cols-3 print:block">
-            {stations.map((s) => (
-              <StationCard key={s.id} station={s} onAction={stationAction} />
-            ))}
-          </div>
+          <>
+            <div className="mt-10 grid gap-6 md:grid-cols-3 print:block">
+              {stations.map((s, i) => (
+                <StationCard
+                  key={s.id}
+                  station={s}
+                  onAction={stationAction}
+                  isFirst={i === 0}
+                  isLast={i === stations.length - 1}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={createStation}
+                disabled={creating || stations.length >= MAX_ACTIVE_STATIONS}
+                className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-[2rem] border-2 border-dashed border-slate-300 p-6 text-slate-600 transition hover:border-slate-400 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 print:hidden"
+              >
+                <Plus className="h-6 w-6" aria-hidden />
+                <span className="font-medium">{creating ? "Oppretter …" : "Ny stasjon"}</span>
+                <span className="text-xs text-slate-500">
+                  {stations.length >= MAX_ACTIVE_STATIONS
+                    ? `Maks ${MAX_ACTIVE_STATIONS} stasjoner. Arkiver en for å lage ny.`
+                    : `${stations.length} av ${MAX_ACTIVE_STATIONS} i bruk`}
+                </span>
+              </button>
+            </div>
+            {archived.length > 0 && (
+              <details className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 print:hidden">
+                <summary className="cursor-pointer text-sm font-medium text-slate-800">Arkiverte stasjoner ({archived.length})</summary>
+                <ul className="mt-3 space-y-2">
+                  {archived.map((a) => (
+                    <li key={a.id} className="flex items-center gap-3 text-sm" style={stationVars(a.color)}>
+                      <span className={`h-3 w-3 rounded-full ${ST.dot}`} aria-hidden />
+                      <span className="flex-1 text-slate-700">{stationLabel(a)}</span>
+                      <button
+                        type="button"
+                        className={buttonClass("outline", "sm")}
+                        disabled={stations.length >= MAX_ACTIVE_STATIONS}
+                        onClick={() => stationAction(a.id, "restore")}
+                      >
+                        <ArchiveRestore className="h-4 w-4" aria-hidden />
+                        Gjenopprett
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-slate-500">Gjenopprettet stasjon får tom kø og ny QR-kode (skriv ut på nytt).</p>
+              </details>
+            )}
+          </>
         )}
 
         <DisplayCard stations={stations} onUnauthorized={onUnauthorized} />
@@ -130,11 +197,14 @@ export function AdminClient({ version, commit }: { version: string; commit: stri
 function StationCard({
   station: s,
   onAction,
+  isFirst,
+  isLast,
 }: {
   station: AdminStation;
+  isFirst: boolean;
+  isLast: boolean;
   onAction: (id: StationId, action: string, json?: unknown) => Promise<{ ok: true; removed?: number } | null>;
 }) {
-  const t = STATION_THEME[s.id];
   const [confirm, setConfirm] = useState<"reset" | "rotate-key" | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -155,12 +225,23 @@ function StationCard({
   }
 
   return (
-    <Card className={`print-page p-6 ${t.border} print:mx-auto print:max-w-lg print:border-0 print:p-0 print:pt-16 print:text-center`}>
+    <Card
+      className={`print-page p-6 ${ST.border} print:mx-auto print:max-w-lg print:border-0 print:p-0 print:pt-16 print:text-center`}
+      style={stationVars(s.color)}
+    >
       <PrintBrand />
       <div className="flex items-center justify-between print:block">
-        <h2 className="font-display text-2xl text-slate-900 print:text-7xl">Stasjon {s.id}</h2>
+        <h2 className="flex items-center gap-2 font-display text-2xl text-slate-900 print:block print:text-7xl">
+          <span className={`h-3 w-3 shrink-0 rounded-full ${ST.dot} print:hidden`} aria-hidden />
+          {stationLabel(s)}
+          {s.name.trim() && (
+            <span className="rounded-md bg-slate-100 px-1.5 text-sm font-medium text-slate-500 print:hidden" title={`Kode ${s.id} – står på lappene`} aria-hidden>
+              {s.id}
+            </span>
+          )}
+        </h2>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-medium print:hidden ${s.active ? `${t.soft} ${t.text}` : "bg-slate-100 text-slate-500"}`}
+          className={`rounded-full px-3 py-1 text-xs font-medium print:hidden ${s.active ? `${ST.soft} ${ST.text}` : "bg-slate-100 text-slate-500"}`}
         >
           {s.active ? "Aktiv" : "Stengt"}
         </span>
@@ -386,6 +467,15 @@ function StationCard({
             Fjern ventende lapper …
           </button>
         )}
+        <StationSettings
+          id={s.id}
+          name={s.name}
+          color={s.color}
+          isFirst={isFirst}
+          isLast={isLast}
+          waitingCount={s.waitingCount}
+          onAction={(action, json) => onAction(s.id, action, json)}
+        />
         <div className="mt-2 flex flex-wrap gap-2 pt-1">
           <Link href={`/operator?station=${s.id}`} className={buttonClass("ghost", "sm")}>
             <UserCog className="h-4 w-4" aria-hidden />

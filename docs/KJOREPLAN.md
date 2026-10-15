@@ -6,9 +6,9 @@
 - [ ] Bytt PIN (minst 6 sifre) og del den bare med funksjonærene. Det gule varselet forsvinner når standard-PIN er byttet.
 - [ ] Sett opp brannmurregelen for `/api/state` (se `docs/DRIFT.md`).
 - [ ] Kjør røyktesten: `BASE_URL=https://kolappsystem.vercel.app npm run smoke` (eller sjekk at `/api/health` viser `"ok":true`).
-- [ ] Sjekk beskrivelsen for A, B og C.
+- [ ] Stasjoner: riktig antall, navn, farger og rekkefølge (`/admin`). Sjekk beskrivelsen for hver stasjon.
 - [ ] Utseende (`/admin` → «Utseende»): arrangementsnavn, logo, farge og fonter. Se forhåndsvisningen, og sjekk forsiden og en kølapp på mobil. Gjør dette **før** utskrift av QR (logo og navn kommer med på utskriften).
-- [ ] Trykk «Bytt nøkkel» for alle tre stasjoner (gamle test-QR slutter å virke).
+- [ ] Trykk «Bytt nøkkel» for alle stasjoner (gamle test-QR slutter å virke).
 - [ ] Skriv ut QR-kodene (én side per stasjon). Gjerne laminert og i A4 eller større.
 - [ ] Test én QR-kode med mobil, og nullstill den køen etterpå.
 - [ ] Sjekk at PC-en for storskjermen har nett og kan åpne `/display`.
@@ -18,7 +18,7 @@
 
 ## Rett før dørene åpner
 
-- [ ] «Nullstill kø» for A, B og C.
+- [ ] «Nullstill kø» for alle stasjoner.
 - [ ] Alle stasjoner står som «Aktiv».
 - [ ] Storskjerm: åpne `/display` og trykk fullskjerm-ikonet øverst til høyre.
 - [ ] Hver operatør åpner `/operator?station=X` på sin mobil og logger inn.

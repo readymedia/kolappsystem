@@ -19,4 +19,5 @@ Du kan bytte stasjon med knappene **A B C** øverst.
 - Skjermen holdes våken mens siden er åpen.
 - Ser du PIN-skjermen igjen, er økta utløpt eller PIN byttet. Logg inn på nytt – køen er uendret.
 - Står det «Stasjonen er satt til stengt», får ingen nye kølapp. Snakk med ansvarlig.
+- Velg stasjon øverst. Er det mange stasjoner, kan du dra raden sidelengs. Bokstaven er stasjonens kode (står på lappene).
 - Er push-varsler slått på, får gjester med varsel beskjed på mobilen når de er nest og når du trykker NESTE. Noen kan derfor komme fra et annet sted i lokalet – gi dem et par sekunder før du trykker «Hopp over».

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       requestId: typeof body.requestId === "string" ? body.requestId : null,
       ipHash: await networkFingerprint(ip),
     });
-    if (!result.ok && result.error === "invalid_link") await hitRateLimit(`joinbad:${ip}`, bad.limit, bad.windowSeconds);
+    if (!result.ok && (result.error === "invalid_link" || result.error === "invalid_station")) await hitRateLimit(`joinbad:${ip}`, bad.limit, bad.windowSeconds);
     return result.ok ? ok({ ticketId: result.ticketId, reused: result.reused }) : fail(result.error);
   });
 }

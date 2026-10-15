@@ -93,3 +93,11 @@ Bestiller valgte at push er **av som standard** og usynlig for publikum når av,
 godt før bruk. Utsending skjer i `after()`, så operatøren aldri venter. Varsler beregnes ved avstemming mot tilstanden
 (`planNotifications`) i stedet for å sende i selve køtransaksjonen, så Angre, samtidige trykk og omstart aldri gir feil
 eller doble varsler. Hver lapp har eget manifest, så iPhone-appen på Hjem-skjermen åpner riktig lapp.
+
+## ADR-018 – Stasjoner som data, aldri slettet (v1.6)
+**Dato:** 2026-10-15 · **Status:** Vedtatt
+Stasjoner er rader i databasen i stedet for konstanter i koden. Koden (én bokstav) tildeles automatisk og endres eller
+gjenbrukes aldri, fordi den står i QR-koder og på lapper. Stasjoner arkiveres i stedet for å slettes, så historikk og
+lenker aldri peker på «en annen» stasjon. Farger er en kuratert palett (A/B/C beholder dagens farger) pluss egen farge med
+kontrastsjekk, levert som CSS-variabler. Maks 12 aktive holder storskjermen lesbar. Admin-grensesnittet holdes ryddig ved
+at stasjonsinnstillinger ligger bak én knapp per kort.

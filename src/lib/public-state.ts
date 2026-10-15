@@ -8,6 +8,10 @@ export type TicketStatus = "waiting" | "called" | "done" | "skipped";
 /** Svar fra GET /api/state – delt og kort mellomlagret på Vercel CDN. */
 export interface PublicStation {
   id: StationId;
+  /** Valgfritt navn (v1.6). Tomt = «Stasjon A» (se stationLabel). */
+  name: string;
+  /** Palett-navn eller #rrggbb (v1.6). */
+  color: string;
   description: string;
   active: boolean;
   /** Valgfri melding når stasjonen er stengt («Tilbake kl. 14.00»). Tom streng = ingen. */
@@ -39,6 +43,9 @@ export interface PublicTicket {
   status: TicketStatus;
   ahead: number;
   description: string;
+  /** Stasjonens navn og farge (v1.6), så lappen får riktig farge med en gang. */
+  stationName: string;
+  color: string;
 }
 
 export type DerivedTicket =

@@ -1,6 +1,7 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
-import { MAX_WAITING_PER_NETWORK, OPERATOR_NEXT_COUNT, STATION_IDS, type StationId } from "./config";
+import { MAX_WAITING_PER_NETWORK, OPERATOR_NEXT_COUNT, type StationId } from "./config";
+import { MAX_ACTIVE_STATIONS, nextFreeColor, nextFreeStationId, StationNotFoundError } from "./stations";
 import { getSql, type Tx } from "./db";
 import { randomToken } from "./pin-hash.mjs";
 import type { PublicState, PublicStation, PublicTicket, TicketStatus } from "./public-state";
@@ -51,7 +52,7 @@ async function lockStation(tx: Tx, station: StationId): Promise<StationRow> {
   const [row] = await tx<StationRow[]>`
     SELECT id, description, active, join_key, next_number, generation
     FROM stations WHERE id = ${station} FOR UPDATE`;
-  if (!row) throw new Error(`Stasjon ${station} finnes ikke`);
+  if (!row) throw new StationNotFoundError(station);
   return row;
 }
 
@@ -59,7 +60,7 @@ async function lockStation(tx: Tx, station: StationId): Promise<StationRow> {
 
 export type JoinResult =
   | { ok: true; ticketId: string; reused: boolean }
-  | { ok: false; error: "invalid_link" | "closed" | "too_many_waiting" };
+  | { ok: false; error: "invalid_station" | "invalid_link" | "closed" | "too_many_waiting" };
 
 /**
  * Lager en ny kølapp, eller gjenbruker en eksisterende:
@@ -74,8 +75,11 @@ export async function joinQueue(input: {
   requestId?: string | null;
   ipHash?: string | null;
 }): Promise<JoinResult> {
-  const [pre] = await getSql()<{ join_key: string }[]>`SELECT join_key FROM stations WHERE id = ${input.station}`;
-  if (!pre || !keysMatch(input.key, pre.join_key)) return { ok: false, error: "invalid_link" };
+  // Arkiverte stasjoner (v1.6) tar ikke imot skann, selv med gammel QR.
+  const [pre] = await getSql()<{ join_key: string }[]>`
+    SELECT join_key FROM stations WHERE id = ${input.station} AND archived_at IS NULL`;
+  if (!pre) return { ok: false, error: "invalid_station" };
+  if (!keysMatch(input.key, pre.join_key)) return { ok: false, error: "invalid_link" };
 
   return begin(async (tx) => {
     const st = await lockStation(tx, input.station);
@@ -119,8 +123,8 @@ export async function joinQueue(input: {
 export async function getTicket(id: string): Promise<PublicTicket | null> {
   if (!isUuid(id)) return null;
   const sql = getSql();
-  const [row] = await sql<(TicketRow & { description: string; station_generation: number })[]>`
-    SELECT t.id, t.station, t.number, t.generation, t.status, s.description,
+  const [row] = await sql<(TicketRow & { description: string; station_generation: number; name: string; color: string })[]>`
+    SELECT t.id, t.station, t.number, t.generation, t.status, s.description, s.name, s.color,
            s.generation AS station_generation
     FROM tickets t JOIN stations s ON s.id = t.station
     WHERE t.id = ${id}`;
@@ -141,6 +145,8 @@ export async function getTicket(id: string): Promise<PublicTicket | null> {
     status: row.status,
     ahead,
     description: row.description,
+    stationName: row.name,
+    color: row.color,
   };
 }
 
@@ -148,8 +154,9 @@ export async function getTicket(id: string): Promise<PublicTicket | null> {
 export async function getPublicState(): Promise<PublicState> {
   // Begge spørringene i samme øyeblikksbilde, så en samtidig nullstilling aldri gir blandet svar.
   const { stations, tickets } = await getSql().begin("isolation level repeatable read read only", async (sql) => {
-    const stations = await sql<(Omit<StationRow, "join_key"> & { closed_message: string })[]>`
-    SELECT id, description, active, closed_message, next_number, generation FROM stations ORDER BY id`;
+    const stations = await sql<(Omit<StationRow, "join_key"> & { closed_message: string; name: string; color: string })[]>`
+    SELECT id, name, color, description, active, closed_message, next_number, generation
+    FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
     const tickets = await sql<{ station: StationId; number: number; status: TicketStatus }[]>`
     SELECT t.station, t.number, t.status
     FROM tickets t JOIN stations s ON s.id = t.station AND s.generation = t.generation
@@ -162,6 +169,8 @@ export async function getPublicState(): Promise<PublicState> {
     const mine = tickets.filter((t) => t.station === s.id);
     return {
       id: s.id,
+      name: s.name,
+      color: s.color,
       description: s.description,
       active: s.active,
       closedMessage: s.active ? "" : s.closed_message,
@@ -195,7 +204,7 @@ export async function getOperatorView(station: StationId): Promise<OperatorView>
   const sql = getSql();
   const [st] = await sql<(StationRow & { closed_message: string })[]>`
     SELECT id, description, active, closed_message, next_number, generation FROM stations WHERE id = ${station}`;
-  if (!st) throw new Error(`Stasjon ${station} finnes ikke`);
+  if (!st) throw new StationNotFoundError(station);
   const [current] = await sql<{ id: string; number: number }[]>`
     SELECT id, number FROM tickets
     WHERE station = ${station} AND generation = ${st.generation} AND status = 'called'`;
@@ -312,6 +321,8 @@ export async function requeueSkipped(station: StationId, ticketId: string): Prom
 
 export interface AdminStation {
   id: StationId;
+  name: string;
+  color: string;
   description: string;
   active: boolean;
   closedMessage: string;
@@ -322,13 +333,15 @@ export interface AdminStation {
 
 export async function getAdminStations(): Promise<AdminStation[]> {
   const sql = getSql();
-  const rows = await sql<(StationRow & { waiting: number; closed_message: string })[]>`
-    SELECT s.id, s.description, s.active, s.closed_message, s.join_key, s.next_number, s.generation,
+  const rows = await sql<(StationRow & { waiting: number; closed_message: string; name: string; color: string })[]>`
+    SELECT s.id, s.name, s.color, s.description, s.active, s.closed_message, s.join_key, s.next_number, s.generation,
       (SELECT count(*)::int FROM tickets t
         WHERE t.station = s.id AND t.generation = s.generation AND t.status = 'waiting') AS waiting
-    FROM stations s ORDER BY s.id`;
+    FROM stations s WHERE s.archived_at IS NULL ORDER BY s.sort_order, s.id`;
   return rows.map((r) => ({
     id: r.id,
+    name: r.name,
+    color: r.color,
     description: r.description,
     active: r.active,
     closedMessage: r.closed_message,
@@ -379,9 +392,10 @@ export async function setClosedMessage(station: StationId, message: string): Pro
   await getSql()`UPDATE stations SET closed_message = ${message}, updated_at = now() WHERE id = ${station}`;
 }
 
-/** Nøklene for valgte stasjoner – kun til signering av skjermlenker på serveren. */
+/** Nøklene for aktive stasjoner – kun til signering av skjermlenker på serveren. */
 export async function getJoinKeys(): Promise<Record<string, string>> {
-  const rows = await getSql()<{ id: string; join_key: string }[]>`SELECT id, join_key FROM stations`;
+  const rows = await getSql()<{ id: string; join_key: string }[]>`
+    SELECT id, join_key FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
   return Object.fromEntries(rows.map((r) => [r.id, r.join_key]));
 }
 
@@ -393,4 +407,110 @@ export async function setStationDescription(station: StationId, description: str
   await getSql()`UPDATE stations SET description = ${description}, updated_at = now() WHERE id = ${station}`;
 }
 
-export { STATION_IDS };
+// ---------------------------------------------------------------- Stasjoner (v1.6)
+
+const STATION_LOCK = 4_202_610; // pg_advisory_xact_lock for opprettelse/gjenoppretting/rekkefølge
+
+export interface ArchivedStation {
+  id: StationId;
+  name: string;
+  color: string;
+  archivedAt: string;
+}
+
+/** Aktive stasjoner (kode, navn, farge) i admin-rekkefølge. Uten nøkler. */
+export async function listActiveStations(): Promise<{ id: StationId; name: string; color: string }[]> {
+  return getSql()<{ id: string; name: string; color: string }[]>`
+    SELECT id, name, color FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
+}
+
+export async function getArchivedStations(): Promise<ArchivedStation[]> {
+  const rows = await getSql()<{ id: string; name: string; color: string; archived_at: Date }[]>`
+    SELECT id, name, color, archived_at FROM stations WHERE archived_at IS NOT NULL ORDER BY archived_at DESC`;
+  return rows.map((r) => ({ id: r.id, name: r.name, color: r.color, archivedAt: r.archived_at.toISOString() }));
+}
+
+export type StationResult<T = void> = { ok: true; value: T } | { ok: false; error: "station_limit" | "no_free_station" | "station_not_empty" | "invalid_station" };
+
+/**
+ * Ny stasjon: neste ledige bokstav (aldri gjenbrukt, heller ikke fra arkiverte), første ledige farge, sist i rekkefølgen.
+ * Låst med advisory lock, så to samtidige opprettelser aldri får samme bokstav eller går over grensen.
+ */
+export async function createStation(input: { name?: string; color?: string } = {}): Promise<StationResult<StationId>> {
+  return begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${STATION_LOCK})`;
+    const all = await tx<{ id: string; color: string; archived: boolean; sort_order: number }[]>`
+      SELECT id, color, archived_at IS NOT NULL AS archived, sort_order FROM stations`;
+    const active = all.filter((s) => !s.archived);
+    if (active.length >= MAX_ACTIVE_STATIONS) return { ok: false, error: "station_limit" } as const;
+    const id = nextFreeStationId(all.map((s) => s.id));
+    if (!id) return { ok: false, error: "no_free_station" } as const;
+    const color = input.color ?? nextFreeColor(active.map((s) => s.color));
+    const order = Math.max(0, ...active.map((s) => s.sort_order)) + 1;
+    await tx`
+      INSERT INTO stations (id, name, color, sort_order, description, join_key)
+      VALUES (${id}, ${input.name ?? ""}, ${color}, ${order}, '', ${randomToken()})`;
+    return { ok: true, value: id } as const;
+  });
+}
+
+export async function updateStationMeta(station: StationId, input: { name?: string; color?: string }): Promise<boolean> {
+  const rows = await getSql()`
+    UPDATE stations SET
+      name = COALESCE(${input.name ?? null}, name),
+      color = COALESCE(${input.color ?? null}, color),
+      updated_at = now()
+    WHERE id = ${station} AND archived_at IS NULL RETURNING id`;
+  return rows.length > 0;
+}
+
+/** Flytter en stasjon ett steg opp (-1) eller ned (+1) blant de aktive. */
+export async function moveStation(station: StationId, direction: -1 | 1): Promise<boolean> {
+  return begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${STATION_LOCK})`;
+    const rows = await tx<{ id: string }[]>`SELECT id FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
+    const ids = rows.map((r) => r.id);
+    const i = ids.indexOf(station);
+    const j = i + direction;
+    if (i < 0 || j < 0 || j >= ids.length) return false;
+    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    // Skriv rekkefølgen på nytt (1..n), så den alltid er entydig.
+    for (const [n, id] of ids.entries()) await tx`UPDATE stations SET sort_order = ${n + 1} WHERE id = ${id}`;
+    return true;
+  });
+}
+
+/** Arkiverer en stasjon (skjules overalt, QR slutter å virke). Bare når ingen venter eller er kalt. Slettes aldri. */
+export async function archiveStation(station: StationId): Promise<StationResult> {
+  return begin(async (tx) => {
+    const st = await lockStation(tx, station);
+    const [busy] = await tx<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM tickets
+      WHERE station = ${station} AND generation = ${st.generation} AND status IN ('waiting', 'called')`;
+    if ((busy?.n ?? 0) > 0) return { ok: false, error: "station_not_empty" } as const;
+    await tx`UPDATE stations SET archived_at = now(), updated_at = now() WHERE id = ${station} AND archived_at IS NULL`;
+    return { ok: true, value: undefined } as const;
+  });
+}
+
+/** Henter tilbake en arkivert stasjon (sist i rekkefølgen, med ny nøkkel og tom kø). */
+export async function restoreStation(station: StationId): Promise<StationResult> {
+  return begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${STATION_LOCK})`;
+    const [exists] = await tx`SELECT 1 FROM stations WHERE id = ${station} AND archived_at IS NOT NULL`;
+    if (!exists) return { ok: false, error: "invalid_station" } as const;
+    const [count] = await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM stations WHERE archived_at IS NULL`;
+    if ((count?.n ?? 0) >= MAX_ACTIVE_STATIONS) return { ok: false, error: "station_limit" } as const;
+    const [last] = await tx<{ max: number }[]>`
+      SELECT COALESCE(max(sort_order), 0)::int AS max FROM stations WHERE archived_at IS NULL`;
+    const max = last?.max ?? 0;
+    const rows = await tx`
+      UPDATE stations SET archived_at = NULL, sort_order = ${max + 1}, join_key = ${randomToken()},
+        next_number = 1, generation = generation + 1, updated_at = now()
+      WHERE id = ${station} AND archived_at IS NOT NULL RETURNING id`;
+    if (!rows.length) return { ok: false, error: "invalid_station" } as const;
+    await tx`DELETE FROM queue_actions WHERE station = ${station}`;
+    await tx`DELETE FROM tickets WHERE station = ${station}`;
+    return { ok: true, value: undefined } as const;
+  });
+}

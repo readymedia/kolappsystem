@@ -19,6 +19,8 @@ const cached = unstable_cache(async () => toBranding(await getSiteConfig()), ["b
 
 /** Utseendet, eller standard hvis databasen ikke svarer (feil mellomlagres ikke). */
 export async function getBranding(): Promise<Branding> {
+  // Uten database (forhåndsvisning/bygg uten DATABASE_URL): standard, uten støy i byggloggen.
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) return DEFAULT_BRANDING;
   try {
     return await cached();
   } catch {

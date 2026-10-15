@@ -7,7 +7,7 @@ import { usePolling } from "@/components/hooks";
 import { Logo, useBranding } from "@/components/BrandingContext";
 import { buttonClass } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { STATION_THEME } from "@/lib/config";
+import { ST, stationLabel, stationsIntro, stationVars } from "@/lib/stations";
 import type { PublicState } from "@/lib/public-state";
 
 export function HomeClient() {
@@ -25,15 +25,14 @@ export function HomeClient() {
         {brand.eventName && <p className="text-xs uppercase tracking-[0.35em] text-slate-400">{brand.eventName}</p>}
         <h1 className="mt-4 font-display text-4xl text-slate-900 sm:text-5xl">Kølappsystem</h1>
         <p className="mt-4 max-w-xl text-slate-600">
-          Tre stasjoner, én digital kø. Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.
+          {stationsIntro(state?.stations.length ?? 3)} Publikum skanner QR-koden ved inngangen og følger med på sin egen kølapp.
         </p>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {(state?.stations ?? []).map((s) => {
-            const t = STATION_THEME[s.id];
             return (
-              <div key={s.id} className={`rounded-3xl border ${t.border} ${t.soft} p-5`}>
-                <p className={`text-xs uppercase tracking-[0.25em] ${t.text}`}>Stasjon {s.id}</p>
+              <div key={s.id} className={`rounded-3xl border ${ST.border} ${ST.soft} p-5`} style={stationVars(s.color)}>
+                <p className={`text-xs uppercase tracking-[0.25em] ${ST.text}`}>{stationLabel(s)}</p>
                 <p className="mt-3 text-sm leading-relaxed text-slate-700">{s.description}</p>
                 <p className="mt-4 text-xs font-medium uppercase tracking-wider text-slate-500">
                   {s.active ? "Åpen" : "Stengt"}

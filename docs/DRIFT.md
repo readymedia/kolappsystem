@@ -34,6 +34,8 @@ Commit-koden skal være den samme som den nyeste committen på `main` i GitHub.
 
 **Node-versjon:** Appen er låst til Node 22 (`engines` i `package.json`). Står Project Settings i Vercel på en annen versjon (f.eks. 24.x), viser byggeloggen et varsel om at 22.x brukes. Det er ufarlig. Fjern varselet ved å sette Settings → Build and Deployment → **Node.js Version** til **22.x**.
 
+
+**Tilbakerulling etter v1.6:** Har dere opprettet stasjoner utover A, B og C, eller arkivert noen, må de arkiveres/gjenopprettes tilbake til A, B og C før en eventuell tilbakerulling til en versjon før 1.6.0 (eldre kode kjenner bare A, B og C).
 ## Avhengigheter (Dependabot)
 
 Dependabot lager pull requests med oppdateringer hver mandag. Hver PR får automatisk CI (alle tester) og et forhåndsvisningsbygg i Vercel.

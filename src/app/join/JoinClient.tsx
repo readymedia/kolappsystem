@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useBranding } from "@/components/BrandingContext";
 import { CenteredMessage, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { parseStationId, STATION_THEME } from "@/lib/config";
+import { parseStationId } from "@/lib/config";
 import type { PublicState } from "@/lib/public-state";
 import { ERROR_TEXT } from "@/lib/texts";
 
@@ -92,7 +92,7 @@ export function JoinClient() {
     );
   }
   return (
-    <div className={station ? STATION_THEME[station].soft : ""}>
+    <div className="bg-paper">
       <CenteredMessage
         logoUrl={logoUrl}
         tone="soft"

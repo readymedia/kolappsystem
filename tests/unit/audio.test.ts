@@ -29,6 +29,8 @@ describe("gjenkjenning av lydfiler på innhold", () => {
 describe("når lydsignal spilles", () => {
   const st = (id: "A" | "B" | "C", current: number | null, generation = 1): PublicStation => ({
     id,
+    name: "",
+    color: "sky",
     description: "",
     active: true,
     closedMessage: "",
@@ -62,8 +64,9 @@ describe("når lydsignal spilles", () => {
   });
   it("tolker stasjonsfilter fra adressen", () => {
     expect(parseStationFilter("a")).toEqual(["A"]);
-    expect(parseStationFilter("A, c,c,Z")).toEqual(["A", "C"]);
-    expect(parseStationFilter("Z")).toBeNull();
+    // Fra v1.6 er alle bokstaver gyldige koder; ukjente stasjoner filtreres bort mot køstatusen.
+    expect(parseStationFilter("A, c,c,Z")).toEqual(["A", "C", "Z"]);
+    expect(parseStationFilter("1,!,AB")).toBeNull();
     expect(parseStationFilter(null)).toBeNull();
   });
 });

@@ -18,9 +18,9 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 const STATION_SEED = [
-  { id: "A", description: "Møt hovedgjesten – kort prat, signering og bilde." },
-  { id: "B", description: "Møt programlederen – still spørsmål og ta et bilde sammen." },
-  { id: "C", description: "Møt produsenten – hør hvordan showet blir til." },
+  { id: "A", color: "sky", description: "Møt hovedgjesten – kort prat, signering og bilde." },
+  { id: "B", color: "violet", description: "Møt programlederen – still spørsmål og ta et bilde sammen." },
+  { id: "C", color: "emerald", description: "Møt produsenten – hør hvordan showet blir til." },
 ];
 
 // På Vercel migreres bare produksjonsbygg, så en forhåndsvisning aldri endrer produksjonsdatabasen.
@@ -56,12 +56,14 @@ try {
       await tx`INSERT INTO schema_migrations (version) VALUES (${version})`;
     }
 
-    // Startdata: stasjoner med nye, sterke nøkler.
-    for (const s of STATION_SEED) {
-      await tx`
-        INSERT INTO stations (id, description, join_key)
-        VALUES (${s.id}, ${s.description}, ${randomToken()})
-        ON CONFLICT (id) DO NOTHING`;
+    // Startdata: A, B og C med nye, sterke nøkler – bare i en tom database. Fra v1.6 styres stasjoner i admin.
+    const [{ n: stationCount }] = await tx`SELECT count(*)::int AS n FROM stations`;
+    if (stationCount === 0) {
+      for (const [i, s] of STATION_SEED.entries()) {
+        await tx`
+          INSERT INTO stations (id, description, join_key, color, sort_order)
+          VALUES (${s.id}, ${s.description}, ${randomToken()}, ${s.color}, ${i + 1})`;
+      }
     }
 
     // Startdata: PIN (standard 1234) og reserve-hemmelighet for økter.

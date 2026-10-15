@@ -10,7 +10,7 @@ export function LogoutButton() {
   return (
     <button
       type="button"
-      className={buttonClass("ghost", "sm")}
+      className={`${buttonClass("ghost", "sm")} whitespace-nowrap`}
       onClick={async () => {
         await api("/api/auth/logout", { method: "POST" });
         router.refresh();

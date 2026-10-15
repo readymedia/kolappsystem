@@ -19,6 +19,7 @@ Målet er enkelt: publikum trenger bare QR-koden, og bare funksjonærer med PIN 
 | Direkte databasetilgang | Ingen. Databasen nås bare fra serveren med `DATABASE_URL` i Vercel. |
 | Test-versjon endrer ekte data | Databasen kobles bare til Production, og migrering kjøres bare i produksjonsbygg. |
 | Oppbrukt Vercel-kvote (DoS) | `/api/state` deles via CDN. Brannmurregel mot parametere på `/api/state` og Attack Challenge Mode, se `docs/DRIFT.md`. |
+| Gjetting av stasjonskoder (v1.6) | Skann mot ukjent eller arkivert stasjon teller som feil forsøk (20/min). Uten riktig nøkkel får man uansett ingen lapp. |
 | QR-kode vist på storskjerm (valgfritt, v1.3) | Bevisst akseptert risiko: bildet kan fotograferes og deles, og skjermlenken gir også tilgang. Admin viser risikovarsel når QR slås på. Skjermlenken inneholder et signert token (HMAC av stasjoner og nøkler), aldri nøkkelen. Tokenet sjekkes i konstant tid, og «Bytt nøkkel» gjør både QR og skjermlenke ugyldige. Ellers gjelder vernet over (maks 100 ventende per nettverk, «Fjern ventende lapper»). |
 | Serveren misbrukes til å kalle vilkårlige adresser (SSRF) via push | Push-adresser godtas bare for kjente push-tjenester over https (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `web.push.apple.com`, `*.notify.windows.com`), uten brukernavn eller annen port. Testmottaker kun med `PUSH_TEST_ENDPOINT` utenfor produksjon. |
 | Push-varsel til feil person | Abonnement knyttes til lapp-id (tilfeldig UUID, adgangsbeviset til lappen). Innholdet er kryptert til gjestens nettleser. Ingen persondata. |

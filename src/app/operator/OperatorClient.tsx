@@ -3,12 +3,13 @@
 import { RefreshCw, RotateCcw, SkipForward, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePolling, useWakeLock } from "@/components/hooks";
 import { LogoutButton } from "@/components/LogoutButton";
 import { buttonClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { POLL_INTERVAL_MS, STATION_IDS, STATION_THEME, type StationId } from "@/lib/config";
+import { POLL_INTERVAL_MS, type StationId } from "@/lib/config";
+import { ST, stationLabel, stationVars, type StationInfo } from "@/lib/stations";
 import type { OperatorView } from "@/lib/queue";
 
 // Mobil for den som styrer en stasjon. Alle knapper sender én atomisk handling til serveren
@@ -16,9 +17,14 @@ import type { OperatorView } from "@/lib/queue";
 
 type Action = "next" | "skip" | "undo" | "requeue";
 
-export function OperatorClient({ station }: { station: StationId }) {
+export function OperatorClient({ station, stations }: { station: StationId; stations: StationInfo[] }) {
   const router = useRouter();
-  const theme = STATION_THEME[station];
+  const me = stations.find((s) => s.id === station) ?? { id: station, name: "", color: "slate" };
+  // Mange stasjoner: vis valgt stasjon i den rullbare velgeren (én gang ved innlasting).
+  const activeTab = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    activeTab.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, []);
   const [view, setView] = useState<OperatorView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -85,20 +91,27 @@ export function OperatorClient({ station }: { station: StationId }) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-paper pb-64">
+    <main className="min-h-[100dvh] bg-paper pb-64" style={stationVars(me.color)}>
       <div className="mx-auto max-w-md px-5 pt-6">
         <div className="flex items-center justify-between">
-          <nav className="flex gap-1 rounded-full border border-slate-200 bg-white p-1" aria-label="Velg stasjon">
-            {STATION_IDS.map((id) => (
+          {/* Rullbar når det er mange stasjoner (v1.6). */}
+          <nav
+            className="flex max-w-[calc(100%-6rem)] gap-1 overflow-x-auto rounded-full border border-slate-200 bg-white p-1 [scrollbar-width:none]"
+            aria-label="Velg stasjon"
+          >
+            {stations.map((s) => (
               <Link
-                key={id}
-                href={`/operator?station=${id}`}
-                aria-current={id === station ? "page" : undefined}
-                className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold ${
-                  id === station ? `${STATION_THEME[id].solid} text-white` : "text-slate-500 hover:bg-slate-100"
+                key={s.id}
+                href={`/operator?station=${s.id}`}
+                aria-current={s.id === station ? "page" : undefined}
+                ref={s.id === station ? activeTab : undefined}
+                title={stationLabel(s)}
+                style={stationVars(s.color)}
+                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold ${
+                  s.id === station ? `${ST.solid} text-white` : "text-slate-500 hover:bg-slate-100"
                 }`}
               >
-                {id}
+                {s.id}
               </Link>
             ))}
           </nav>
@@ -108,9 +121,9 @@ export function OperatorClient({ station }: { station: StationId }) {
         <div className="mt-6 flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Operator</p>
-            <h1 className="mt-1 font-display text-2xl text-slate-900">Stasjon {station}</h1>
+            <h1 className="mt-1 font-display text-2xl text-slate-900">{stationLabel(me)}</h1>
           </div>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${theme.soft} ${theme.text}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${ST.soft} ${ST.text}`}>
             <Users className="h-4 w-4" aria-hidden />
             {view?.waitingCount ?? "–"} venter
           </span>
@@ -207,7 +220,7 @@ export function OperatorClient({ station }: { station: StationId }) {
             type="button"
             onClick={() => act("next")}
             disabled={busy || !view}
-            className={`flex h-24 w-full items-center justify-center rounded-3xl text-2xl font-semibold tracking-wide text-white transition active:scale-[0.98] disabled:opacity-60 ${theme.solid}`}
+            className={`flex h-24 w-full items-center justify-center rounded-3xl text-2xl font-semibold tracking-wide text-white transition active:scale-[0.98] disabled:opacity-60 ${ST.solid}`}
           >
             {busy ? <Spinner className="h-7 w-7 text-white" /> : "NESTE"}
           </button>

@@ -60,12 +60,13 @@ export function planNotifications(subs: SubscriptionState[]): { id: string; kind
   return out;
 }
 
-export function pushMessage(kind: PushKind, label: string, station: string): { title: string; body: string } {
+/** `place`: «stasjon A» eller «Hovedscenen (stasjon A)» (stationPlace). */
+export function pushMessage(kind: PushKind, label: string, place: string): { title: string; body: string } {
   switch (kind) {
     case "called":
-      return { title: `Det er din tur! ${label}`, body: `Gå til stasjon ${station} nå.` };
+      return { title: `Det er din tur! ${label}`, body: `Gå til ${place} nå.` };
     case "next":
-      return { title: `Du er nest i køen – ${label}`, body: `Gjør deg klar ved stasjon ${station}.` };
+      return { title: `Du er nest i køen – ${label}`, body: `Gjør deg klar ved ${place}.` };
     case "skipped":
       return { title: `Du ble hoppet over – ${label}`, body: "Snakk med en funksjonær, så setter vi deg inn igjen i køen." };
   }

@@ -6,7 +6,7 @@ Kopier teksten i rammen under inn i en ny samtale med en hvilken som helst AI-as
 
 ```text
 Du skal jobbe videre på «Kølappsystem» – et digitalt kølappsystem for meet-and-greet
-med tre stasjoner (A, B, C). Repo: https://github.com/readymedia/kolappsystem
+med 1–12 stasjoner (standard A, B, C). Repo: https://github.com/readymedia/kolappsystem
 
 Før du gjør noe:
 1. Les AGENTS.md i roten av repoet helt. Den har kart over koden, invarianter som aldri

@@ -11,7 +11,8 @@ import { buttonClass, Card, Spinner } from "@/components/ui";
 import { brandingVars, DEFAULT_BRANDING, FONT_IDS, FONTS, type Branding, type FontId } from "@/lib/branding";
 import { api } from "@/lib/client-api";
 import { contrastWarning, normalizeHex } from "@/lib/color";
-import { POLL_INTERVAL_MS, STATION_THEME } from "@/lib/config";
+import { POLL_INTERVAL_MS } from "@/lib/config";
+import { ST, stationVars } from "@/lib/stations";
 import { DEFAULT_DISPLAY_OPTIONS } from "@/lib/display-options";
 import { IMAGE_LABEL, LOGO_MAX_BYTES, type ImageMime } from "@/lib/media";
 import type { PublicState } from "@/lib/public-state";
@@ -375,7 +376,7 @@ export function UtseendeClient() {
                   <p className="mt-2 text-sm text-slate-600">Tre stasjoner, én digital kø.</p>
                   <span className={`${buttonClass("primary", "sm")} mt-4`}>Storskjerm</span>
                 </div>
-                <div className={`rounded-2xl ${STATION_THEME.A.soft} p-5`}>
+                <div className={`rounded-2xl ${ST.soft} p-5`} style={stationVars(state?.stations[0]?.color ?? "sky")}>
                   {logoUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- egen fil fra /api/media
                     <img src={logoUrl} alt="" className="mb-4 h-8 w-auto max-w-[8rem] object-contain" />

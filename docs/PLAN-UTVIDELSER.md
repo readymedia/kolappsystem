@@ -1,6 +1,6 @@
 # Implementasjonsplan – utvidelser (v1.2–v1.6 og 2.0)
 
-**Status:** **Godkjent 2026-10-15** for v1.2, v1.3 og v1.4 (levert). v1.5 (push, av som standard og usynlig når av) og v1.6 (stasjoner) godkjent 15.10. 2.0 ligger på roadmap og krever ny godkjenning før start.
+**Status:** **Godkjent 2026-10-15** og levert: v1.2–v1.4, v1.5 (push, av som standard og usynlig når av) og v1.6 (stasjoner). 2.0 ligger på roadmap og krever ny godkjenning før start.
 **Sist oppdatert:** 2026-10-15
 **Bestiller:** Andreas Aarlott
 **Kilder:** tilbakemelding 14.10 og 15.10 (Teams-notat «Need-to-have / Nice-to-have / Roadmap»)
@@ -21,7 +21,7 @@
 | 1.3 | Skjermer | **Levert i v1.3.0** |
 | 1.4 | Utseende og logo | **Levert i v1.4.0** |
 | 1.5 | Push-varsel | **Levert i v1.5.0** (godkjent 15.10, av som standard) |
-| 1.6 | Fritt antall stasjoner | Godkjent 15.10 – denne runden |
+| 1.6 | Fritt antall stasjoner | **Levert i v1.6.0** |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
 
 ## 1. Rammer – gjelder alle versjoner
@@ -342,6 +342,7 @@ Uendret fra forrige plan. Lyd, push og storskjerm fra 1.2–1.5 er laget generis
 | Fjerne stasjon | Arkivere (bare med tom kø), aldri slette. Kan gjenopprettes. |
 | Rekkefølge | Opp/ned-knapper |
 
+- *(Levert: «Navn, farge og rekkefølge …» er skjult bak én knapp på hvert stasjonskort, og «Ny stasjon» er siste rute i rutenettet, så admin holder seg ryddig. Arkivering er deaktivert med forklaring når det står folk i kø. Gjenoppretting gir ny QR-kode.)*
 - **Data:** Migrering `007_flexible_stations.sql`: `CHECK (id ~ '^[A-Z]$')`, `name`, `color`, `sort_order`, `archived_at` og `created_at`. A, B og C får dagens farger.
 - **Kode:**
   - `STATION_IDS` og `STATION_THEME` fases ut, og farger regnes ut av `lib/color.ts`.

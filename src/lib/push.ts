@@ -3,6 +3,7 @@ import { Agent } from "node:https";
 import webpush from "web-push";
 import { getSql } from "./db";
 import { isAllowedEndpoint, planNotifications, pushMessage, type PushKind } from "./push-rules";
+import { stationPlace } from "./stations";
 
 // Push-varsel (v1.5): lagre abonnement på en lapp og sende «nest i køen» / «din tur» / «hoppet over».
 // Sendes etter svaret til operatøren (after() i API-ruten), så NESTE blir aldri tregere.
@@ -151,6 +152,7 @@ interface Row {
   ticket_id: string;
   number: number;
   station: string;
+  station_name: string;
   status: "waiting" | "called" | "done" | "skipped";
   first: boolean;
 }
@@ -173,6 +175,7 @@ export async function notifyStation(station: string): Promise<number> {
         AND (t.generation <> s.generation OR t.status = 'done' OR (t.status = 'skipped' AND ps.last_kind = 'skipped'))`;
     const rows = await sql<Row[]>`
       SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth, ps.last_kind, t.id AS ticket_id, t.number, t.station, t.status,
+        s.name AS station_name,
         (t.status = 'waiting' AND t.number = (
           SELECT min(w.number) FROM tickets w
           WHERE w.station = t.station AND w.generation = t.generation AND w.status = 'waiting')) AS first
@@ -191,7 +194,7 @@ export async function notifyStation(station: string): Promise<number> {
           WHERE id = ${id} AND last_kind IS NOT DISTINCT FROM ${r.last_kind} RETURNING id`;
         if (!claimed.length) return;
         const label = `${r.station}${r.number}`;
-        const msg = pushMessage(kind, label, r.station);
+        const msg = pushMessage(kind, label, stationPlace({ id: r.station, name: r.station_name }));
         const payload = JSON.stringify({ ...msg, url: `/ticket/${r.ticket_id}`, tag: `kolapp-${r.ticket_id}`, kind });
         const result = await deliver(r, payload, vapid, kind === "called" ? 300 : 900);
         if (result === "sent") sent++;

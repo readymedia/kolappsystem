@@ -2,6 +2,28 @@
 
 Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [semantisk versjonering](https://semver.org/lang/no/). Nyeste øverst.
 
+## [1.6.0] – 2026-10-15
+
+Fritt antall stasjoner (1–12). A, B og C ser ut og virker som før. Se `docs/ADMIN-GUIDE.md`.
+
+### Lagt til
+- «Ny stasjon» i `/admin`: neste ledige bokstav (D, E …) og ledig farge, maks 12 aktive.
+- «Navn, farge og rekkefølge …» per stasjon: valgfritt navn (vises på storskjerm, kølapp, operatør og i push-varsler), 12 farger eller egen farge med automatisk kontrastsjekk, og flytting til venstre/høyre.
+- Arkivering (bare med tom kø) og gjenoppretting (tom kø, ny QR). Stasjoner slettes aldri, og bokstaver gjenbrukes aldri.
+- Storskjermen fordeler seg etter antall (4 på én rad, 5–8 i fire kolonner, 9–12 i seks) med mindre nummer så alt får plass.
+- Operatørens stasjonsvelger viser alle stasjoner og kan rulles; ukjent stasjon i adressen gir første aktive.
+- Lasttest med valgfritt antall stasjoner (`STATIONS=7 npm run load`).
+- Tester: stasjonskoder, farger, kontrast og storskjermoppsett (enhet), grense på 12 ved samtidige opprettelser, arkivering med kø, gjenoppretting og rekkefølge (integrasjon), 4 nye E2E-scenarier med opptil 12 stasjoner.
+
+### Endret
+- Forsideteksten følger antallet stasjoner («Tre stasjoner, én digital kø.» som før med tre).
+- Skann mot ukjent eller arkivert stasjon gir «Denne lenken peker ikke på en gyldig stasjon» og teller som feil forsøk.
+- `/join` viser nøytral bakgrunn mens lappen hentes.
+- Operator: «Logg ut» brytes ikke over to linjer.
+
+### Database
+- Migrering `007_flexible_stations.sql`: `stations.id` kan være A–Z, nye kolonner `name`, `color`, `sort_order`, `archived_at`, `created_at`. A, B og C får dagens farger og rekkefølge. Bare tillegg.
+
 ## [1.5.0] – 2026-10-15
 
 Push-varsel på kølappen. **Av som standard** – er det av, ser gjestene ingenting om det. Se `docs/PUSH.md`.

@@ -54,7 +54,7 @@ Ved senere deployer står bare `[migrate] databasen er oppdatert`. Det er riktig
 1. Åpne `https://<ditt-prosjekt>.vercel.app/admin`.
 2. Logg inn med PIN **1234**.
 3. **Bytt PIN med en gang** nederst på siden (6–12 sifre). Del den nye PIN-en bare med funksjonærene. Et gult varsel står øverst til standard-PIN er byttet.
-4. Sjekk at beskrivelsene for A, B og C stemmer (blyant-ikonet).
+4. Sjekk at beskrivelsene for A, B og C stemmer (blyant-ikonet). Flere stasjoner, navn og farger legges til samme sted («Ny stasjon»).
 5. Trykk **Skriv ut**. Hver stasjon kommer på sin egen side.
 
 ## Steg 5 – Test

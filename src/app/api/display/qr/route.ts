@@ -1,5 +1,4 @@
 import { parseStationFilter } from "@/lib/announce";
-import { STATION_IDS } from "@/lib/config";
 import { verifyDisplayToken } from "@/lib/display-token";
 import { fail, handle, ok, publicOrigin } from "@/lib/http";
 import { joinUrl, qrSvg } from "@/lib/join-link";
@@ -19,7 +18,7 @@ export async function GET(req: Request) {
     if (!(await verifyDisplayToken(stations, keys, token))) return fail("display_link_expired");
     const origin = publicOrigin(req);
     const qr: Record<string, string> = {};
-    for (const id of stations ?? STATION_IDS) {
+    for (const id of stations ?? Object.keys(keys)) {
       const key = keys[id];
       if (key) qr[id] = await qrSvg(joinUrl(origin, id, key));
     }

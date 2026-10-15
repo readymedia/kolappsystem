@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePolling, useWakeLock } from "@/components/hooks";
 import { CenteredMessage, Spinner } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { POLL_INTERVAL_MS, STATION_THEME } from "@/lib/config";
+import { POLL_INTERVAL_MS } from "@/lib/config";
+import { ST, stationLabel, stationPlace, stationVars } from "@/lib/stations";
 import { deriveTicket, type DerivedTicket, type PublicState, type PublicTicket } from "@/lib/public-state";
 import { aheadText, ERROR_TEXT, waitText } from "@/lib/texts";
 
@@ -29,6 +30,8 @@ export function TicketClient({ id }: { id: string }) {
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [view, setView] = useState<DerivedTicket | { kind: "loading" }>({ kind: "loading" });
   const [description, setDescription] = useState("");
+  // Stasjonens navn og farge (v1.6) – fra lappen, og oppdatert fra køstatusen hvis admin endrer dem.
+  const [meta, setMeta] = useState<{ name: string; color: string } | null>(null);
   // Stasjonen er stengt mens gjesten venter: plassen beholdes, men vi sier ifra.
   const [closed, setClosed] = useState<{ message: string } | null>(null);
   // Push-varsel (v1.5): bare når admin har slått det på. Hentes én gang (CDN-mellomlagret).
@@ -50,6 +53,7 @@ export function TicketClient({ id }: { id: string }) {
       if (res.ok) {
         setTicket(res.data);
         setDescription(res.data.description);
+        setMeta({ name: res.data.stationName ?? "", color: res.data.color ?? "slate" });
         setView(fromTicket(res.data));
       } else if (res.error === "not_found") setView({ kind: "not_found" });
       return;
@@ -66,6 +70,7 @@ export function TicketClient({ id }: { id: string }) {
     const station = res.data.stations.find((s) => s.id === ticket.station);
     if (station) {
       setDescription(station.description);
+      setMeta({ name: station.name ?? "", color: station.color ?? "slate" });
       setClosed(station.active ? null : { message: station.closedMessage });
     }
     setView(deriveTicket(ticket, station));
@@ -102,7 +107,8 @@ export function TicketClient({ id }: { id: string }) {
   }
 
   const label = `${ticket.station}${ticket.number}`;
-  const theme = STATION_THEME[ticket.station];
+  const st = { id: ticket.station, name: meta?.name ?? "" };
+  const vars = stationVars(meta?.color ?? "slate") as React.CSSProperties;
 
   if (view.kind === "called") {
     return (
@@ -112,7 +118,7 @@ export function TicketClient({ id }: { id: string }) {
       >
         <p className="pulser font-display text-[min(11rem,38vw)] leading-none">{label}</p>
         <p className="mt-8 font-display text-4xl">Det er din tur!</p>
-        <p className="mt-4 text-xl font-medium">Gå til stasjon {ticket.station}</p>
+        <p className="mt-4 text-xl font-medium">Gå til {stationPlace(st)}</p>
         {description && <p className="mt-8 max-w-sm rounded-3xl bg-white/15 px-6 py-4 text-lg">{description}</p>}
       </main>
     );
@@ -143,15 +149,15 @@ export function TicketClient({ id }: { id: string }) {
   }
 
   return (
-    <main className={`min-h-[100dvh] ${theme.soft}`}>
+    <main className={`min-h-[100dvh] ${ST.soft}`} style={vars}>
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-6 pb-12 pt-10">
         <Logo url={brand.logoUrl} className="mb-6 h-10 max-w-[12rem]" alt={brand.eventName} />
-        <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Kølapp · Stasjon {ticket.station}</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Kølapp · {stationLabel(st)}</p>
         <div className="mt-8 rounded-[2rem] bg-white px-6 py-10 text-center shadow-[0_25px_60px_-45px_rgba(15,23,42,0.5)]">
           <p className="text-sm font-medium text-slate-500">Din plass i køen</p>
           <p className="mt-3 font-display text-[6.5rem] leading-none tracking-tight text-slate-900">{label}</p>
-          <p className={`mt-4 inline-flex items-center gap-2 rounded-full ${theme.soft} px-4 py-1.5 text-sm font-medium ${theme.text}`}>
-            <span className={`h-2 w-2 rounded-full ${theme.dot}`} />
+          <p className={`mt-4 inline-flex items-center gap-2 rounded-full ${ST.soft} px-4 py-1.5 text-sm font-medium ${ST.text}`}>
+            <span className={`h-2 w-2 rounded-full ${ST.dot}`} />
             Venter
           </p>
         </div>

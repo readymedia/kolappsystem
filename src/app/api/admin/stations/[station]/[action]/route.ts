@@ -2,6 +2,10 @@ import { after } from "next/server";
 import { parseStationId } from "@/lib/config";
 import { fail, handle, ok, readJson } from "@/lib/http";
 import {
+  archiveStation,
+  moveStation,
+  restoreStation,
+  updateStationMeta,
   removeWaitingRange,
   resetStation,
   rotateStationKey,
@@ -10,8 +14,9 @@ import {
   setStationDescription,
 } from "@/lib/queue";
 import { notifyStation } from "@/lib/push";
+import { isStationColor } from "@/lib/stations";
 
-// Admin-handlinger per stasjon: reset | activate | deactivate {message?} | closed-message | rotate-key | description | remove-waiting
+// Admin-handlinger per stasjon: meta {name?, color?} | move-up | move-down | archive | restore | reset | activate | deactivate {message?} | closed-message | rotate-key | description | remove-waiting
 
 export async function POST(req: Request, { params }: { params: Promise<{ station: string; action: string }> }) {
   return handle(req, { mutation: true, requireSession: true }, async () => {
@@ -20,6 +25,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ station
     if (!station) return fail("invalid_station");
 
     switch (p.action) {
+      case "meta": {
+        const body = await readJson(req);
+        if (body.name !== undefined && (typeof body.name !== "string" || body.name.length > 40)) return fail("bad_request");
+        if (body.color !== undefined && !isStationColor(body.color)) return fail("bad_request");
+        const okMeta = await updateStationMeta(station, {
+          name: typeof body.name === "string" ? body.name.trim() : undefined,
+          color: body.color as string | undefined,
+        });
+        if (!okMeta) return fail("invalid_station");
+        break;
+      }
+      case "move-up":
+      case "move-down":
+        await moveStation(station, p.action === "move-up" ? -1 : 1);
+        break;
+      case "archive": {
+        const r = await archiveStation(station);
+        if (!r.ok) return fail(r.error);
+        break;
+      }
+      case "restore": {
+        const r = await restoreStation(station);
+        if (!r.ok) return fail(r.error);
+        break;
+      }
       case "reset":
         await resetStation(station);
         break;

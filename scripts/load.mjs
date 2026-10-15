@@ -3,8 +3,9 @@
 //
 //   DATABASE_URL=postgres://…/kolapp_load BASE_URL=http://localhost:3200 npm run load
 //
-// - PHONES telefoner (standard 300) skanner QR fordelt på A/B/C og følger køen (poller /api/state hvert 3. s)
-// - 3 operatører trykker NESTE jevnlig
+// - PHONES telefoner (standard 300) skanner QR fordelt på stasjonene og følger køen (poller /api/state hvert 3. s)
+// - STATIONS stasjoner (standard 3; f.eks. STATIONS=7) – mangler det stasjoner, opprettes de i testdatabasen
+// - én operatør per stasjon trykker NESTE jevnlig
 // - måler svartider (p50/p95/maks) og feil, og sjekker til slutt at ingen nummer er duplisert
 //
 // Kjør ALDRI mot produksjon: skriptet nekter andre adresser enn localhost.
@@ -15,6 +16,7 @@ import { hashPin } from "../src/lib/pin-hash.mjs";
 const base = (process.env.BASE_URL || "http://localhost:3200").replace(/\/$/, "");
 const PHONES = Number(process.env.PHONES || 300);
 const SECONDS = Number(process.env.SECONDS || 60);
+const STATIONS = Math.min(12, Math.max(1, Number(process.env.STATIONS || 3)));
 if (!/^http:\/\/(localhost|127\.0\.0\.1)/.test(base)) {
   console.error("Lasttesten kjøres bare mot localhost.");
   process.exit(1);
@@ -30,6 +32,14 @@ await sql`DELETE FROM tickets`;
 await sql`DELETE FROM rate_limits`;
 await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true`;
 await sql`UPDATE settings SET pin_hash = ${await hashPin("1234")}`;
+// Sørg for STATIONS aktive stasjoner (v1.6). Nye får neste ledige bokstav.
+const existing = await sql`SELECT id FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id`;
+for (let i = existing.length; i < STATIONS; i++) {
+  const used = (await sql`SELECT id FROM stations`).map((r) => r.id);
+  const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find((c) => !used.includes(c));
+  await sql`INSERT INTO stations (id, join_key, sort_order) VALUES (${id}, ${crypto.randomUUID().replace(/-/g, "")}, ${100 + i})`;
+}
+const stationIds = (await sql`SELECT id FROM stations WHERE archived_at IS NULL ORDER BY sort_order, id LIMIT ${STATIONS}`).map((r) => r.id);
 const keys = Object.fromEntries((await sql`SELECT id, join_key FROM stations`).map((r) => [r.id, r.join_key]));
 
 const timings = { join: [], state: [], next: [] };
@@ -53,7 +63,7 @@ const deadline = Date.now() + SECONDS * 1000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function phone(i) {
-  const station = "ABC"[i % 3];
+  const station = stationIds[i % stationIds.length];
   await sleep(Math.random() * Math.min(20_000, SECONDS * 300)); // skann spredt utover de første sekundene
   // Hver telefon får sin egen IP (som på mobilnett); hver tiende deler IP (som på konferanse-Wi-Fi).
   const ip = i % 10 === 0 ? "10.0.0.1" : `10.1.${Math.floor(i / 250)}.${i % 250}`;
@@ -85,9 +95,9 @@ async function operator(station) {
   }
 }
 
-console.log(`Lasttest: ${PHONES} telefoner + 3 operatører i ${SECONDS} s mot ${base} …`);
+console.log(`Lasttest: ${PHONES} telefoner + ${stationIds.length} operatører (${stationIds.join(", ")}) i ${SECONDS} s mot ${base} …`);
 const started = Date.now();
-await Promise.all([...Array.from({ length: PHONES }, (_, i) => phone(i)), operator("A"), operator("B"), operator("C")]);
+await Promise.all([...Array.from({ length: PHONES }, (_, i) => phone(i)), ...stationIds.map((id) => operator(id))]);
 
 const pct = (arr, p) => {
   if (!arr.length) return 0;

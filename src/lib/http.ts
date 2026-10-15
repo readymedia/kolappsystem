@@ -1,3 +1,4 @@
+import { StationNotFoundError } from "./stations";
 import "server-only";
 import { NextResponse } from "next/server";
 import { requireAndRenewSession } from "./auth";
@@ -20,6 +21,9 @@ const STATUS: Partial<Record<ErrorCode, number>> = {
   forbidden_origin: 403,
   display_link_expired: 403,
   push_disabled: 409,
+  station_limit: 409,
+  station_not_empty: 409,
+  no_free_station: 409,
   not_found: 404,
   locked: 429,
   rate_limited: 429,
@@ -125,6 +129,7 @@ export async function handle(
     }
   } catch (err) {
     if (err instanceof DatabaseNotConfiguredError) return fail("db_missing");
+    if (err instanceof StationNotFoundError) return fail("invalid_station");
     if (isTimeoutError(err) || isConnectionError(err)) {
       console.warn("[api] travelt/tilkobling", req.method, new URL(req.url).pathname, (err as { code?: string }).code);
       return fail("busy");

@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const metadata: Metadata = {
   description:
-    "Digitalt kølappsystem for meet-and-greet med tre stasjoner. Skann QR-koden, få din kølapp og følg køen på mobilen.",
+    "Digitalt kølappsystem for meet-and-greet. Skann QR-koden, få din kølapp og følg køen på mobilen.",
   applicationName: "KøKlar",
   icons: { apple: "/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "KøKlar", statusBarStyle: "black" },

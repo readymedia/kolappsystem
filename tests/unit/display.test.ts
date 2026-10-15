@@ -27,7 +27,7 @@ describe("skjermvalg fra adressen", () => {
   });
 
   it("ugyldige verdier gir standard, aldri feil", () => {
-    const o = parse("station=X&size=huge&next=9&title=ja&theme=blue&t=<script>&clock=");
+    const o = parse("station=1&size=huge&next=9&title=ja&theme=blue&t=<script>&clock=");
     expect(o).toEqual({ ...DEFAULT_DISPLAY_OPTIONS });
     expect(parse("next=-1").next).toBe(3);
     expect(parse("next=0").next).toBe(0);

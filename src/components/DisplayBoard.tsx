@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { STATION_IDS, STATION_THEME, type StationId } from "@/lib/config";
+import type { StationId } from "@/lib/config";
+import { displayColumns, ST, stationLabel, stationVars } from "@/lib/stations";
 import type { DisplayOptions, DisplaySize } from "@/lib/display-options";
 import type { PublicState, PublicStation } from "@/lib/public-state";
 
@@ -36,6 +37,25 @@ const COLUMN_SIZE: Record<DisplaySize, { narrow: string; wide: string }> = {
   xl: { narrow: "text-[9rem] sm:text-[15rem]", wide: "text-[15rem]" },
 };
 
+/**
+ * Mange stasjoner (v1.6): mindre nummer så alt får plass. Nøkkel = antall kolonner (4 eller 6).
+ * «narrow» brukes på smale skjermer (stablet), «wide» på storskjerm og i forhåndsvisningen.
+ */
+const COMPACT_SIZE: Record<4 | 6, Record<DisplaySize, { narrow: string; wide: string }>> = {
+  4: {
+    s: { narrow: "text-[4rem]", wide: "text-[4.5rem]" },
+    m: { narrow: "text-[5rem]", wide: "text-[6.5rem]" },
+    l: { narrow: "text-[6rem]", wide: "text-[8rem]" },
+    xl: { narrow: "text-[7rem]", wide: "text-[10rem]" },
+  },
+  6: {
+    s: { narrow: "text-[3.5rem]", wide: "text-[3rem]" },
+    m: { narrow: "text-[4rem]", wide: "text-[4.25rem]" },
+    l: { narrow: "text-[5rem]", wide: "text-[5.25rem]" },
+    xl: { narrow: "text-[6rem]", wide: "text-[6.5rem]" },
+  },
+};
+
 /** Én stasjon fyller hele skjermen. Container-enheter, så forhåndsvisningen skalerer riktig. */
 const SINGLE_SIZE: Record<DisplaySize, string> = {
   s: "text-[min(20cqw,34cqh)]",
@@ -55,7 +75,11 @@ export function DisplayBoard({
   wide = false,
   className,
 }: DisplayBoardProps) {
-  const ids = options.stations ?? STATION_IDS;
+  // Alle aktive stasjoner i admin-rekkefølge, eller utvalget i lenken (ukjente/arkiverte hoppes over).
+  const all = state?.stations.map((s) => s.id) ?? options.stations ?? [];
+  const picked = options.stations ? options.stations.filter((id) => !state || all.includes(id)) : all;
+  // Ingen gyldige stasjoner i lenken (f.eks. arkivert): vis alle i stedet for en tom skjerm.
+  const ids = picked.length ? picked : all;
   const light = options.theme === "light";
   const only = ids.length === 1 ? ids[0] : undefined;
   const single = only !== undefined;
@@ -64,13 +88,18 @@ export function DisplayBoard({
   const showHeader = options.header && title !== "";
   const find = (id: StationId) => state?.stations.find((s) => s.id === id);
 
+  const n = displayColumns(ids.length);
+  const compact: 4 | 6 | null = n === 4 ? 4 : n === 6 ? 6 : null;
+  // Hele klassenavn (Tailwind må finne dem). 1–3 stasjoner: som før.
   const cols = wide
-    ? ids.length === 2
-      ? "grid-cols-2"
-      : "grid-cols-3"
-    : ids.length === 2
-      ? "grid-cols-1 md:grid-cols-2"
-      : "grid-cols-1 md:grid-cols-3";
+    ? ({ 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4", 6: "grid-cols-6" } as Record<number, string>)[n]
+    : ({
+        1: "grid-cols-1",
+        2: "grid-cols-1 md:grid-cols-2",
+        3: "grid-cols-1 md:grid-cols-3",
+        4: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
+        6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
+      } as Record<number, string>)[n];
 
   return (
     <main
@@ -114,7 +143,7 @@ export function DisplayBoard({
             light={light}
           />
         ) : (
-          <div className={`mt-8 grid gap-6 ${cols}`}>
+          <div className={`mt-8 grid ${compact ? "gap-4" : "gap-6"} ${cols}`}>
             {ids.map((id) => (
               <Column
                 key={id}
@@ -125,6 +154,7 @@ export function DisplayBoard({
                 qr={qr?.[id]}
                 light={light}
                 wide={wide}
+                compact={compact}
               />
             ))}
           </div>
@@ -147,28 +177,31 @@ interface StationProps {
 const STRIPES_DARK = "bg-[repeating-linear-gradient(135deg,rgba(255,255,255,0.045)_0_14px,transparent_14px_28px)]";
 const STRIPES_LIGHT = "bg-[repeating-linear-gradient(135deg,rgba(15,23,42,0.045)_0_14px,transparent_14px_28px)]";
 
-function Column({ id, station, options, blink, qr, light, wide }: StationProps & { wide: boolean }) {
-  const t = STATION_THEME[id];
+function Column({ id, station, options, blink, qr, light, wide, compact }: StationProps & { wide: boolean; compact: 4 | 6 | null }) {
   const active = station?.active !== false;
   const current = station?.current ?? null;
   const next = station?.waiting.slice(0, options.next) ?? [];
-  const numberColor = light ? t.text : t.display;
+  const numberColor = light ? ST.text : ST.display;
+  const sizes = compact ? COMPACT_SIZE[compact][options.size] : COLUMN_SIZE[options.size];
   const muted = light ? "text-slate-500" : "text-white/50";
   const box = light ? "border-slate-200 bg-slate-50" : "border-white/10 bg-white/[0.04]";
 
   return (
     <section
-      className={`relative rounded-[2rem] border p-7 ${box} ${!active ? `${light ? STRIPES_LIGHT : STRIPES_DARK} grayscale` : ""} ${blink ? "kallblink" : ""}`}
+      style={stationVars(station?.color ?? "slate")}
+      className={`relative rounded-[2rem] border ${compact ? "p-5" : "p-7"} ${box} ${!active ? `${light ? STRIPES_LIGHT : STRIPES_DARK} grayscale` : ""} ${blink ? "kallblink" : ""}`}
       data-station={id}
       data-closed={!active || undefined}
     >
       <div className="flex items-center justify-between gap-4">
         {options.title ? (
-          <h2 className={`font-display text-3xl ${light ? "text-slate-900" : "text-white"}`}>Stasjon {id}</h2>
+          <h2 className={`font-display ${compact === 6 ? "text-xl" : compact ? "text-2xl" : "text-3xl"} ${light ? "text-slate-900" : "text-white"}`}>
+            {stationLabel({ id, name: station?.name ?? "" })}
+          </h2>
         ) : (
           <span />
         )}
-        <span className={`text-xs uppercase tracking-[0.25em] ${active ? t.display : light ? "text-slate-400" : "text-white/30"}`}>
+        <span className={`text-xs uppercase tracking-[0.25em] ${active ? (light ? ST.text : ST.display) : light ? "text-slate-400" : "text-white/30"}`}>
           {active ? "Åpen" : "Stengt"}
         </span>
       </div>
@@ -176,15 +209,15 @@ function Column({ id, station, options, blink, qr, light, wide }: StationProps &
 
       {active ? (
         <>
-          <p className={`mt-10 text-xs uppercase tracking-[0.4em] ${light ? "text-slate-400" : "text-white/40"}`}>Nå betjenes</p>
+          <p className={`${compact ? "mt-6" : "mt-10"} text-xs uppercase tracking-[0.4em] ${light ? "text-slate-400" : "text-white/40"}`}>Nå betjenes</p>
           <p
-            className={`mt-2 font-display leading-[0.85] tabular-nums ${wide ? COLUMN_SIZE[options.size].wide : COLUMN_SIZE[options.size].narrow} ${current !== null ? numberColor : light ? "text-slate-200" : "text-white/15"}`}
+            className={`mt-2 font-display leading-[0.85] tabular-nums ${wide ? sizes.wide : sizes.narrow} ${current !== null ? numberColor : light ? "text-slate-200" : "text-white/15"}`}
             aria-live="polite"
           >
             {current !== null ? `${id}${current}` : "–"}
           </p>
           {options.next > 0 && (
-            <p className={`mt-10 text-lg ${muted}`}>
+            <p className={`${compact ? "mt-6 text-base" : "mt-10 text-lg"} ${muted}`}>
               Neste:{" "}
               <span className={light ? "text-slate-900" : "text-white/90"}>
                 {next.length ? next.map((n) => `${id}${n}`).join(", ") : "–"}
@@ -201,7 +234,6 @@ function Column({ id, station, options, blink, qr, light, wide }: StationProps &
 }
 
 function SingleStation({ id, station, options, blink, qr, light }: StationProps) {
-  const t = STATION_THEME[id];
   const active = station?.active !== false;
   const current = station?.current ?? null;
   const next = station?.waiting.slice(0, options.next) ?? [];
@@ -209,13 +241,14 @@ function SingleStation({ id, station, options, blink, qr, light }: StationProps)
 
   return (
     <section
+      style={stationVars(station?.color ?? "slate")}
       className={`relative mt-6 flex flex-1 flex-col items-center justify-center rounded-[2.5rem] px-6 py-8 text-center ${!active ? `${light ? STRIPES_LIGHT : STRIPES_DARK} grayscale` : ""} ${blink ? "kallblink" : ""}`}
       data-station={id}
       data-closed={!active || undefined}
     >
       {options.title && (
         <h2 className={`font-display text-[min(6cqw,9cqh)] leading-none ${light ? "text-slate-900" : "text-white"}`}>
-          Stasjon {id}
+          {stationLabel({ id, name: station?.name ?? "" })}
         </h2>
       )}
       {options.desc && station?.description && <p className={`mt-3 text-[min(2.6cqw,4cqh)] ${muted}`}>{station.description}</p>}
@@ -225,7 +258,7 @@ function SingleStation({ id, station, options, blink, qr, light }: StationProps)
             Nå betjenes
           </p>
           <p
-            className={`font-display leading-[0.9] tabular-nums ${SINGLE_SIZE[options.size]} ${current !== null ? (light ? t.text : t.display) : light ? "text-slate-200" : "text-white/15"}`}
+            className={`font-display leading-[0.9] tabular-nums ${SINGLE_SIZE[options.size]} ${current !== null ? (light ? ST.text : ST.display) : light ? "text-slate-200" : "text-white/15"}`}
             aria-live="polite"
           >
             {current !== null ? `${id}${current}` : "–"}

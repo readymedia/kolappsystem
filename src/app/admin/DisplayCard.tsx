@@ -8,7 +8,8 @@ import { ScaledPreview } from "@/components/ScaledPreview";
 import { usePolling } from "@/components/hooks";
 import { buttonClass, Card } from "@/components/ui";
 import { api } from "@/lib/client-api";
-import { POLL_INTERVAL_MS, STATION_IDS, type StationId } from "@/lib/config";
+import { POLL_INTERVAL_MS, type StationId } from "@/lib/config";
+import { stationLabel } from "@/lib/stations";
 import {
   buildDisplayQuery,
   DEFAULT_DISPLAY_OPTIONS,
@@ -41,6 +42,9 @@ const TOGGLES: { key: "title" | "desc" | "header" | "clock" | "sound" | "qr"; la
 ];
 
 export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStation[] | null; onUnauthorized: () => void }) {
+  // Aktive stasjoner i admin-rekkefølge (v1.6).
+  const allIds = stations?.map((s) => s.id) ?? [];
+  const idsKey = allIds.join(",");
   // Storskjermbakgrunnen fra «Utseende» er standard; lenken får bare «theme=» når den avviker.
   const brand = useBranding();
   const siteTheme = brand.displayBackground;
@@ -84,7 +88,7 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
   useEffect(() => {
     if (!opts.qr) return;
     let cancelled = false;
-    const sets = [selKey, ...STATION_IDS];
+    const sets = [selKey, ...idsKey.split(",").filter(Boolean)];
     void Promise.all(
       sets.map(async (set) => {
         const r = await api<{ token: string }>(`/api/admin/display-token?station=${set}`);
@@ -99,7 +103,7 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
     return () => {
       cancelled = true;
     };
-  }, [opts.qr, selKey, sig, onUnauthorized]);
+  }, [opts.qr, selKey, sig, idsKey, onUnauthorized]);
   const tokens = tokenState.sig === sig ? tokenState.map : {};
   const tokenFailed = opts.qr && tokenState.sig === sig && tokenState.failed;
 
@@ -130,8 +134,9 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
 
   function toggleStation(id: StationId) {
     const cur = opts.stations ?? [];
-    const next = cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id].sort();
-    setOpts({ ...opts, stations: next.length && next.length < STATION_IDS.length ? (next as StationId[]) : null });
+    const picked = cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id];
+    const next = allIds.filter((s) => picked.includes(s)); // admin-rekkefølge
+    setOpts({ ...opts, stations: next.length && next.length < allIds.length ? next : null });
   }
 
   return (
@@ -175,13 +180,13 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
           <legend className="sr-only">Skjermvalg</legend>
           <div>
             <p className="font-medium text-slate-800">Stasjoner</p>
-            <div className="mt-1 flex gap-3">
-              {STATION_IDS.map((id) => (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              {allIds.map((id) => (
                 <label key={id} className="flex items-center gap-1.5">
                   <input
                     type="checkbox"
                     checked={opts.stations === null || opts.stations.includes(id)}
-                    onChange={() => (opts.stations === null ? setOpts({ ...opts, stations: STATION_IDS.filter((s) => s !== id) }) : toggleStation(id))}
+                    onChange={() => (opts.stations === null ? setOpts({ ...opts, stations: allIds.filter((s) => s !== id) }) : toggleStation(id))}
                   />
                   {id}
                 </label>
@@ -250,7 +255,7 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
               state={state}
               options={opts}
               title={savedTitle}
-              qr={opts.qr ? PREVIEW_QR : null}
+              qr={opts.qr ? Object.fromEntries(allIds.map((id) => [id, EXAMPLE_QR])) : null}
               wide
               className="h-[900px]"
             />
@@ -295,12 +300,14 @@ export function DisplayCard({ stations, onUnauthorized }: { stations: AdminStati
         <summary className="cursor-pointer text-sm font-medium text-slate-800">Én skjerm per stasjon</summary>
         <p className="mt-2 text-xs text-slate-500">Samme valg som over, én lenke per stasjon – for stativ med én skjerm per stasjon.</p>
         <ul className="mt-3 space-y-2">
-          {STATION_IDS.map((id) => {
+          {(stations ?? []).map(({ id, name }) => {
             const link = linkFor([id]);
             const pending = opts.qr && !tokens[id];
             return (
               <li key={id} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="w-20 font-medium text-slate-800">Stasjon {id}</span>
+                <span className="w-28 truncate font-medium text-slate-800" title={stationLabel({ id, name })}>
+                  {stationLabel({ id, name })}
+                </span>
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500" title={link}>
                   {pending ? "…" : link}
                 </span>
@@ -339,4 +346,3 @@ function OpenLink({ href, className, label, children }: { href: string | null; c
 /** Eksempel-QR i forhåndsvisningen (ikke en ekte lenke – ekte QR vises bare på selve skjermen). */
 const EXAMPLE_QR =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" shape-rendering="crispEdges"><path fill="#fff" d="M0 0h21v21H0z"/><path stroke="#000" d="M1 1.5h7M13 1.5h7M1 2.5h1M7 2.5h1M13 2.5h1M19 2.5h1M1 3.5h1M3 3.5h3M7 3.5h1M10 3.5h1M13 3.5h1M15 3.5h3M19 3.5h1M1 4.5h1M3 4.5h3M7 4.5h1M9 4.5h2M13 4.5h1M15 4.5h3M19 4.5h1M1 5.5h1M3 5.5h3M7 5.5h1M13 5.5h1M15 5.5h3M19 5.5h1M1 6.5h1M7 6.5h1M11 6.5h1M13 6.5h1M19 6.5h1M1 7.5h7M9 7.5h1M11 7.5h1M13 7.5h7M9 9.5h3M15 9.5h2M2 10.5h2M6 10.5h3M12 10.5h3M18 10.5h2M1 11.5h1M4 11.5h2M9 11.5h1M11 11.5h2M16 11.5h1M19 11.5h1M9 12.5h2M14 12.5h4M1 13.5h7M9 13.5h1M12 13.5h2M17 13.5h2M1 14.5h1M7 14.5h1M10 14.5h3M15 14.5h1M18 14.5h2M1 15.5h1M3 15.5h3M7 15.5h1M9 15.5h1M13 15.5h3M1 16.5h1M3 16.5h3M7 16.5h1M10 16.5h2M14 16.5h1M17 16.5h2M1 17.5h1M3 17.5h3M7 17.5h1M9 17.5h3M15 17.5h2M19 17.5h1M1 18.5h1M7 18.5h1M10 18.5h1M13 18.5h2M17 18.5h2M1 19.5h7M9 19.5h2M12 19.5h1M14 19.5h3M19 19.5h1"/></svg>';
-const PREVIEW_QR: Partial<Record<StationId, string>> = { A: EXAMPLE_QR, B: EXAMPLE_QR, C: EXAMPLE_QR };

@@ -5,7 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePolling, useWakeLock } from "@/components/hooks";
 import { detectNewCalls, parseStationFilter, takeSnapshot, type Snapshot } from "@/lib/announce";
-import { POLL_INTERVAL_MS, STATION_IDS, STATION_THEME, type StationId } from "@/lib/config";
+import { api } from "@/lib/client-api";
+import { POLL_INTERVAL_MS, type StationId } from "@/lib/config";
+import { ST, stationVars, type StationInfo } from "@/lib/stations";
 import type { PublicState } from "@/lib/public-state";
 import { type AudioSettings, SoundPlayer } from "@/lib/sound";
 
@@ -22,7 +24,15 @@ export function AudioClient() {
   const params = useSearchParams();
   const filter = parseStationFilter(params.get("station"));
   const filterKey = filter?.join(",") ?? "";
-  const stations: StationId[] = filter ?? [...STATION_IDS];
+  // Stasjonene (kode og farge) hentes én gang fra den delte køstatusen (v1.6).
+  const [known, setKnown] = useState<StationInfo[]>([]);
+  useEffect(() => {
+    void api<PublicState>("/api/state", { cache: "default" }).then((r) => {
+      if (r.ok) setKnown(r.data.stations.map((s) => ({ id: s.id, name: s.name ?? "", color: s.color ?? "slate" })));
+    });
+  }, []);
+  const stations: StationId[] = filter ?? known.map((s) => s.id);
+  const colorOf = (id: string) => known.find((s) => s.id === id)?.color ?? "slate";
 
   const player = useRef<SoundPlayer | null>(null);
   const snapshot = useRef<Snapshot | null>(null);
@@ -153,9 +163,13 @@ export function AudioClient() {
           {filter ? `Stasjon ${stations.join(", ")}` : "Alle stasjoner"}
         </h1>
 
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {stations.map((id) => (
-            <span key={id} className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold text-white ${STATION_THEME[id].solid}`}>
+            <span
+              key={id}
+              style={stationVars(colorOf(id))}
+              className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold text-white ${ST.solid}`}
+            >
               {id}
             </span>
           ))}

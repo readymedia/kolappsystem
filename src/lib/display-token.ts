@@ -1,7 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { serverSecret } from "./auth";
-import { STATION_IDS, type StationId } from "./config";
+import type { StationId } from "./config";
 
 // Signert skjermlenke for QR på storskjermen. Tokenet dekker valgte stasjoner OG deres nåværende
 // nøkler: «Bytt nøkkel» gjør det ugyldig automatisk. Selve nøkkelen er aldri del av lenken.
@@ -13,8 +13,9 @@ export function computeDisplayToken(stations: readonly StationId[], keys: Record
   return createHmac("sha256", Buffer.from(secret)).update(payload).digest("base64url").slice(0, 32);
 }
 
+// stations = null betyr «alle aktive stasjoner» (nøklene i keys). Ny stasjon gjør da lenken ugyldig – lag ny i admin.
 export async function makeDisplayToken(stations: readonly StationId[] | null, keys: Record<string, string>): Promise<string> {
-  return computeDisplayToken(stations ?? STATION_IDS, keys, await serverSecret());
+  return computeDisplayToken(stations ?? Object.keys(keys), keys, await serverSecret());
 }
 
 export async function verifyDisplayToken(
@@ -22,7 +23,7 @@ export async function verifyDisplayToken(
   keys: Record<string, string>,
   token: string,
 ): Promise<boolean> {
-  const expected = Buffer.from(computeDisplayToken(stations ?? STATION_IDS, keys, await serverSecret()));
+  const expected = Buffer.from(computeDisplayToken(stations ?? Object.keys(keys), keys, await serverSecret()));
   const given = Buffer.from(token);
   return expected.length === given.length && timingSafeEqual(expected, given);
 }

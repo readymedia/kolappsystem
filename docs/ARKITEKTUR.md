@@ -28,11 +28,11 @@ flowchart LR
 
 ## 2. Datamodell
 
-Definert i `db/migrations/` (001–006).
+Definert i `db/migrations/` (001–007).
 
 | Tabell | Viktige felt | Regler |
 | --- | --- | --- |
-| `stations` | `id` (A/B/C), `description`, `active`, `closed_message`, `join_key`, `next_number`, `generation` | `join_key` er hemmelig. `generation` økes ved nullstilling. `closed_message` er offentlig, men vises bare mens stasjonen er stengt. |
+| `stations` | `id` (én bokstav A–Z), `name` (maks 40), `color` (palett-navn eller `#rrggbb`), `sort_order`, `archived_at`, `description`, `active`, `closed_message`, `join_key`, `next_number`, `generation` | `join_key` er hemmelig. `generation` økes ved nullstilling. `closed_message` er offentlig, men vises bare mens stasjonen er stengt. Maks 12 aktive (`archived_at IS NULL`). Slettes aldri. |
 | `tickets` | `id` (uuid), `station`, `number`, `generation`, `status`, `created_at`, `called_at`, `finished_at`, `request_id`, `ip_hash` | Unik på (`station`, `generation`, `number`) og på (`station`, `generation`, `request_id`). Maks én `called` per stasjon (delvis unik indeks). `ip_hash` er en HMAC av nettverket, aldri selve IP-adressen. |
 | `queue_actions` | `station`, `kind` (next/skip), `finished_ticket`, `called_ticket`, `undone` | Logg som gjør «Angre siste» mulig i flere steg. |
 | `settings` | `pin_hash`, `pin_version`, `session_secret`, `vapid_public`, `vapid_private` | Én rad (`id = 1`). `vapid_private` er hemmelig. |
@@ -56,17 +56,18 @@ Samme lås brukes for NESTE, Hopp over, Angre, Sett tilbake og Nullstill, så to
 
 | Metode og sti | Tilgang | Svar |
 | --- | --- | --- |
-| `GET /api/state` | Åpen, CDN 1 s | Alle stasjoner: `description`, `active`, `closedMessage` (tom når åpen), `generation`, `nextNumber`, `current`, `waiting[]`, `skipped[]` |
+| `GET /api/state` | Åpen, CDN 1 s | Aktive stasjoner i admin-rekkefølge: `id`, `name`, `color`, `description`, `active`, `closedMessage` (tom når åpen), `generation`, `nextNumber`, `current`, `waiting[]`, `skipped[]` |
 | `POST /api/join` `{station, key, existingTicketId?, requestId?}` | Åpen, nøkkel + forsøksgrenser (300/min per nettverk, 20 feil nøkler/min, maks 100 ventende per nettverk per stasjon) | `{ticketId, reused}` eller feilkode. Samme `requestId` gir samme lapp. |
-| `GET /api/tickets/:id` | Åpen (ukjent UUID) | `{station, number, generation, status, ahead, description}` |
+| `GET /api/tickets/:id` | Åpen (ukjent UUID) | `{station, number, generation, status, ahead, description, stationName, color}` |
 | `POST`/`DELETE /api/tickets/:id/push` `{endpoint, keys}` / `{endpoint}` | Åpen med lapp-id, Origin-sjekk, 120/min per nettverk | Slår push-varsel på/av for lappen. Bare kjente push-tjenester godtas. 409 `push_disabled` når push er av. |
 | `GET /ticket/:id/manifest.webmanifest` | Åpen | Manifest med `start_url` = lappen (Hjem-skjerm på iPhone) |
 | `POST /api/auth/login` `{pin}` | Åpen, 5 forsøk per 15 min per IP og 100 feil totalt per 15 min | Setter cookie `kolapp_session` |
 | `POST /api/auth/logout` | Åpen (Origin-sjekk) | Sletter cookie |
 | `GET /api/operator/:station` | Økt | `{current, next[5], waitingCount, skipped[], canUndo, lastActionId, active, closedMessage}` |
 | `POST /api/operator/:station/next\|skip\|undo\|requeue` | Økt | Ny operatørvisning. `next`/`skip` tar `expectedCurrentId`: avviker den fra lappen som faktisk betjenes, gjøres ingenting (vern mot dobbelt trykk). `undo` tar `expectedActionId` på samme måte. `requeue` tar `ticketId`. |
-| `GET /api/admin/stations` | Økt | Stasjoner med `joinUrl` og `qrSvg`, og `pinIsDefault` |
-| `POST /api/admin/stations/:station/reset\|activate\|deactivate\|closed-message\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `deactivate` tar valgfri `{message}` og `closed-message` tar `{message}` (maks 80 tegn). `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
+| `GET /api/admin/stations` | Økt | Aktive stasjoner med `name`, `color`, `joinUrl` og `qrSvg`, `archived[]` og `pinIsDefault` |
+| `POST /api/admin/stations` `{name?, color?}` | Økt | Ny stasjon (neste ledige bokstav). 409 `station_limit` / `no_free_station`. |
+| `POST /api/admin/stations/:station/meta\|move-up\|move-down\|archive\|restore\|reset\|activate\|deactivate\|closed-message\|rotate-key\|description\|remove-waiting` | Økt | `{ok: true}`. `meta` tar `{name?, color?}`. `archive` gir 409 `station_not_empty` hvis noen venter eller er kalt. `restore` gir tom kø og ny nøkkel. `deactivate` tar valgfri `{message}` og `closed-message` tar `{message}` (maks 80 tegn). `remove-waiting` tar `{from, to}` og svarer `{removed}`. |
 | `PUT /api/admin/pin` `{pin}` | Økt | Ny PIN (6–12 sifre), alle andre logges ut |
 | `GET /api/health` | Åpen | `{ok, version, commit, db, migration}`, 503 hvis databasen ikke svarer |
 | `GET /api/config` | Åpen, CDN 5 s | `{audio: {mode, volume, url}, display: {title}, brand: {eventName, logoUrl, primaryColor, displayBackground, fontDisplay, fontBody}, push: {enabled, publicKey}}` – offentlige innstillinger, aldri hemmeligheter |
@@ -125,6 +126,15 @@ Feil i databasen: død tilkobling ved lesing prøves én gang til. Lås- eller t
 - iPhone: push virker bare fra Hjem-skjerm. Hver lapp har eget manifest (`/ticket/<id>/manifest.webmanifest`, `start_url` = lappen), så Hjem-skjerm-appen åpner riktig lapp selv om den har egen lagring.
 - **Utsending:** operatørhandlinger (og «Fjern ventende lapper») kaller `notifyStation(stasjon)` i `after()` – etter at svaret er sendt. Den rydder gamle abonnementer, regner ut hvem som skal ha hva (`planNotifications()`), reserverer hvert varsel med en betinget `UPDATE … last_kind` (aldri dobbelt, heller ikke ved samtidige kjøringer) og sender. 404/410 sletter abonnementet; midlertidig feil prøves én gang til og frigir ellers reservasjonen, så neste handling prøver igjen.
 - Bekreftelsesvarsel sendes rett etter at gjesten slår på, så hun ser at det virker.
+
+## 5f. Stasjoner
+
+- Stasjoner er rader i `stations` (v1.6). Koden er én bokstav A–Z, tildeles automatisk (`nextFreeStationId`) og gjenbrukes aldri – heller ikke fra arkiverte – fordi den står i QR og på lapper.
+- Opprettelse, gjenoppretting og rekkefølge låses med `pg_advisory_xact_lock`, så samtidige trykk aldri gir samme bokstav eller over 12 aktive.
+- Arkivering skjer i stasjonens vanlige lås og krever at ingen venter eller er kalt. Arkiverte stasjoner filtreres bort i `/api/state`, admin, skjermlenker og skann (`invalid_station`). Gjenoppretting gir ny nøkkel og ny generasjon (tom kø).
+- Farger: `src/lib/stations.ts`. Paletten (12) har faste Tailwind-toner; A/B/C er sky/violet/emerald som før. Egen hex får lys bakgrunn og kantlinje ved blanding, og tekstfarger justert til minst 4,5:1 mot hvitt (kølapp) og svart (storskjerm). Fargene settes som CSS-variabler (`stationVars`) og brukes med klassene i `ST`.
+- Storskjermen: `displayColumns()` – 1, 2–3 (som før), 4, 5–8 (fire kolonner) og 9–12 (seks kolonner), med mindre nummer ved mange.
+- Ukjent stasjon i API-et gir `StationNotFoundError` → `invalid_station` (400) i stedet for serverfeil.
 
 ## 6. Budsjett for Vercel Hobby
 

@@ -4,7 +4,7 @@ Les denne filen helt før du endrer noe. Den er skrevet for at en hvilken som he
 
 ## 1. Hva prosjektet er
 
-Kølappsystem for meet-and-greet med tre faste stasjoner (A, B, C) på en konferanse med noen hundre deltakere. Publikum skanner QR → får kølapp → følger køen på mobilen. Operatører trykker NESTE. Storskjerm viser hvem som betjenes. Alt på **norsk** (bokmål).
+Kølappsystem for meet-and-greet med 1–12 stasjoner (standard A, B, C; flere opprettes i admin fra v1.6) på en konferanse med noen hundre deltakere. Publikum skanner QR → får kølapp → følger køen på mobilen. Operatører trykker NESTE. Storskjerm viser hvem som betjenes. Alt på **norsk** (bokmål).
 
 Produksjon: Vercel **Hobby** (gratis) + Neon Postgres **Free**. Begge har harde grenser – se §7.
 
@@ -46,6 +46,7 @@ src/lib/
   branding.ts         Utseende: fontliste, standard, brandingVars() (ren, trygg i nettleser).
   branding-server.ts  getBranding() med Next.js datacache (tag «branding»), brandingChanged() (server-only).
   color.ts            Hex, kontrast (WCAG), tekstfarge på knapper (ren, testet).
+  stations.ts         Stasjoner (v1.6): kode, navn, palett og fargetoner, stationVars()/ST, displayColumns() (ren, testet).
   push-rules.ts       Push: SSRF-sjekk av endpoint, planNotifications(), tekster (ren, testet).
   push-support.ts     Hva nettleseren kan av push (iPhone/Hjem-skjerm) (ren, testet).
   push.ts             Push: abonnement, notifyStation(), sendWelcome(), VAPID (server-only).
@@ -76,11 +77,12 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 13. **Storskjerm-QR** krever signert token (`display-token.ts`) og svarer bare med SVG. Nøkkelen skal aldri stå i skjermlenken eller i tekst fra `/api/display/qr`.
 14. **Utseende endres bare via `/api/admin/branding` og `/api/admin/logo`**, som kaller `brandingChanged()`. Endres `site_config` direkte i databasen, vises det gamle utseendet i opptil 5 minutter. Standardverdiene skal alltid gi dagens utseende.
 15. **Push er av som standard og usynlig når av.** Utsending skjer bare i `after()` (aldri før operatøren får svar) og bare til adresser som passerer `isAllowedEndpoint()`. `vapid_private` er hemmelig som `session_secret`.
+16. **Stasjonskoden (A–Z) endres og gjenbrukes aldri** – den står i QR-koder og på lapper. Stasjoner slettes aldri, bare arkiveres (krever tom kø). Arkiverte stasjoner tar ikke imot skann og vises ingen steder.
 
 ## 4. Planlagt arbeid
 
 Neste utvidelser (v1.2 lydsignal, v1.3 skjermer, v1.4 utseende/logo, v1.5 push-varsel, v1.6 fleksible stasjoner,
-2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.4 er godkjent (15.10) og levert. 1.5 og 1.6 er godkjent (15.10).** 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.6 er godkjent (15.10) og levert.** 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
 alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
 
 ## 5. Vanlige oppgaver
@@ -95,7 +97,9 @@ alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesi
 | Ny API-rute | `src/app/api/…/route.ts`, bruk `handle()` fra `http.ts` |
 | Ny operatørhandling | Funksjon i `queue.ts` (transaksjon + `lockStation`), case i `api/operator/[station]/[action]/route.ts`, knapp i `OperatorClient.tsx`, integrasjonstest |
 
-Flere stasjoner enn A/B/C krever endring i: `STATION_IDS` (config.ts), `CHECK`-regel på `stations.id` (ny migrering), `STATION_SEED` (migrate.mjs) og `STATION_THEME`.
+**Stasjoner er data (v1.6), ikke kode.** De opprettes, navngis, fargelegges, sorteres og arkiveres i `/admin` (maks 12 aktive).
+Aldri hardkod A/B/C: hent listen fra `/api/state` (offentlig) eller `listActiveStations()` (server). Farger: sett
+`style={stationVars(color)}` på stasjonens element og bruk klassene i `ST` (`src/lib/stations.ts`).
 
 ## 6. Arbeidsflyt
 

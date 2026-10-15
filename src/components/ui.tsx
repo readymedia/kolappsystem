@@ -1,9 +1,13 @@
 // Små felles UI-byggeklosser. Holdt bevisst enkle – Tailwind direkte i JSX.
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[2rem] border border-slate-200 bg-white ${className}`}>{children}</div>;
+export function Card({ children, className = "", style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
+  return (
+    <div className={`rounded-[2rem] border border-slate-200 bg-white ${className}`} style={style}>
+      {children}
+    </div>
+  );
 }
 
 export function CenteredMessage({

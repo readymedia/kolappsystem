@@ -61,7 +61,8 @@ describe("hvem som får varsel", () => {
   });
 
   it("tekstene", () => {
-    expect(pushMessage("called", "A12", "A")).toEqual({ title: "Det er din tur! A12", body: "Gå til stasjon A nå." });
+    expect(pushMessage("called", "A12", "stasjon A")).toEqual({ title: "Det er din tur! A12", body: "Gå til stasjon A nå." });
+    expect(pushMessage("called", "D3", "Hovedscenen (stasjon D)").body).toBe("Gå til Hovedscenen (stasjon D) nå.");
     expect(pushMessage("next", "A12", "A").title).toBe("Du er nest i køen – A12");
     expect(pushMessage("skipped", "A12", "A").title).toBe("Du ble hoppet over – A12");
   });

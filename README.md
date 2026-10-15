@@ -1,6 +1,6 @@
 # Kølappsystem (KøKlar)
 
-Digitalt kølappsystem for meet-and-greet med tre stasjoner, **A**, **B** og **C**. Publikum skanner en QR-kode, får en kølapp på mobilen og følger køen live. Funksjonærer styrer køen fra mobilen, og en storskjerm viser hvem som betjenes.
+Digitalt kølappsystem for meet-and-greet med 1–12 stasjoner (standard **A**, **B** og **C**; flere legges til i admin). Publikum skanner en QR-kode, får en kølapp på mobilen og følger køen live. Funksjonærer styrer køen fra mobilen, og en storskjerm viser hvem som betjenes.
 
 Alt er på norsk, laget for mobil og kjører gratis på **Vercel Hobby** med **Neon Postgres (Free)**.
 

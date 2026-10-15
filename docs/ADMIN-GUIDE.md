@@ -5,7 +5,7 @@ Logg inn med PIN-koden. Alle innstillinger gjelder alle skjermer og telefoner in
 
 ## Stasjoner og QR-koder
 
-Øverst står ett kort per stasjon (A, B, C).
+Øverst står ett kort per stasjon (standard A, B og C), i stasjonens farge og i den rekkefølgen storskjermen bruker.
 
 | Knapp | Virkning |
 | --- | --- |
@@ -16,6 +16,17 @@ Logg inn med PIN-koden. Alle innstillinger gjelder alle skjermer og telefoner in
 | Deaktiver / Aktiver | Stenger eller åpner stasjonen. Se under. |
 | Bytt nøkkel | Gamle QR-koder (og skjermlenker med QR) slutter å virke. Skriv ut nye. |
 | Fjern ventende lapper … | Fjerner ventende lapper i et nummerområde, f.eks. falske lapper fra en QR-kode delt på nett. |
+
+### Flere stasjoner, navn og farger (v1.6)
+
+- **Ny stasjon:** trykk den stiplede ruten **Ny stasjon** sist i rutenettet. Den får neste ledige bokstav (D, E …) og en ledig farge. Maks 12 aktive stasjoner.
+- **Navn og farge:** **Navn, farge og rekkefølge …** på kortet. Navnet (f.eks. «Hovedscenen») vises på storskjerm, kølapp og hos operatøren. Tomt navn gir «Stasjon D». Velg en av 12 farger eller **Egen farge**. Trykk **Lagre**.
+- **Rekkefølge:** pilene flytter stasjonen til venstre/høyre. Storskjermen og operatørens velger følger samme rekkefølge.
+- **Koden endres aldri.** Bokstaven står på QR-koden og lappene (D1, D2 …). Den gjenbrukes heller ikke etter arkivering.
+- **Arkivere:** **Arkiver stasjon …** (bare når ingen står i kø – nullstill først). Stasjonen forsvinner overalt, og QR-koden slutter å virke.
+- **Gjenopprette:** **Arkiverte stasjoner** nederst → **Gjenopprett**. Stasjonen får tom kø og **ny QR-kode** – skriv ut på nytt.
+- **Skjermer:** nye stasjoner kommer automatisk med på `/display`. Skjermlenker med QR for «alle stasjoner» må lages på nytt etter at en stasjon er lagt til eller fjernet.
+- **Lyd:** `/audio` spiller for alle stasjoner; `/audio?station=D` bare for D.
 
 ### Stenge en stasjon (pause)
 

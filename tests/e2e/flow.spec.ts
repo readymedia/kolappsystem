@@ -12,6 +12,11 @@ test.beforeEach(async () => {
   await sql`DELETE FROM queue_actions`;
   await sql`DELETE FROM tickets`;
   await sql`DELETE FROM rate_limits`;
+  // v1.6: tilbake til A, B og C slik de var.
+  await sql`DELETE FROM tickets WHERE station NOT IN ('A', 'B', 'C')`;
+  await sql`DELETE FROM queue_actions WHERE station NOT IN ('A', 'B', 'C')`;
+  await sql`DELETE FROM stations WHERE id NOT IN ('A', 'B', 'C')`;
+  await sql`UPDATE stations SET archived_at = NULL, name = '', color = CASE id WHEN 'A' THEN 'sky' WHEN 'B' THEN 'violet' ELSE 'emerald' END, sort_order = ascii(id) - 64`;
   await sql`UPDATE stations SET next_number = 1, generation = generation + 1, active = true, closed_message = ''`;
   await sql`UPDATE settings SET pin_hash = ${await hashPin(PIN)}, pin_version = pin_version + 1`;
   await sql`UPDATE site_config SET audio_mode = 'default', audio_volume = 80, audio_media_id = NULL, display_title = DEFAULT, event_name = DEFAULT, logo_media_id = NULL, primary_color = DEFAULT, display_background = DEFAULT, font_display = DEFAULT, font_body = DEFAULT WHERE id = 1`;
