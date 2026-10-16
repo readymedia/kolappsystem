@@ -84,7 +84,7 @@ docs/                 Menneskelig og AI-vennlig dokumentasjon.
 ## 4. Planlagt arbeid
 
 Neste utvidelser (v1.2 lydsignal, v1.3 skjermer, v1.4 utseende/logo, v1.5 push-varsel, v1.6 fleksible stasjoner,
-2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.8 er godkjent (15.10) og levert (1.8 = kø-innsikt, §8c).** Nye funksjoner krever plan og godkjenning før det skrives kode. Vurderte forslag står i `docs/FEATURE-REQUESTS.md`. 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
+2.0 flere instanser) er beskrevet i detalj i `docs/PLAN-UTVIDELSER.md`. **1.2–1.8 er godkjent (15.10) og levert (1.8 = kø-innsikt, §8c).** Nye funksjoner krever plan og godkjenning før det skrives kode. Vurderte forslag står i `docs/FEATURE-REQUESTS.md`. Små feil som er funnet men ikke rettet ennå samles i `docs/HOTFIX.md` (rettes samlet i en patch-versjon – legg nye funn der i stedet for å rette dem midt i annet arbeid). 2.0 ligger på roadmap og krever ny godkjenning før det skrives kode. Følg planen og dens «definisjon av ferdig». Viktigst: dagens oppførsel er standard,
 alt nytt er tillegg, migreringer er bare tillegg, og ingenting arrangementsspesifikt hardkodes.
 
 ## 5. Vanlige oppgaver
