@@ -496,4 +496,5 @@ Ikke i denne runden. Datamodellen over er laget for at dette blir et tillegg:
 | 2026-10-15 | Bestiller godkjente 1.2 Lyd, 1.3 Skjermer og 1.4 Utseende, med valgene i §4–6 (standardlyd, maks 2 MB / 15 s, AIFF med Safari-varsel, QR på storskjerm med risikovarsel). |
 | 2026-10-15 | 1.5 Push, 1.6 Stasjoner og 2.0 settes på roadmap og planlegges på nytt i neste runde. |
 | 2026-10-15 | 1.5–1.7 godkjent og levert. 1.8 Kø-innsikt (§8c) godkjent med forslagene i §8c.8 og levert i v1.8.0. Avvik fra planen: «Snart» brukes ikke – nest i køen viser «Under N minutter» som før. |
+| 2026-10-16 | v1.8.0 tas i bruk i første produksjonstest (stativ med tre skjermer, én per stasjon, QR på skjermene). Den er referanseversjonen ved tilbakerulling. Funn samles i `docs/HOTFIX.md`. |
 | Åpen | Dato for neste arrangement, så vi kan sette kodefrys (minst én uke før). |

@@ -35,6 +35,8 @@ Commit-koden skal være den samme som den nyeste committen på `main` i GitHub.
 **Node-versjon:** Appen er låst til Node 22 (`engines` i `package.json`). Står Project Settings i Vercel på en annen versjon (f.eks. 24.x), viser byggeloggen et varsel om at 22.x brukes. Det er ufarlig. Fjern varselet ved å sette Settings → Build and Deployment → **Node.js Version** til **22.x**.
 
 
+**Referanseversjon – første produksjonstest:** **v1.8.0** (commit `26b42ad`, GitHub-release `v1.8.0`) er versjonen som brukes i den første testen i produksjon (fra 2026-10-16). Den regnes som «kjent god». Går noe galt etter en senere oppdatering, er dette versjonen vi går tilbake til: Vercel → Deployments → finn raden med `26b42ad` (eller en senere rad med bare dokumentasjonsendringer, f.eks. `c83bf9e`) → «Promote to Production». Migreringer er bare tillegg, så v1.8.0 virker mot en nyere database.
+
 **Tilbakerulling etter v1.6:** Har dere opprettet stasjoner utover A, B og C, eller arkivert noen, må de arkiveres/gjenopprettes tilbake til A, B og C før en eventuell tilbakerulling til en versjon før 1.6.0 (eldre kode kjenner bare A, B og C).
 ## Avhengigheter (Dependabot)
 

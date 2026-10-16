@@ -1,6 +1,8 @@
 # Prodklarhet – vurdering
 
-**Konklusjon:** Appen er klar for produksjon på en konferanse med noen hundre deltakere. Det gjenstår tre ting som må gjøres manuelt før arrangementet, se «Før arrangementet» nederst. Vurderingen gjelder versjon 1.1.0 (2026-10-14).
+**Konklusjon:** Appen er klar for produksjon på en konferanse med noen hundre deltakere. Det gjenstår tre ting som må gjøres manuelt før arrangementet, se «Før arrangementet» nederst. Vurderingen gjelder versjon 1.1.0 (2026-10-14), og tallene i tabellen er oppdatert til v1.8.0.
+
+**v1.8.0 er første versjon i produksjonstest** (fra 2026-10-16, commit `26b42ad`). Funn fra testen samles i `docs/HOTFIX.md`.
 
 ## Status per område
 

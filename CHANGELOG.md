@@ -4,6 +4,10 @@ Formatet følger [Keep a Changelog](https://keepachangelog.com/no/1.1.0/) og [se
 
 ## [1.8.0] – 2026-10-15
 
+> ⭐ **Første versjon i produksjonstest** (fra 2026-10-16, NOKIOS-oppsett med stativ for tre skjermer). Dette er
+> referanseversjonen («kjent god»): ved problemer under testen rulles det tilbake hit, og funn samles i
+> `docs/HOTFIX.md` til en senere patch-runde. Kode: commit `26b42ad`, GitHub-release `v1.8.0`.
+
 Kø-innsikt. Alt nytt er av som standard – uten endringer i admin virker alt som før. Se `docs/ADMIN-GUIDE.md`.
 
 ### Lagt til
