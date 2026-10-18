@@ -23,6 +23,7 @@
 | 1.5 | Push-varsel | **Levert i v1.5.0** (godkjent 15.10, av som standard) |
 | 1.6 | Fritt antall stasjoner | **Levert i v1.6.0** |
 | 1.7 | Gi fra seg plassen + ventetid | **Levert i v1.7.0** (bestilt og godkjent 15.10) |
+| 1.8.1 / 1.9 | Hotfix (HF-1, HF-2) + «Fjern stasjon» og «Ny sesjon …» | **Plan – venter på godkjenning** (§8d) |
 | 1.8 | Kø-innsikt: se køen før lapp, køinfo på storskjerm, ventetid som klokkeslett, sluttid/kapasitet, rapport, nullstill alle | **Levert i v1.8.0** (§8c) |
 | 2.0 | Flere instanser og brukere | Roadmap – Later |
 
@@ -454,6 +455,83 @@ Bestilt 15.10 (punkt 1, 2, 3, 4, 8 og 9 fra gjennomgangen). Øvrige forslag ligg
 1. Alle nye valg er av som standard. Skal «Vis køen før gjesten tar lapp» likevel være **på**? (Forslag: av, som regelen sier.)
 2. Klokkeslett rundet opp til **5 minutter**? (Forslag: ja – unngår falsk presisjon.)
 3. Sluttid som ett klokkeslett per stasjon (med «Bruk på alle»), og ikke dato? (Forslag: ja.)
+
+## 8d. v1.8.1 hotfix + v1.9 – Sesjoner og «Fjern stasjon» (plan, venter på godkjenning)
+
+Bestilt 18.10 etter test i produksjon. **Ingen kode før godkjenning. Ingenting deployes før testen er ferdig (tidligst tirsdag kveld).**
+v1.8.0 er referanseversjonen («kjent god») – se `DRIFT.md`.
+
+### 8d.1 Tilbakemeldingen
+
+> «Det er lett å opprette en ekstra stasjon (har fem nå), men hvordan sletter man en stasjon igjen? Mellom hver
+> meet the speaker setter jeg opp stasjonene med hvor mange speakere som har meldt seg på og hva de heter – med
+> sesjonsnummer, sesjonsnavn og navn på hver enkelt.»
+
+**Hva som finnes i dag (uten kode):** «Arkiver stasjon …» ligger nederst bak «Navn, farge, sluttid og rekkefølge …»
+på stasjonskortet, og krever tom kø (Nullstill kø først). Det er for godt gjemt, og ordet «arkiver» er ikke det
+brukeren leter etter.
+
+**Viktig fallgruve i dag:** Arkiveres en stasjon og hentes tilbake («Gjenopprett»), får den **ny QR-nøkkel**. Da slutter
+utskrevne QR-koder og skjermlenker med QR å virke. Lages i stedet en ny stasjon, får den en ny bokstav (F, G …) og ny QR.
+Ved bytte av sesjon er det derfor best å **beholde stasjonene og gi dem nye navn** – det virker allerede i dag.
+
+**Slik kan det gjøres i morgen uten ny kode:** per stasjon «Navn, farge …» → Navn = speakerens navn, blyanten ved
+beskrivelsen = organisasjon. «Skjermer» → «Overskrift på storskjerm» = «Sesjon 3 · Digital forvaltning». Mellom sesjonene:
+«Nullstill alle køer …» (rapporten tar vare på tallene). Stasjoner som ikke trengs: «Deaktiver» (vises som STENGT) eller arkiver.
+
+### 8d.2 v1.8.1 – hotfix (bare utseende, lav risiko)
+
+| Sak | Retting | Test |
+| --- | --- | --- |
+| HF-1 Logo over overskriften i smalt vindu | Logo og overskrift i samme rad med fast avstand; overskriften trekkes inn og brytes i stedet for å gå under logoen | E2E: smalt vindu (500 px) – overskrift og logo overlapper ikke (bounding box) |
+| HF-2 «STENGT»-boksen går utenfor kortet med 4+ kolonner | Skriftstørrelse og sporing i boksen skaleres med kolonnebredden (`cqw`), `max-w-full` | E2E: 4 og 6 stasjoner stengt – boksen er innenfor kortet |
+| V-1 «Angre» etter «gi fra seg plassen» | Ingen kode. Verifiseres manuelt på iPhone (skjermbilde rett etter trykk). Mangler knappen, blir det en sak | Manuelt |
+
+### 8d.3 v1.9 – «Fjern stasjon» som er lett å finne
+
+| Spørsmål | Forslag |
+| --- | --- |
+| Navn | **«Fjern stasjon …»** i stedet for «Arkiver stasjon …». Fortsatt arkivering i databasen (koden gjenbrukes aldri, invariant 16). |
+| Hvor | Synlig ved siden av «Nullstill kø» / «Deaktiver» på kortet, ikke bare inne i innstillingene. |
+| Kø ikke tom | I stedet for en melding: bekreftelse «3 venter – de mister lappene sine. Køen nullstilles og stasjonen fjernes.» → «Bekreft – fjern stasjon E». Sammendrag lagres i rapporten først (som ved nullstilling). Én låst transaksjon. |
+| Hente tilbake | «Fjernede stasjoner (N)» nederst → **«Hent tilbake»**. **Endring:** stasjonen beholder QR-nøkkelen (utskrifter og skjermlenker virker igjen). Vil man ha ny QR, trykker man «Bytt nøkkel» etterpå. *(Spørsmål 1.)* |
+
+### 8d.4 v1.9 – «Ny sesjon …» (oppsett mellom hver meet the speaker)
+
+Én knapp øverst i admin ved «Nullstill alle køer …» åpner et skjema:
+
+| Felt | Virkning |
+| --- | --- |
+| **Sesjon** (f.eks. «Sesjon 3 · Digital forvaltning») | Blir overskriften på storskjermen, og vises øverst på skann og kølapp («Kølapp · Sesjon 3 · …»). Tomt = som i dag. |
+| **Antall stasjoner** (1–12) | Én rad per stasjon med **Navn** (speaker) og **Beskrivelse** (organisasjon). Forhåndsutfylt med dagens stasjoner. |
+| **Nullstill alle køer** (avkrysset) | Tømmer køene og lagrer rapport-sammendrag, som «Nullstill alle køer». |
+
+Når det lagres:
+- Eksisterende aktive stasjoner får nye navn/beskrivelser **i rekkefølge** – samme bokstav, samme QR, samme skjermlenker.
+- Trengs **færre**: de siste fjernes (arkiveres) – krever avkrysset «Nullstill» eller tom kø.
+- Trengs **flere**: fjernede stasjoner hentes tilbake først (beholder QR, jf. 8d.3), deretter lages nye bokstaver.
+- Alt i én operasjon på serveren (låst, fast rekkefølge). Feiler noe, endres ingenting.
+- Forhåndsvisning før lagring: «A Kari Sma · B Per Misjon · C Finn Ansman – D og E fjernes – 7 venter mister lappen».
+
+Utenfor omfang (kan komme senere): lagrede sesjoner/program for hele dagen og automatisk bytte på klokkeslett (se `FEATURE-REQUESTS.md`).
+
+### 8d.5 Data, API og risiko
+
+- **Migrering `010_session.sql`** (bare tillegg): `site_config.session_title text default ''`. Ingen endring av eksisterende data.
+- **API:** `POST /api/admin/session` `{title, stations: [{name, description}], reset}` (økt + Origin). `archive` tar `{reset: true}`. `restore` beholder nøkkelen.
+- **Standard = dagens oppførsel:** uten sesjon er alt som før. «Ny sesjon» er bare et raskere skjema for ting som allerede finnes.
+- **Risiko og vern:** arbeidet gjøres på egen gren. Full testkjøring (check, integrasjon, E2E, røyktest, lasttest). **Deploy først etter testen** (tirsdag kveld eller senere, avtales), aldri under et arrangement. v1.8.0 er referanse for tilbakerulling; migreringen er bare tillegg, så tilbakerulling virker.
+- **Tester:**
+  - Integrasjon: fjern med kø (sammendrag lagres, lapper borte), hent tilbake beholder nøkkel, ny sesjon færre/flere/samme antall, samtidig skann under sesjonsbytte, feil midt i gir ingen endring.
+  - E2E: «Fjern stasjon» med og uten kø, «Hent tilbake» – gammel QR virker; «Ny sesjon» fra 5 til 3 og fra 3 til 5 – navn på storskjerm, kølapp og operatør; HF-1/HF-2.
+- **Dokumentasjon:** ADMIN-GUIDE (ny seksjon «Mellom sesjoner»), KJOREPLAN, UI-SPEC, ARKITEKTUR, SIKKERHET (nøkkel beholdes ved «Hent tilbake»), BESLUTNINGER (ADR-021, endrer ADR-018 om ny nøkkel), CHANGELOG, HOTFIX (flytt HF-1/HF-2 til «Rettet»).
+
+### 8d.6 Spørsmål til bestiller (forslag i parentes)
+
+1. «Hent tilbake» beholder QR-nøkkelen, så utskrifter og skjermlenker virker igjen? (Forslag: ja. Ny QR med «Bytt nøkkel» ved behov.)
+2. Skal sesjonsnavnet også stå på kølappen og ved skann, eller bare på storskjermen? (Forslag: begge steder.)
+3. Rekkefølge: hotfix 1.8.1 og v1.9 samlet i én deploy etter testen? (Forslag: ja, én deploy, én test.)
+4. Nattmodus for storskjermen (sjeldnere henting når ingenting skjer) – med nå eller i ønskelisten? (Forslag: ønskelisten.)
 
 ## 9. 2.0 – Flere instanser og brukere (Roadmap – Later)
 
